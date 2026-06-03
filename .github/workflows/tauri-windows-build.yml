@@ -60,9 +60,13 @@ jobs:
 
           $candidatePaths = @(
             (Join-Path $env:LOCALAPPDATA "Programs\ERP System\ERP System.exe"),
+            (Join-Path $env:LOCALAPPDATA "Programs\ERP System\app.exe"),
             (Join-Path $env:LOCALAPPDATA "ERP System\ERP System.exe"),
+            (Join-Path $env:LOCALAPPDATA "ERP System\app.exe"),
             (Join-Path $env:ProgramFiles "ERP System\ERP System.exe"),
-            (Join-Path ${env:ProgramFiles(x86)} "ERP System\ERP System.exe")
+            (Join-Path $env:ProgramFiles "ERP System\app.exe"),
+            (Join-Path ${env:ProgramFiles(x86)} "ERP System\ERP System.exe"),
+            (Join-Path ${env:ProgramFiles(x86)} "ERP System\app.exe")
           )
 
           $exe = $candidatePaths |
@@ -70,7 +74,8 @@ jobs:
             Select-Object -First 1
 
           if (-not $exe) {
-            throw "Installed ERP System.exe was not found."
+            $candidatePaths | ForEach-Object { Write-Host "Checked: $_" }
+            throw "Installed ERP System executable was not found."
           }
 
           $process = Start-Process -FilePath $exe -PassThru
