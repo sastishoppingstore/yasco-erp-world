@@ -6,9 +6,10 @@ import {
   products, inventoryBalances, purchaseOrders,
   salarySlips, payrollPeriods, attendance,
   projects, cashboxTransactions, complianceProfiles,
-  aiChatLogs,
+  aiChatLogs, companySettings,
 } from "@db/schema";
 import { and, eq, gte, sql, count, desc } from "drizzle-orm";
+import { generateResponse } from "./services/gemini";
 
 function todayDate() {
   const d = new Date();
@@ -627,32 +628,54 @@ async function saveChatLog(ctx: any, query: string, response: string, queryType:
   });
 }
 
+async function getAiConfig(ctx: any) {
+  const db = getDb();
+  const settings = await db.query.companySettings.findFirst({
+    where: eq(companySettings.tenantId, ctx.user.tenantId!),
+    columns: { aiApiKey: true, aiModel: true },
+  });
+  return {
+    apiKey: settings?.aiApiKey || "",
+    model: settings?.aiModel || "gemini-2.0-flash",
+  };
+}
+
 export const aiAssistantRouter = createRouter({
   ask: authedQuery
     .input(z.object({
       query: z.string(),
       sessionId: z.string().optional(),
     }))
-    .query(async ({ input, ctx }) => {
+    .mutation(async ({ input, ctx }) => {
       const start = Date.now();
+      const aiConfig = await getAiConfig(ctx);
       const intent = detectIntent(input.query);
 
       if (!intent) {
+        const geminiResp = await generateResponse({ query: input.query, ...aiConfig });
+        if (geminiResp) {
+          const result = {
+            response: geminiResp,
+            data: null,
+            queryType: "unknown",
+            suggestions: [
+              "total sales today", "profit this month", "low stock items",
+              "customer balances", "pending invoices", "best selling item",
+              "payroll summary", "project status", "tax report", "cashbox closing",
+              "compliance status",
+            ],
+          };
+          await saveChatLog(ctx, input.query, result.response, "unknown", input.sessionId, Date.now() - start);
+          return result;
+        }
         const fallback = {
           response: `I'm not sure how to answer that. I can help with: total sales today, profit this month, low stock items, customer/supplier balances, pending invoices, best selling items, payroll summary, attendance, project status, tax report, cashbox closing, and compliance status.`,
           data: null,
           queryType: "unknown",
           suggestions: [
-            "total sales today",
-            "profit this month",
-            "low stock items",
-            "customer balances",
-            "pending invoices",
-            "best selling item",
-            "payroll summary",
-            "project status",
-            "tax report",
-            "cashbox closing",
+            "total sales today", "profit this month", "low stock items",
+            "customer balances", "pending invoices", "best selling item",
+            "payroll summary", "project status", "tax report", "cashbox closing",
             "compliance status",
           ],
         };
@@ -673,11 +696,25 @@ export const aiAssistantRouter = createRouter({
 
       try {
         const result = await intent.handler(ctx);
-        await saveChatLog(ctx, input.query, result.response, result.queryType, input.sessionId, Date.now() - start);
-        return result;
+        const geminiResp = await generateResponse({
+          query: input.query,
+          data: result.data,
+          queryType: result.queryType,
+          dbResponse: result.response,
+          ...aiConfig,
+        });
+        const final = geminiResp
+          ? { ...result, response: geminiResp }
+          : result;
+        await saveChatLog(ctx, input.query, final.response, final.queryType, input.sessionId, Date.now() - start);
+        return final;
       } catch (err: any) {
+        const geminiErr = await generateResponse({
+          query: `${input.query}\n\n(Error: ${err.message || "Unknown error"})`,
+          ...aiConfig,
+        });
         const errorResp = {
-          response: `Sorry, an error occurred while processing your request: ${err.message || "Unknown error"}`,
+          response: geminiErr || `Sorry, an error occurred while processing your request: ${err.message || "Unknown error"}`,
           data: null,
           queryType: intent.type,
           suggestions: ["Try again", "Ask a different question", "Contact support"],

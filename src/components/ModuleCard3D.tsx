@@ -38,7 +38,7 @@ export function ModuleCard3D({
   const lang = propLanguage ?? ctx.language;
   const rtl = lang === "ar";
 
-  const IconComponent = (Icons as Record<string, React.ComponentType<{ className?: string }> | undefined>)[iconName];
+  const IconComponent = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }> | undefined>)[iconName];
 
   const displayName = rtl && nameAr ? nameAr : name;
   const displayDesc = rtl && descriptionAr ? descriptionAr : description;

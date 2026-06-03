@@ -185,6 +185,36 @@ function getProfile(countryCode: string): LocalizationProfile {
   return localizationProfiles[countryCode] ?? localizationProfiles["US"];
 }
 
+function getCurrencySymbol(currencyCode: string, countryCode: string): string {
+  const selectedProfile = getProfile(countryCode);
+  if (selectedProfile.currency === currencyCode) return selectedProfile.currencySymbol;
+  const matchedProfile = Object.values(localizationProfiles).find((profile) => profile.currency === currencyCode);
+  return matchedProfile?.currencySymbol ?? currencyCode;
+}
+
+function applyCountryProfile(
+  countryCode: string,
+  setters: {
+    setDetectedCountry?: (code: string) => void;
+    setSelectedCountryState: (code: string) => void;
+    setLanguageState: (language: string) => void;
+    setCurrencyState: (currency: string) => void;
+    setTimezoneState: (timezone: string) => void;
+    setTaxProfileState: (profile: string) => void;
+    setDetectionBannerVisible?: (visible: boolean) => void;
+  },
+  timezoneOverride?: string,
+) {
+  const profile = getProfile(countryCode);
+  setters.setDetectedCountry?.(countryCode);
+  setters.setSelectedCountryState(countryCode);
+  setters.setLanguageState(profile.language);
+  setters.setCurrencyState(profile.currency);
+  setters.setTimezoneState(timezoneOverride || profile.timezone);
+  setters.setTaxProfileState(countryCode);
+  setters.setDetectionBannerVisible?.(true);
+}
+
 const LS_PREFIX = "country_detection_";
 
 interface PersistedOverrides {
@@ -212,6 +242,7 @@ function saveOverrides(overrides: PersistedOverrides) {
 interface CountryDetectionContextType {
   detectedCountry: string;
   selectedCountry: string;
+  country: CountryInfo | null;
   countryName: string;
   countryFlag: string;
   language: string;
@@ -228,13 +259,18 @@ interface CountryDetectionContextType {
   numberFormat: string;
   detectionBannerVisible: boolean;
   dismissBanner: () => void;
+  dismiss: () => void;
   resetDetection: () => void;
-  availableCountries: Array<{ code: string; name: string; flag: string; dialCode: string }>;
+  setCountry: (code: string) => void;
+  changeCountry: (c: CountryInfo) => void;
+  availableCountries: Array<CountryInfo>;
+  countries: Array<CountryInfo>;
 }
 
 const CountryDetectionContext = createContext<CountryDetectionContextType>({
   detectedCountry: "US",
   selectedCountry: "US",
+  country: null,
   countryName: "United States",
   countryFlag: "🇺🇸",
   language: "en",
@@ -251,8 +287,12 @@ const CountryDetectionContext = createContext<CountryDetectionContextType>({
   numberFormat: "#,##0.00",
   detectionBannerVisible: true,
   dismissBanner: () => {},
+  dismiss: () => {},
   resetDetection: () => {},
+  setCountry: () => {},
+  changeCountry: () => {},
   availableCountries: countries,
+  countries: countries,
 });
 
 export function CountryDetectionProvider({ children }: { children: ReactNode }) {
@@ -266,8 +306,54 @@ export function CountryDetectionProvider({ children }: { children: ReactNode }) 
   const [timezone, setTimezoneState] = useState(overrides.timezone ?? getProfile(initialDetection.countryCode).timezone);
   const [taxProfile, setTaxProfileState] = useState(overrides.taxProfile ?? initialDetection.countryCode);
   const [detectionBannerVisible, setDetectionBannerVisible] = useState(
-    initialDetection.source !== "default",
+    initialDetection.source !== "default" && !overrides.selectedCountry
   );
+
+  // IP/edge-based detection hook. IP is only a suggestion; legal tax country
+  // still comes from company, branch, invoice place of supply, and admin confirmation.
+  useEffect(() => {
+    if (overrides.selectedCountry) return; // User already made a choice
+    const fetchIpData = async () => {
+      try {
+        const edgeRes = await fetch("/api/localization/detect");
+        if (edgeRes.ok) {
+          const edgeData = await edgeRes.json();
+          if (edgeData?.countryCode) {
+            applyCountryProfile(edgeData.countryCode, {
+              setDetectedCountry,
+              setSelectedCountryState,
+              setLanguageState,
+              setCurrencyState,
+              setTimezoneState,
+              setTaxProfileState,
+              setDetectionBannerVisible,
+            });
+            return;
+          }
+        }
+
+        const res = await fetch("https://ipapi.co/json/");
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.country_code) {
+            applyCountryProfile(data.country_code, {
+              setDetectedCountry,
+              setSelectedCountryState,
+              setLanguageState,
+              setCurrencyState,
+              setTimezoneState,
+              setTaxProfileState,
+              setDetectionBannerVisible,
+            }, data.timezone);
+          }
+        }
+      } catch (err) {
+        console.error("IP detection failed, falling back to timezone", err);
+      }
+    };
+    fetchIpData();
+  }, [overrides.selectedCountry]);
+
 
   useEffect(() => {
     setLanguage(language);
@@ -292,12 +378,13 @@ export function CountryDetectionProvider({ children }: { children: ReactNode }) 
   const profile = getProfile(selectedCountry);
 
   const setCountry = useCallback((code: string) => {
-    setSelectedCountryState(code);
-    const p = getProfile(code);
-    setLanguageState(p.language);
-    setCurrencyState(p.currency);
-    setTimezoneState(p.timezone);
-    setTaxProfileState(code);
+    applyCountryProfile(code, {
+      setSelectedCountryState,
+      setLanguageState,
+      setCurrencyState,
+      setTimezoneState,
+      setTaxProfileState,
+    });
     setDetectionBannerVisible(false);
   }, []);
 
@@ -348,14 +435,15 @@ export function CountryDetectionProvider({ children }: { children: ReactNode }) 
   const value: CountryDetectionContextType = {
     detectedCountry,
     selectedCountry,
+    country: countryInfo,
     countryName: countryInfo.name,
     countryFlag: countryInfo.flag,
     language,
     setLanguage,
-    currency: profile.currency,
-    currencySymbol: profile.currencySymbol,
+    currency,
+    currencySymbol: getCurrencySymbol(currency, selectedCountry),
     setCurrency,
-    timezone: profile.timezone,
+    timezone,
     setTimezone,
     taxProfile,
     setTaxProfile,
@@ -364,8 +452,12 @@ export function CountryDetectionProvider({ children }: { children: ReactNode }) 
     numberFormat: profile.numberFormat,
     detectionBannerVisible,
     dismissBanner,
+    dismiss: dismissBanner,
     resetDetection,
+    setCountry,
+    changeCountry: (c: CountryInfo) => setCountry(c.code),
     availableCountries: countries,
+    countries: countries,
   };
 
   return (

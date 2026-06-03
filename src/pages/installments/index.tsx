@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import {
   Calendar, DollarSign, User, CheckCircle2, AlertTriangle,
   Clock, Plus, Search, FileText, ArrowRight, CreditCard,
-  Building2, Percent, TrendingUp, ListChecks,
+  Building2, Percent, TrendingUp, ListChecks, X,
 } from "lucide-react";
 
 export default function InstallmentsPage() {
@@ -30,6 +30,7 @@ export default function InstallmentsPage() {
   const [paymentModal, setPaymentModal] = useState<{ id: number; paymentNumber: string; amount: string } | null>(null);
   const [detailModal, setDetailModal] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const trpcUtils = trpc.useUtils();
 
   // Create form
   const [customerSearch, setCustomerSearch] = useState("");
@@ -51,14 +52,13 @@ export default function InstallmentsPage() {
   const overdueQ = trpc.installments.overdue.useQuery(undefined, { refetchInterval: 15000 });
   const createMut = trpc.installments.create.useMutation();
   const recordPaymentMut = trpc.installments.recordPayment.useMutation();
-  const customerSearchMut = trpc.pos.customerSearch.useMutation();
 
-  const formatCurrency = (n: number) => n.toLocaleString(undefined, { minimumFractionBits: 2, maximumFractionBits: 2 });
+  const formatCurrency = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const handleCustomerSearch = async (q: string) => {
     setCustomerSearch(q);
     if (q.length < 1) { setCustomers([]); return; }
-    const result = await customerSearchMut.mutateAsync({ query: q });
+    const result = await trpcUtils.pos.customerSearch.fetch({ query: q });
     setCustomers(result || []);
   };
 

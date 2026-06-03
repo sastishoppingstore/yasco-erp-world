@@ -406,6 +406,55 @@ async function seed() {
     zatcaSandbox: true,
   });
 
+  // 13. Seed Email Templates (30 notification types)
+  const emailTemplatesData = [
+    { templateKey: "registration_otp", name: "Registration OTP", subject: "Verify your email - ERP System", subjectAr: "تحقق من بريدك الإلكتروني - نظام ERP" },
+    { templateKey: "welcome_email", name: "Welcome Email", subject: "Welcome to ERP System!", subjectAr: "مرحبًا بك في نظام ERP!" },
+    { templateKey: "password_reset", name: "Password Reset", subject: "Reset your password", subjectAr: "إعادة تعيين كلمة المرور" },
+    { templateKey: "password_changed", name: "Password Changed", subject: "Your password was changed", subjectAr: "تم تغيير كلمة المرور" },
+    { templateKey: "account_activated", name: "Account Activated", subject: "Your account is active", subjectAr: "تم تفعيل حسابك" },
+    { templateKey: "account_deactivated", name: "Account Deactivated", subject: "Your account was deactivated", subjectAr: "تم إلغاء تفعيل حسابك" },
+    { templateKey: "trial_started", name: "Trial Started", subject: "Your trial has started", subjectAr: "بدأت الفترة التجريبية" },
+    { templateKey: "trial_ending", name: "Trial Ending Soon", subject: "Your trial ends in 3 days", subjectAr: "تنتهي الفترة التجريبية بعد 3 أيام" },
+    { templateKey: "trial_ended", name: "Trial Ended", subject: "Your trial has ended", subjectAr: "انتهت الفترة التجريبية" },
+    { templateKey: "plan_subscribed", name: "Plan Subscribed", subject: "Subscription confirmed", subjectAr: "تم تأكيد الاشتراك" },
+    { templateKey: "plan_upgraded", name: "Plan Upgraded", subject: "Your plan was upgraded", subjectAr: "تم ترقية خطتك" },
+    { templateKey: "plan_downgraded", name: "Plan Downgraded", subject: "Your plan was changed", subjectAr: "تم تغيير خطتك" },
+    { templateKey: "plan_expired", name: "Plan Expired", subject: "Your subscription expired", subjectAr: "انتهت صلاحية اشتراكك" },
+    { templateKey: "payment_received", name: "Payment Received", subject: "Payment received successfully", subjectAr: "تم استلام الدفع بنجاح" },
+    { templateKey: "payment_failed", name: "Payment Failed", subject: "Payment failed", subjectAr: "فشلت عملية الدفع" },
+    { templateKey: "invoice_created", name: "Invoice Created", subject: "New invoice created", subjectAr: "تم إنشاء فاتورة جديدة" },
+    { templateKey: "invoice_paid", name: "Invoice Paid", subject: "Invoice marked as paid", subjectAr: "تم دفع الفاتورة" },
+    { templateKey: "invoice_overdue", name: "Invoice Overdue", subject: "Invoice is overdue", subjectAr: "الفاتورة متأخرة" },
+    { templateKey: "order_confirmed", name: "Order Confirmed", subject: "Order confirmed", subjectAr: "تم تأكيد الطلب" },
+    { templateKey: "order_shipped", name: "Order Shipped", subject: "Order shipped", subjectAr: "تم شحن الطلب" },
+    { templateKey: "order_delivered", name: "Order Delivered", subject: "Order delivered", subjectAr: "تم تسليم الطلب" },
+    { templateKey: "task_assigned", name: "Task Assigned", subject: "New task assigned to you", subjectAr: "تم إسناد مهمة جديدة لك" },
+    { templateKey: "task_due_soon", name: "Task Due Soon", subject: "Task due soon", subjectAr: "المهمة مستحقة قريبًا" },
+    { templateKey: "task_overdue", name: "Task Overdue", subject: "Task is overdue", subjectAr: "المهمة متأخرة" },
+    { templateKey: "meeting_reminder", name: "Meeting Reminder", subject: "Meeting reminder", subjectAr: "تذكير بالاجتماع" },
+    { templateKey: "meeting_cancelled", name: "Meeting Cancelled", subject: "Meeting cancelled", subjectAr: "تم إلغاء الاجتماع" },
+    { templateKey: "stock_alert", name: "Low Stock Alert", subject: "Low stock alert", subjectAr: "تنبيه انخفاض المخزون" },
+    { templateKey: "tax_api_alert", name: "Tax API Alert", subject: "Tax compliance alert", subjectAr: "تنبيه الامتثال الضريبي" },
+    { templateKey: "backup_notification", name: "Backup Notification", subject: "System backup completed", subjectAr: "اكتمل النسخ الاحتياطي للنظام" },
+    { templateKey: "system_announcement", name: "System Announcement", subject: "System announcement", subjectAr: "إعلان النظام" },
+  ];
+
+  for (const tmpl of emailTemplatesData) {
+    await db.insert(schema.emailTemplates).values({
+      tenantId: DEMO_TENANT_ID,
+      templateKey: tmpl.templateKey,
+      name: tmpl.name,
+      subject: tmpl.subject,
+      subjectAr: tmpl.subjectAr,
+      body: `<p>This is the email body for ${tmpl.name}. Customize as needed.</p>`,
+      bodyAr: `<p>هذا هو نص البريد الإلكتروني لـ ${tmpl.name}. يمكنك تخصيصه حسب الحاجة.</p>`,
+      variables: { userName: "string", companyName: "string" },
+      isActive: true,
+    });
+  }
+  console.log("30 email templates seeded");
+
   console.log("Database seeded successfully!");
 }
 

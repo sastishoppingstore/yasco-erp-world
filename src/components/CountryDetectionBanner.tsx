@@ -82,7 +82,15 @@ export function CountryDetectionBanner() {
     };
   }, []);
 
-  const currentCountry = country || detectedCountry;
+  const currentCountry = country || countries.find((c) => c.code === detectedCountry) || null;
+  const taxLabel =
+    currentCountry?.code === "SA"
+      ? "Saudi VAT 15% + ZATCA e-invoicing readiness"
+      : currentCountry?.code === "PK"
+        ? "Pakistan Sales Tax + FBR readiness"
+        : currentCountry?.code === "AE"
+          ? "UAE VAT + FTA readiness"
+          : "local tax profile";
 
   if (dismissed && !animatingOut) return null;
 
@@ -133,8 +141,8 @@ export function CountryDetectionBanner() {
               </div>
               <p className="mt-0.5 text-xs text-emerald-50/90 leading-relaxed">
                 {isRtl
-                  ? `تم ضبط اللغة والعملة والمنطقة الزمنية وقواعد الضرائب حسب منطقتك. يمكنك تغيير ذلك في أي وقت.`
-                  : `We detected your region as ${currentCountry?.name || "your current location"}. Language, currency, timezone, and tax rules have been adjusted. You can change this anytime.`}
+                  ? `تم ضبط اللغة والعملة والمنطقة الزمنية وقواعد الضرائب حسب منطقتك. هذه مجرد توصية ويمكن تغييرها من ملف الشركة أو الفرع.`
+                  : `We detected your region as ${currentCountry?.name || "your current location"}. Language, currency, timezone, and ${taxLabel} have been selected as a suggestion. Company/branch settings decide final tax compliance.`}
               </p>
             </div>
           </div>

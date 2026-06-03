@@ -4,9 +4,86 @@ import { getDb } from "./queries/connection";
 import {
   customers, salesQuotations, salesQuotationItems,
   salesOrders, salesOrderItems, invoices, invoiceItems,
-  creditNotes, customerPayments
+  creditNotes, customerPayments, companySettings, auditLogs
 } from "@db/schema";
 import { eq, sql, and, like, desc } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+
+function encodeZatcaTlv(tag: number, value: string): Uint8Array {
+  const encoder = new TextEncoder();
+  const valueBytes = encoder.encode(value);
+  const buf = new Uint8Array(2 + valueBytes.length);
+  buf[0] = tag;
+  buf[1] = valueBytes.length;
+  buf.set(valueBytes, 2);
+  return buf;
+}
+
+function buildZatcaQrPayload(
+  sellerName: string,
+  vatNumber: string,
+  timestamp: string,
+  totalWithVat: string,
+  vatTotal: string,
+): string {
+  const parts = [
+    encodeZatcaTlv(1, sellerName),
+    encodeZatcaTlv(2, vatNumber),
+    encodeZatcaTlv(3, timestamp),
+    encodeZatcaTlv(4, totalWithVat),
+    encodeZatcaTlv(5, vatTotal),
+  ];
+  const combined = Buffer.concat(parts.map((part) => Buffer.from(part)));
+  return combined.toString("base64");
+}
+
+function buildSaudiInvoiceXml(input: {
+  invoiceNumber: string;
+  date: string;
+  sellerName: string;
+  vatNumber: string;
+  crNumber?: string | null;
+  currency: string;
+  subTotal: string;
+  taxAmount: string;
+  totalAmount: string;
+}) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+  xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+  xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:ID>${input.invoiceNumber}</cbc:ID>
+  <cbc:IssueDate>${input.date}</cbc:IssueDate>
+  <cbc:InvoiceTypeCode name="0100000">388</cbc:InvoiceTypeCode>
+  <cbc:DocumentCurrencyCode>${input.currency}</cbc:DocumentCurrencyCode>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyTaxScheme><cbc:CompanyID>${input.vatNumber}</cbc:CompanyID></cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>${input.sellerName}</cbc:RegistrationName>
+        ${input.crNumber ? `<cbc:CompanyID>${input.crNumber}</cbc:CompanyID>` : ""}
+      </cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="${input.currency}">${input.subTotal}</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="${input.currency}">${input.subTotal}</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="${input.currency}">${input.totalAmount}</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="${input.currency}">${input.totalAmount}</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:TaxTotal><cbc:TaxAmount currencyID="${input.currency}">${input.taxAmount}</cbc:TaxAmount></cac:TaxTotal>
+</Invoice>`;
+}
+
+function isSaudiCompany(settings: typeof companySettings.$inferSelect | undefined) {
+  const country = (settings?.country || "").toLowerCase();
+  return country.includes("saudi") || country.includes("ksa") || settings?.defaultCurrency === "SAR";
+}
+
+function isValidSaudiVatNumber(vatNumber: string) {
+  const cleaned = vatNumber.replace(/\D/g, "");
+  return /^3\d{13}3$/.test(cleaned);
+}
 
 export const salesRouter = createRouter({
   // Customers
@@ -149,12 +226,20 @@ export const salesRouter = createRouter({
 
   invoiceGet: authedQuery
     .input(z.object({ id: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = getDb();
-      const invoice = await db.query.invoices.findFirst({ where: eq(invoices.id, input.id) });
+      const tenantId = ctx.user.tenantId!;
+      const invoice = await db.query.invoices.findFirst({
+        where: and(eq(invoices.id, input.id), eq(invoices.tenantId, tenantId)),
+      });
       const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, input.id));
-      const customer = invoice ? await db.query.customers.findFirst({ where: eq(customers.id, invoice.customerId) }) : null;
-      return { invoice, items, customer };
+      const customer = invoice ? await db.query.customers.findFirst({
+        where: and(eq(customers.id, invoice.customerId), eq(customers.tenantId, tenantId)),
+      }) : null;
+      const company = await db.query.companySettings.findFirst({
+        where: eq(companySettings.tenantId, tenantId),
+      });
+      return { invoice, items, customer, company };
     }),
 
   invoiceCreate: authedQuery
@@ -181,15 +266,82 @@ export const salesRouter = createRouter({
     .mutation(async ({ input, ctx }) => {
       const db = getDb();
       const { items, ...invoiceData } = input;
+      const tenantId = ctx.user.tenantId!;
+      const settings = await db.query.companySettings.findFirst({
+        where: eq(companySettings.tenantId, tenantId),
+      });
+      const saudiInvoice = isSaudiCompany(settings) || invoiceData.invoiceType === "zatca";
+      const currency = settings?.defaultCurrency || (saudiInvoice ? "SAR" : "USD");
+      const taxPercent = invoiceData.taxPercent || (settings?.vatRate ? String(settings.vatRate) : saudiInvoice ? "15" : "0");
+      const taxAmount = invoiceData.taxAmount || "0";
+      const invoiceType = saudiInvoice ? "zatca" : (invoiceData.invoiceType || "standard");
+      const sellerName = settings?.companyName || settings?.companyNameAr || "";
+      const vatNumber = settings?.taxNumber || "";
+      if (saudiInvoice) {
+        if (!sellerName.trim()) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Saudi ZATCA invoices require company name in Settings before billing.",
+          });
+        }
+        if (!isValidSaudiVatNumber(vatNumber)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Saudi ZATCA invoices require a valid 15-digit VAT number that starts and ends with 3.",
+          });
+        }
+      }
+      const timestamp = new Date(`${invoiceData.date}T00:00:00.000Z`).toISOString();
+      const zatcaQrCode = saudiInvoice
+        ? buildZatcaQrPayload(sellerName, vatNumber, timestamp, invoiceData.totalAmount, taxAmount)
+        : undefined;
+      const zatcaXml = saudiInvoice
+        ? buildSaudiInvoiceXml({
+            invoiceNumber: invoiceData.invoiceNumber,
+            date: invoiceData.date,
+            sellerName,
+            vatNumber,
+            crNumber: settings?.crNumber,
+            currency,
+            subTotal: invoiceData.subTotal,
+            taxAmount,
+            totalAmount: invoiceData.totalAmount,
+          })
+        : undefined;
       const [{ id }] = await db.insert(invoices).values({
         ...invoiceData,
-        tenantId: ctx.user.tenantId!,
+        tenantId,
+        invoiceType,
+        taxPercent,
+        taxAmount,
+        zatcaQrCode,
+        zatcaXml,
+        zatcaStatus: saudiInvoice ? "pending" : undefined,
+        terms: settings?.invoiceTerms,
         balanceDue: invoiceData.totalAmount,
         status: "draft",
       }).$returningId();
       for (const item of items) {
         await db.insert(invoiceItems).values({ ...item, invoiceId: id });
       }
+      await db.insert(auditLogs).values({
+        tenantId,
+        userId: ctx.user.id,
+        action: "invoice_create",
+        entityType: "invoice",
+        entityId: id,
+        newValues: {
+          invoiceNumber: invoiceData.invoiceNumber,
+          invoiceType,
+          customerId: invoiceData.customerId,
+          totalAmount: invoiceData.totalAmount,
+          taxAmount,
+          taxPercent,
+          saudiInvoice,
+          zatcaStatus: saudiInvoice ? "pending" : null,
+        },
+        createdAt: new Date(),
+      });
       return { id, success: true };
     }),
 

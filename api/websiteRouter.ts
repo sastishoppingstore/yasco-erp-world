@@ -374,9 +374,33 @@ const seoSettings = {
   twitterHandle: "@yascoerp",
 };
 
+import { sendEmail } from "./lib/smtp";
+
 export const websiteRouter = createRouter({
+  submitContact: publicQuery
+    .input(z.object({ name: z.string().min(1), email: z.string().email(), message: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      await sendEmail(
+        "info@yascoerp.com",
+        `Contact Form: ${input.name}`,
+        `From: ${input.name} (${input.email})\n\nMessage:\n${input.message}`
+      );
+      return { success: true, message: "Thank you for your message. We will get back to you soon." };
+    }),
   getModuleCards: publicQuery.query(async () => {
-    return moduleCards;
+    return moduleCards.map((card, index) => ({
+      id: index + 1,
+      key: card.moduleKey,
+      iconName: card.iconName,
+      name: card.names.en,
+      nameAr: card.names.ar,
+      description: card.description,
+      descriptionAr: card.description,
+      featureCount: card.featureCount,
+      gradientFrom: card.gradientFrom,
+      gradientTo: card.gradientTo,
+      visible: true,
+    }));
   }),
 
   getModuleCard: publicQuery
@@ -390,15 +414,44 @@ export const websiteRouter = createRouter({
     }),
 
   getWebsiteSections: publicQuery.query(async () => {
-    return websiteSections;
+    return websiteSections.map((section, index) => ({
+      id: index + 1,
+      sectionKey: section.id,
+      title: section.title.en,
+      titleAr: section.title.ar,
+      subtitle: section.subtitle.en,
+      subtitleAr: section.subtitle.ar,
+      visible: section.visible,
+      order: section.order,
+    }));
   }),
 
   getHeroSlides: publicQuery.query(async () => {
-    return heroSlides;
+    return heroSlides.map((slide) => ({
+      id: slide.id,
+      headline: slide.title.en,
+      headlineAr: slide.title.ar,
+      subheadline: slide.subtitle.en,
+      subheadlineAr: slide.subtitle.ar,
+      ctaText: slide.cta.en,
+      ctaTextAr: slide.cta.ar,
+      ctaUrl: slide.ctaLink,
+      imageUrl: slide.image,
+      active: slide.active,
+    }));
   }),
 
   getPricingPlans: publicQuery.query(async () => {
-    return pricingPlans;
+    return pricingPlans.map((plan, index) => ({
+      id: index + 1,
+      planName: plan.name.en,
+      price: plan.monthlyPrice,
+      currency: plan.currency,
+      features: plan.features,
+      ctaText: plan.cta.en,
+      mostPopular: plan.highlighted,
+      active: true,
+    }));
   }),
 
   getComparisonData: publicQuery.query(async () => {
@@ -418,26 +471,47 @@ export const websiteRouter = createRouter({
   }),
 
   getSeoSettings: publicQuery.query(async () => {
-    return seoSettings;
+    return {
+      metaTitle: seoSettings.title.en,
+      metaTitleAr: seoSettings.title.ar,
+      metaDescription: seoSettings.description.en,
+      metaDescriptionAr: seoSettings.description.ar,
+      keywords: seoSettings.keywords.en.join(", "),
+      ogImageUrl: seoSettings.ogImage,
+      schemaJson: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        name: "YASCO ERP",
+        applicationCategory: "BusinessApplication",
+      }, null, 2),
+    };
   }),
 
   updateModuleCard: adminQuery
     .input(z.object({
-      moduleKey: z.string(),
+      id: z.number().optional(),
+      moduleKey: z.string().optional(),
+      name: z.string().optional(),
       nameEn: z.string().optional(),
       nameAr: z.string().optional(),
       description: z.string().optional(),
+      descriptionAr: z.string().optional(),
+      gradientFrom: z.string().optional(),
+      gradientTo: z.string().optional(),
+      featureCount: z.number().optional(),
       visible: z.boolean().optional(),
     }))
     .mutation(async ({ input }) => {
-      return { success: true, moduleKey: input.moduleKey };
+      return { success: true, moduleKey: input.moduleKey, id: input.id };
     }),
 
   updateWebsiteSection: adminQuery
     .input(z.object({
-      id: z.string(),
+      id: z.union([z.string(), z.number()]),
+      title: z.string().optional(),
       titleEn: z.string().optional(),
       titleAr: z.string().optional(),
+      subtitle: z.string().optional(),
       subtitleEn: z.string().optional(),
       subtitleAr: z.string().optional(),
       visible: z.boolean().optional(),
@@ -449,13 +523,21 @@ export const websiteRouter = createRouter({
   updateHeroSlide: adminQuery
     .input(z.object({
       id: z.number(),
+      headline: z.string().optional(),
+      headlineAr: z.string().optional(),
+      subheadline: z.string().optional(),
+      subheadlineAr: z.string().optional(),
       titleEn: z.string().optional(),
       titleAr: z.string().optional(),
       subtitleEn: z.string().optional(),
       subtitleAr: z.string().optional(),
+      ctaText: z.string().optional(),
+      ctaTextAr: z.string().optional(),
       ctaEn: z.string().optional(),
       ctaAr: z.string().optional(),
+      ctaUrl: z.string().optional(),
       ctaLink: z.string().optional(),
+      imageUrl: z.string().optional(),
       active: z.boolean().optional(),
     }))
     .mutation(async ({ input }) => {
@@ -464,7 +546,8 @@ export const websiteRouter = createRouter({
 
   toggleModuleVisibility: adminQuery
     .input(z.object({
-      moduleKey: z.string(),
+      id: z.number().optional(),
+      moduleKey: z.string().optional(),
       visible: z.boolean(),
     }))
     .mutation(async ({ input }) => {
@@ -473,11 +556,17 @@ export const websiteRouter = createRouter({
 
   updatePricingPlan: adminQuery
     .input(z.object({
-      id: z.string(),
+      id: z.union([z.string(), z.number()]),
+      planName: z.string().optional(),
+      price: z.number().optional(),
+      currency: z.string().optional(),
       monthlyPrice: z.number().optional(),
       annualPrice: z.number().optional(),
       features: z.array(z.string()).optional(),
       highlighted: z.boolean().optional(),
+      mostPopular: z.boolean().optional(),
+      ctaText: z.string().optional(),
+      active: z.boolean().optional(),
     }))
     .mutation(async ({ input }) => {
       return { success: true, id: input.id };
@@ -485,6 +574,13 @@ export const websiteRouter = createRouter({
 
   updateSeoSettings: adminQuery
     .input(z.object({
+      metaTitle: z.string().optional(),
+      metaTitleAr: z.string().optional(),
+      metaDescription: z.string().optional(),
+      metaDescriptionAr: z.string().optional(),
+      keywords: z.string().optional(),
+      ogImageUrl: z.string().optional(),
+      schemaJson: z.string().optional(),
       titleEn: z.string().optional(),
       titleAr: z.string().optional(),
       descriptionEn: z.string().optional(),

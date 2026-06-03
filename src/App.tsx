@@ -23,6 +23,30 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Login = lazy(() => import("./pages/Login"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// SaaS Pages
+const RegisterBusiness = lazy(() => import("./pages/RegisterBusiness"));
+const VerifyOtp = lazy(() => import("./pages/VerifyOtp"));
+const SelectPlan = lazy(() => import("./pages/SelectPlan"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const SetupWizard = lazy(() => import("./pages/SetupWizard"));
+const SubscriptionPage = lazy(() => import("./pages/SubscriptionPage"));
+const UpgradePlan = lazy(() => import("./pages/UpgradePlan"));
+const TaxSettings = lazy(() => import("./pages/TaxSettings"));
+const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
+const FbrTaxSettings = lazy(() => import("./pages/FbrTaxSettings"));
+
+// Super Admin Pages
+const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
+const SuperAdminPlans = lazy(() => import("./pages/SuperAdminPlans"));
+const SuperAdminCompanies = lazy(() => import("./pages/SuperAdminCompanies"));
+const SuperAdminSmtp = lazy(() => import("./pages/SuperAdminSmtp"));
+const SuperAdminEmailTemplates = lazy(() => import("./pages/SuperAdminEmailTemplates"));
+
+// New Module Pages
+const TaskList = lazy(() => import("./pages/tasks/TaskList"));
+const MeetingList = lazy(() => import("./pages/meetings/MeetingList"));
+
 // Accounting
 const AccountingPage = lazy(() => import("./pages/accounting"));
 const ChartOfAccountsPage = lazy(() => import("./pages/accounting/coa"));
@@ -96,7 +120,11 @@ const SolutionPage = lazy(() => import("./pages/platform/SolutionPage"));
 
 // Reports & Settings
 const ReportsPage = lazy(() => import("./pages/reports"));
+const ZatcaStatusReportPage = lazy(() => import("./pages/reports/zatca-status"));
 const SettingsPage = lazy(() => import("./pages/settings"));
+const CompanyLegalInformationPage = lazy(() => import("./pages/settings/company-legal-information"));
+const ZatcaIntegrationPage = lazy(() => import("./pages/settings/zatca-integration"));
+const ZatcaSetupHelpPage = lazy(() => import("./pages/help/zatca-setup"));
 
 // New Modules
 const POSPage = lazy(() => import("./pages/pos"));
@@ -105,6 +133,7 @@ const InstallmentsPage = lazy(() => import("./pages/installments"));
 
 // Admin Pages
 const WebsiteAdminPage = lazy(() => import("./pages/admin/website"));
+const MasterControlPage = lazy(() => import("./pages/admin/master-control"));
 
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
   return <AppLayout>{children}</AppLayout>;
@@ -117,6 +146,12 @@ export default function App() {
       {/* Public landing page */}
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<RegisterBusiness />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Route path="/select-plan" element={<SelectPlan />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/help/zatca-setup" element={<ZatcaSetupHelpPage />} />
 
       {/* App routes (all ERP pages under /app) */}
       <Route path="/app" element={<LayoutWrapper><Dashboard /></LayoutWrapper>} />
@@ -197,15 +232,32 @@ export default function App() {
 
       {/* Reports & Settings */}
       <Route path="/app/reports" element={<LayoutWrapper><ReportsPage /></LayoutWrapper>} />
+      <Route path="/app/reports/zatca-status" element={<LayoutWrapper><ZatcaStatusReportPage /></LayoutWrapper>} />
       <Route path="/app/settings" element={<LayoutWrapper><SettingsPage /></LayoutWrapper>} />
+      <Route path="/app/settings/company-legal-information" element={<LayoutWrapper><CompanyLegalInformationPage /></LayoutWrapper>} />
+      <Route path="/app/settings/zatca-integration" element={<LayoutWrapper><ZatcaIntegrationPage /></LayoutWrapper>} />
 
       {/* Admin Pages */}
       <Route path="/app/admin/website" element={<LayoutWrapper><WebsiteAdminPage /></LayoutWrapper>} />
+      <Route path="/app/admin/master-control" element={<LayoutWrapper><MasterControlPage /></LayoutWrapper>} />
+      <Route path="/app/admin/super-dashboard" element={<LayoutWrapper><SuperAdminDashboard /></LayoutWrapper>} />
+      <Route path="/app/admin/super-plans" element={<LayoutWrapper><SuperAdminPlans /></LayoutWrapper>} />
+      <Route path="/app/admin/super-companies" element={<LayoutWrapper><SuperAdminCompanies /></LayoutWrapper>} />
+      <Route path="/app/admin/super-smtp" element={<LayoutWrapper><SuperAdminSmtp /></LayoutWrapper>} />
+      <Route path="/app/admin/super-email-templates" element={<LayoutWrapper><SuperAdminEmailTemplates /></LayoutWrapper>} />
 
       {/* New Modules */}
       <Route path="/app/pos" element={<POSPage />} />
       <Route path="/app/cashbox" element={<LayoutWrapper><CashboxPage /></LayoutWrapper>} />
       <Route path="/app/installments" element={<LayoutWrapper><InstallmentsPage /></LayoutWrapper>} />
+      <Route path="/app/setup-wizard" element={<LayoutWrapper><SetupWizard /></LayoutWrapper>} />
+      <Route path="/app/subscription" element={<LayoutWrapper><SubscriptionPage /></LayoutWrapper>} />
+      <Route path="/app/upgrade-plan" element={<LayoutWrapper><UpgradePlan /></LayoutWrapper>} />
+      <Route path="/app/tax-settings" element={<LayoutWrapper><TaxSettings /></LayoutWrapper>} />
+      <Route path="/app/notifications/preferences" element={<LayoutWrapper><NotificationPreferences /></LayoutWrapper>} />
+      <Route path="/app/tax-settings/fbr" element={<LayoutWrapper><FbrTaxSettings /></LayoutWrapper>} />
+      <Route path="/app/tasks" element={<LayoutWrapper><TaskList /></LayoutWrapper>} />
+      <Route path="/app/meetings" element={<LayoutWrapper><MeetingList /></LayoutWrapper>} />
 
       {/* Redirect old ERP paths to /app/ prefix */}
       <Route path="/:prefix/*" element={<OldPathRedirect />} />

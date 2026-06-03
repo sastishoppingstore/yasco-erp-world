@@ -310,7 +310,7 @@ function HeroSlidesTab() {
 
   const handleSave = () => {
     if (!editingSlide) return;
-    updateSlide.mutate({ id: editingSlide.id, ...editForm });
+    updateSlide.mutate({ ...editForm, id: editingSlide.id });
     setDialogOpen(false);
     setEditingSlide(null);
   };

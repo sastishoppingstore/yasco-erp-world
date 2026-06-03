@@ -1,0 +1,145 @@
+{
+  "generatedFor": "Global ERP Platform Build Strategy 2025-2026",
+  "rule": "Preserve existing routes, APIs, tables, buttons, admin settings, reports and workflows; enhance through compliance layers.",
+  "stack": {
+    "frontend": "React + TypeScript + Vite + Tailwind",
+    "backend": "Hono + tRPC + TypeScript",
+    "database": "Drizzle ORM / MySQL schema",
+    "package": "single workspace package"
+  },
+  "features": [
+    {
+      "name": "Public ERP marketing website",
+      "locations": ["src/pages/Landing.tsx", "api/websiteRouter.ts", "src/components/ModuleCard3D.tsx"],
+      "status": "working",
+      "dependencies": ["React Router", "tRPC", "website module card data"],
+      "strategy": "enhance; keep all existing public sections and module cards"
+    },
+    {
+      "name": "Authentication and login",
+      "locations": ["src/pages/Login.tsx", "api/auth-router.ts", "src/hooks/useAuth.ts"],
+      "status": "working",
+      "dependencies": ["Kimi auth/session helpers", "users table"],
+      "strategy": "enhance with JWT refresh, 2FA, device tracking and super-admin separation"
+    },
+    {
+      "name": "Application shell and SAHL-style navigation",
+      "locations": ["src/components/AppLayout.tsx", "src/App.tsx"],
+      "status": "working",
+      "dependencies": ["React Router", "country detection provider"],
+      "strategy": "preserve; enhance with Master Control, scrollable sidebar and role-aware navigation"
+    },
+    {
+      "name": "Country detection and localization",
+      "locations": ["src/providers/country-detection.tsx", "api/localizationRouter.ts", "api/boot.ts"],
+      "status": "working",
+      "dependencies": ["browser locale/timezone", "edge country headers", "local storage overrides"],
+      "strategy": "enhance; legal tax country remains company/branch/admin confirmed"
+    },
+    {
+      "name": "Accounting",
+      "locations": ["src/pages/accounting/*", "api/accountingRouter.ts", "db/schema.ts"],
+      "status": "partial",
+      "dependencies": ["chart_of_accounts", "journal_entries", "cost_centers"],
+      "strategy": "enhance with bank reconciliation, fixed assets, closing, consolidated reports and country COA templates"
+    },
+    {
+      "name": "Sales and invoicing",
+      "locations": ["src/pages/sales/*", "api/salesRouter.ts", "db/schema.ts"],
+      "status": "partial",
+      "dependencies": ["customers", "invoices", "invoice_items", "company_settings"],
+      "strategy": "enhance with universal invoice engine, delivery notes, recurring invoices, payments, reminders and portals"
+    },
+    {
+      "name": "Saudi VAT and ZATCA readiness",
+      "locations": ["api/taxComplianceRouter.ts", "src/pages/settings/TaxComplianceSettings.tsx", "src/pages/sales/invoices.tsx"],
+      "status": "partial",
+      "dependencies": ["company_settings", "tax_integrations", "tax_credentials", "tax_submissions", "e_invoice_documents"],
+      "strategy": "enhance to certified Phase 2 connector: CSID, PCSID, signing, clearance/reporting, PDF/A-3, archive"
+    },
+    {
+      "name": "Pakistan FBR readiness",
+      "locations": ["api/taxComplianceRouter.ts", "src/pages/settings/TaxComplianceSettings.tsx"],
+      "status": "partial",
+      "dependencies": ["company_settings", "audit_logs"],
+      "strategy": "enhance with real FBR JSON schema, IRN, UUID, QR, retry queue and province taxes"
+    },
+    {
+      "name": "UAE VAT readiness",
+      "locations": ["api/taxComplianceRouter.ts", "src/pages/settings/TaxComplianceSettings.tsx"],
+      "status": "partial",
+      "dependencies": ["company_settings", "tax_rates", "invoices"],
+      "strategy": "enhance with TRN validation, VAT return workflow, reverse charge, zero-rated/exempt flows"
+    },
+    {
+      "name": "POS",
+      "locations": ["src/pages/pos/index.tsx", "api/posRouter.ts"],
+      "status": "partial",
+      "dependencies": ["products", "inventory_balances", "pos_sessions", "cashbox_transactions", "invoices"],
+      "strategy": "enhance with offline sync, thermal print templates, Saudi QR receipts and device integrations"
+    },
+    {
+      "name": "Inventory and warehouse",
+      "locations": ["src/pages/inventory/*", "api/inventoryRouter.ts", "db/schema.ts"],
+      "status": "partial",
+      "dependencies": ["products", "warehouses", "inventory_balances", "stock_movements"],
+      "strategy": "enhance with valuation, serial/batch depth, bins, cycle counts, reorder automation"
+    },
+    {
+      "name": "Purchase and suppliers",
+      "locations": ["src/pages/purchase/*", "api/purchaseRouter.ts"],
+      "status": "partial",
+      "dependencies": ["suppliers", "purchase_orders", "goods_received_notes", "supplier_payments"],
+      "strategy": "enhance with RFQ, comparison, landed cost and three-way matching"
+    },
+    {
+      "name": "CRM",
+      "locations": ["src/pages/crm/*", "api/crmRouter.ts"],
+      "status": "partial",
+      "dependencies": ["leads", "opportunities", "crm_activities", "customers"],
+      "strategy": "enhance with scoring, automation, territories, campaigns and customer portal"
+    },
+    {
+      "name": "HR and payroll",
+      "locations": ["src/pages/hrm/*", "api/hrmRouter.ts"],
+      "status": "partial",
+      "dependencies": ["employees", "attendance", "leave_requests", "salary_slips"],
+      "strategy": "enhance with Saudi GOSI/WPS, Pakistan EOBI/SESSI, UAE gratuity and payroll posting"
+    },
+    {
+      "name": "Manufacturing",
+      "locations": ["src/pages/manufacturing/*", "api/manufacturingRouter.ts"],
+      "status": "partial",
+      "dependencies": ["bill_of_materials", "work_orders", "production_orders"],
+      "strategy": "enhance with MRP, routing, shop floor, quality, scrap and costing"
+    },
+    {
+      "name": "Projects",
+      "locations": ["src/pages/projects/*", "api/projectsRouter.ts"],
+      "status": "partial",
+      "dependencies": ["projects", "tasks", "timesheets"],
+      "strategy": "enhance with Gantt, billing, project P&L and resource planning"
+    },
+    {
+      "name": "Helpdesk",
+      "locations": ["src/pages/helpdesk/tickets.tsx", "api/helpdeskRouter.ts"],
+      "status": "partial",
+      "dependencies": ["support_tickets"],
+      "strategy": "enhance with SLA, email/WhatsApp-to-ticket, escalation and CSAT"
+    },
+    {
+      "name": "Master Control",
+      "locations": ["src/pages/admin/master-control.tsx", "api/masterRouter.ts"],
+      "status": "working",
+      "dependencies": ["audit_logs", "company_settings", "module_registry"],
+      "strategy": "preserve; use as implementation control board for remaining roadmap"
+    },
+    {
+      "name": "AI assistant",
+      "locations": ["src/components/AiAssistantPanel.tsx", "api/aiAssistantRouter.ts"],
+      "status": "partial",
+      "dependencies": ["module data", "tenant records", "role context"],
+      "strategy": "enhance with strict permission-aware answers and OCR/report insights"
+    }
+  ]
+}

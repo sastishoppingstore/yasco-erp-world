@@ -41,6 +41,7 @@ export default function POSPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<any[]>([]);
+  const [isSearchingItems, setIsSearchingItems] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
@@ -57,9 +58,8 @@ export default function POSPage() {
   const searchRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
   const priceRef = useRef<HTMLInputElement>(null);
+  const trpcUtils = trpc.useUtils();
 
-  const itemSearch = trpc.pos.itemSearch.useMutation();
-  const customerSearchMut = trpc.pos.customerSearch.useMutation();
   const heldList = trpc.pos.heldSalesList.useQuery(undefined, { enabled: false });
   const createSale = trpc.pos.createSaleInvoice.useMutation();
   const holdSale = trpc.pos.holdSale.useMutation();
@@ -75,9 +75,14 @@ export default function POSPage() {
   const handleSearch = useCallback(async (q: string) => {
     setSearchQuery(q);
     if (q.length < 1) { setItems([]); return; }
-    const result = await itemSearch.mutateAsync({ query: q });
-    setItems(result || []);
-  }, [itemSearch]);
+    setIsSearchingItems(true);
+    try {
+      const result = await trpcUtils.pos.itemSearch.fetch({ query: q });
+      setItems(result || []);
+    } finally {
+      setIsSearchingItems(false);
+    }
+  }, [trpcUtils]);
 
   const handleAddItem = useCallback((item: any) => {
     setCart(prev => {
@@ -214,9 +219,9 @@ export default function POSPage() {
   const handleCustomerSearch = useCallback(async (q: string) => {
     setCustomerSearch(q);
     if (q.length < 1) { setCustomers([]); return; }
-    const result = await customerSearchMut.mutateAsync({ query: q });
+    const result = await trpcUtils.pos.customerSearch.fetch({ query: q });
     setCustomers(result || []);
-  }, [customerSearchMut]);
+  }, [trpcUtils]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -342,7 +347,7 @@ export default function POSPage() {
                   <p className="text-[10px] text-gray-400">{rtl ? "متوفر" : "Stock"}: {item.stockQty}</p>
                 </div>
               ))}
-              {searchQuery && items.length === 0 && !itemSearch.isPending && (
+              {searchQuery && items.length === 0 && !isSearchingItems && (
                 <div className="col-span-full text-center py-8 text-gray-400">
                   {rtl ? "لا توجد نتائج" : "No items found"}
                 </div>

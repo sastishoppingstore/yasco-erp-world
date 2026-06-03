@@ -35,7 +35,7 @@ import {
   LayoutDashboard, Settings, Truck, Scan, Printer, QrCode, Gift,
   RefreshCw, Map, Sun, Moon, Calendar, Timer, Send, Quote,
   ArrowUpRight, Wrench, Share2, Ticket, Bell, Smartphone, Palette,
-  DollarSign,
+  DollarSign, Cloud,
 } from "lucide-react";
 
 const BANNER_DISMISS_KEY = "yasco-announcement-dismissed";
@@ -157,7 +157,7 @@ const features = [
   { key: "projects", icon: FolderKanban, color: "text-indigo-600 bg-indigo-100" },
 ];
 
-const featureContent: Record<string, Record<string, { title: string; titleAr: string; desc: string; descAr: string }>> = {
+const featureContent: Record<string, { title: string; titleAr: string; desc: string; descAr: string }> = {
   accounting: {
     title: "Accounting & Finance", titleAr: "\u0627\u0644\u0645\u062d\u0627\u0633\u0628\u0629 \u0648\u0627\u0644\u0645\u0627\u0644\u064a\u0629",
     desc: "Full double-entry accounting, chart of accounts, journal entries, general ledger, trial balance, and cost centers with multi-currency support.",
@@ -517,6 +517,7 @@ export default function Landing() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactMessage, setContactMessage] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("SA");
+  const contactMutation = trpc.website.submitContact.useMutation();
 
   useEffect(() => {
     const dismissed = sessionStorage.getItem(BANNER_DISMISS_KEY);
@@ -1295,8 +1296,20 @@ export default function Landing() {
                     onChange={(e) => setContactMessage(e.target.value)}
                     className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 min-h-[120px]"
                   />
-                  <Button className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-0">
-                    <Send className="h-4 w-4 mr-2" />{t("Send Message", "\u0623\u0631\u0633\u0644 \u0627\u0644\u0631\u0633\u0627\u0644\u0629")}
+                <Button
+                    className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-0"
+                    onClick={async () => {
+                      if (!contactName || !contactEmail || !contactMessage) return;
+                      try {
+                        await contactMutation.mutateAsync({ name: contactName, email: contactEmail, message: contactMessage });
+                        alert(t("Message sent successfully!", "تم إرسال الرسالة بنجاح!"));
+                        setContactName(""); setContactEmail(""); setContactMessage("");
+                      } catch (e: any) {
+                        alert(e.message || t("Failed to send message", "فشل إرسال الرسالة"));
+                      }
+                    }}
+                  >
+                    <Send className="h-4 w-4 mr-2" />{t("Send Message", "أرسل الرسالة")}
                   </Button>
                 </div>
               </div>

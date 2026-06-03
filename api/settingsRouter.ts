@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { createRouter, authedQuery } from "./middleware";
+import { createRouter, authedQuery, adminQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { companySettings, taxRates, currencies, notifications } from "@db/schema";
+import { auditLogs, companySettings, taxRates, currencies, notifications } from "@db/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
 
 export const settingsRouter = createRouter({
@@ -18,11 +18,15 @@ export const settingsRouter = createRouter({
     .input(z.object({
       companyName: z.string().optional(),
       companyNameAr: z.string().optional(),
+      tradeName: z.string().optional(),
       email: z.string().optional(),
       phone: z.string().optional(),
+      mobile: z.string().optional(),
+      website: z.string().optional(),
       address: z.string().optional(),
       city: z.string().optional(),
       country: z.string().optional(),
+      zipCode: z.string().optional(),
       taxNumber: z.string().optional(),
       crNumber: z.string().optional(),
       vatRate: z.string().optional(),
@@ -31,10 +35,14 @@ export const settingsRouter = createRouter({
       dateFormat: z.string().optional(),
       invoicePrefix: z.string().optional(),
       invoiceTerms: z.string().optional(),
+      logo: z.string().optional(),
       theme: z.string().optional(),
       primaryColor: z.string().optional(),
       secondaryColor: z.string().optional(),
       zatcaEnabled: z.boolean().optional(),
+      zatcaSandbox: z.boolean().optional(),
+      aiApiKey: z.string().optional(),
+      aiModel: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       const db = getDb();
@@ -47,6 +55,66 @@ export const settingsRouter = createRouter({
       } else {
         await db.insert(companySettings).values({ tenantId: ctx.user.tenantId!, ...data });
       }
+      await db.insert(auditLogs).values({
+        tenantId: ctx.user.tenantId!,
+        userId: ctx.user.id,
+        action: "company_settings_update",
+        entityType: "company_settings",
+        entityId: existing?.id,
+        oldValues: existing ?? null,
+        newValues: data,
+        createdAt: new Date(),
+      });
+      return { success: true };
+    }),
+
+  // AI Settings
+  aiSettingsGet: authedQuery
+    .query(async ({ ctx }) => {
+      const db = getDb();
+      const settings = await db.query.companySettings.findFirst({
+        where: eq(companySettings.tenantId, ctx.user.tenantId!),
+        columns: {
+          aiApiKey: true,
+          aiModel: true,
+        },
+      });
+      if (!settings) return { aiApiKey: "", aiModel: "gemini-2.0-flash" };
+      return {
+        aiApiKey: settings.aiApiKey ? settings.aiApiKey.slice(0, 8) + "..." : "",
+        aiApiKeySet: !!settings.aiApiKey,
+        aiModel: settings.aiModel || "gemini-2.0-flash",
+      };
+    }),
+
+  aiSettingsUpdate: adminQuery
+    .input(z.object({
+      aiApiKey: z.string().optional(),
+      aiModel: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const data: Record<string, any> = {};
+      if (input.aiApiKey !== undefined) data.aiApiKey = input.aiApiKey;
+      if (input.aiModel !== undefined) data.aiModel = input.aiModel;
+      const existing = await db.query.companySettings.findFirst({
+        where: eq(companySettings.tenantId, ctx.user.tenantId!),
+      });
+      if (existing) {
+        await db.update(companySettings).set(data).where(eq(companySettings.tenantId, ctx.user.tenantId!));
+      } else {
+        await db.insert(companySettings).values({ tenantId: ctx.user.tenantId!, ...data });
+      }
+      await db.insert(auditLogs).values({
+        tenantId: ctx.user.tenantId!,
+        userId: ctx.user.id,
+        action: "ai_settings_update",
+        entityType: "company_settings",
+        entityId: existing?.id,
+        oldValues: existing ?? null,
+        newValues: data,
+        createdAt: new Date(),
+      });
       return { success: true };
     }),
 

@@ -15,6 +15,20 @@
       "when": 1780432520461,
       "tag": "0001_slim_molecule_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1780436464745,
+      "tag": "0002_fresh_inhumans",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1780440000000,
+      "tag": "0003_zatca_phase2_module",
+      "breakpoints": true
     }
   ]
 }

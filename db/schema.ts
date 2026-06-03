@@ -51,6 +51,23 @@ export const tenants = mysqlTable("tenants", {
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = typeof tenants.$inferInsert;
 
+export const companies = mysqlTable("companies", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull().unique(),
+  companyCode: varchar("company_code", { length: 100 }),
+  legalName: varchar("legal_name", { length: 255 }).notNull(),
+  displayName: varchar("display_name", { length: 255 }),
+  countryCode: varchar("country_code", { length: 2 }).default("SA").notNull(),
+  baseCurrency: varchar("base_currency", { length: 10 }).default("SAR").notNull(),
+  timezone: varchar("timezone", { length: 50 }).default("Asia/Riyadh").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("companies_tenant_idx").on(table.tenantId),
+  index("companies_country_idx").on(table.countryCode),
+]);
+
 // =====================================================
 // 2. USERS & RBAC
 // =====================================================
@@ -488,7 +505,11 @@ export const invoices = mysqlTable("invoices", {
   status: mysqlEnum("status", ["draft", "sent", "paid", "partial", "overdue", "cancelled", "credit_note"]).default("draft").notNull(),
   createdBy: bigint("created_by", { mode: "number", unsigned: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  tenantIdx: index("inv_tenant_idx").on(table.tenantId),
+  dateIdx: index("inv_date_idx").on(table.date),
+  numIdx: uniqueIndex("inv_num_idx").on(table.tenantId, table.invoiceNumber),
+}));
 
 export const invoiceItems = mysqlTable("invoice_items", {
   id: serial("id").primaryKey(),
@@ -1237,9 +1258,38 @@ export const companySettings = mysqlTable("company_settings", {
   favicon: text("favicon"),
   zatcaEnabled: boolean("zatca_enabled").default(false),
   zatcaSandbox: boolean("zatca_sandbox").default(true),
+  aiApiKey: text("ai_api_key"),
+  aiModel: varchar("ai_model", { length: 50 }).default("gemini-2.0-flash"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
 });
+
+export const companyLegalDetails = mysqlTable("company_legal_details", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull().unique(),
+  legalNameEn: varchar("legal_name_en", { length: 255 }).notNull(),
+  legalNameAr: varchar("legal_name_ar", { length: 255 }),
+  vatNumber: varchar("vat_number", { length: 15 }).notNull(),
+  crNumber: varchar("cr_number", { length: 100 }),
+  taxRegistrationNumber: varchar("tax_registration_number", { length: 100 }),
+  businessActivity: varchar("business_activity", { length: 255 }),
+  companyAddress: text("company_address"),
+  buildingNumber: varchar("building_number", { length: 20 }),
+  streetName: varchar("street_name", { length: 255 }),
+  district: varchar("district", { length: 255 }),
+  city: varchar("city", { length: 100 }),
+  postalCode: varchar("postal_code", { length: 20 }),
+  country: varchar("country", { length: 100 }).default("Saudi Arabia").notNull(),
+  contactPerson: varchar("contact_person", { length: 255 }),
+  phoneNumber: varchar("phone_number", { length: 50 }),
+  emailAddress: varchar("email_address", { length: 320 }),
+  companyLogo: text("company_logo"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("company_legal_tenant_idx").on(table.tenantId),
+  index("company_legal_vat_idx").on(table.vatNumber),
+]);
 
 export const taxRates = mysqlTable("tax_rates", {
   id: serial("id").primaryKey(),
@@ -1600,6 +1650,144 @@ export const eInvoiceDocuments = mysqlTable("e_invoice_documents", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const zatcaCredentials = mysqlTable("zatca_credentials", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  environment: mysqlEnum("environment", ["sandbox", "production"]).default("sandbox").notNull(),
+  vatNumber: varchar("vat_number", { length: 15 }).notNull(),
+  organizationIdentifier: varchar("organization_identifier", { length: 255 }),
+  egsSerialNumber: varchar("egs_serial_number", { length: 255 }),
+  deviceUuid: varchar("device_uuid", { length: 100 }),
+  otpEncrypted: text("otp_encrypted"),
+  csrEncrypted: text("csr_encrypted"),
+  certificateEncrypted: text("certificate_encrypted"),
+  privateKeyEncrypted: text("private_key_encrypted"),
+  publicKeyEncrypted: text("public_key_encrypted"),
+  complianceCsidEncrypted: text("compliance_csid_encrypted"),
+  productionCsidEncrypted: text("production_csid_encrypted"),
+  accessTokenEncrypted: text("access_token_encrypted"),
+  secretTokenEncrypted: text("secret_token_encrypted"),
+  isActive: boolean("is_active").default(true),
+  lastTestAt: timestamp("last_test_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("zatca_credentials_tenant_idx").on(table.tenantId),
+  index("zatca_credentials_env_idx").on(table.tenantId, table.environment),
+]);
+
+export const zatcaCertificates = mysqlTable("zatca_certificates", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  credentialId: bigint("credential_id", { mode: "number", unsigned: true }),
+  certificateType: mysqlEnum("certificate_type", ["ccsid", "pcsid", "csr", "public_key", "private_key"]).notNull(),
+  environment: mysqlEnum("environment", ["sandbox", "production"]).default("sandbox").notNull(),
+  serialNumber: varchar("serial_number", { length: 255 }),
+  certificateHash: varchar("certificate_hash", { length: 255 }),
+  encryptedPayload: text("encrypted_payload").notNull(),
+  issuedAt: timestamp("issued_at"),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("zatca_cert_tenant_idx").on(table.tenantId),
+  index("zatca_cert_expiry_idx").on(table.tenantId, table.expiresAt),
+]);
+
+export const zatcaApiLogs = mysqlTable("zatca_api_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }),
+  action: mysqlEnum("action", ["generate_xml", "generate_qr", "sign_invoice", "compliance_check", "clearance", "reporting", "sync_status", "download_response"]).notNull(),
+  environment: mysqlEnum("environment", ["sandbox", "production"]).default("sandbox").notNull(),
+  endpoint: varchar("endpoint", { length: 500 }),
+  requestPayload: json("request_payload"),
+  responsePayload: json("response_payload"),
+  httpStatus: int("http_status"),
+  status: mysqlEnum("status", ["success", "pending", "failed"]).default("pending").notNull(),
+  errorCode: varchar("error_code", { length: 100 }),
+  errorMessage: text("error_message"),
+  ipAddress: varchar("ip_address", { length: 100 }),
+  userAgent: text("user_agent"),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("zatca_api_logs_tenant_idx").on(table.tenantId),
+  index("zatca_api_logs_invoice_idx").on(table.tenantId, table.invoiceId),
+  index("zatca_api_logs_action_idx").on(table.tenantId, table.action),
+]);
+
+export const zatcaInvoiceStatus = mysqlTable("zatca_invoice_status", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceUuid: varchar("invoice_uuid", { length: 100 }),
+  invoiceCounter: int("invoice_counter").default(0).notNull(),
+  invoiceHash: varchar("invoice_hash", { length: 255 }),
+  previousInvoiceHash: varchar("previous_invoice_hash", { length: 255 }),
+  digitalSignature: text("digital_signature"),
+  status: mysqlEnum("status", ["draft", "signed", "pending", "submitted", "cleared", "reported", "rejected", "failed"]).default("draft").notNull(),
+  clearanceStatus: varchar("clearance_status", { length: 100 }),
+  reportingStatus: varchar("reporting_status", { length: 100 }),
+  zatcaRequestId: varchar("zatca_request_id", { length: 255 }),
+  zatcaResponseId: varchar("zatca_response_id", { length: 255 }),
+  errorCode: varchar("error_code", { length: 100 }),
+  errorMessage: text("error_message"),
+  warnings: json("warnings"),
+  submittedAt: timestamp("submitted_at"),
+  clearedAt: timestamp("cleared_at"),
+  reportedAt: timestamp("reported_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  uniqueIndex("zatca_invoice_status_invoice_uidx").on(table.tenantId, table.invoiceId),
+  index("zatca_invoice_status_status_idx").on(table.tenantId, table.status),
+]);
+
+export const zatcaQrCodes = mysqlTable("zatca_qr_codes", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }).notNull(),
+  tlvBase64: text("tlv_base64").notNull(),
+  qrImageDataUrl: text("qr_image_data_url"),
+  tags: json("tags"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("zatca_qr_tenant_invoice_idx").on(table.tenantId, table.invoiceId),
+]);
+
+export const zatcaXmlDocuments = mysqlTable("zatca_xml_documents", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }).notNull(),
+  documentType: mysqlEnum("document_type", ["standard", "simplified", "credit_note", "debit_note"]).default("standard").notNull(),
+  unsignedXml: text("unsigned_xml"),
+  signedXml: text("signed_xml"),
+  clearedXml: text("cleared_xml"),
+  xmlHash: varchar("xml_hash", { length: 255 }),
+  isArchived: boolean("is_archived").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("zatca_xml_tenant_invoice_idx").on(table.tenantId, table.invoiceId),
+  index("zatca_xml_hash_idx").on(table.xmlHash),
+]);
+
+export const zatcaActivityLogs = mysqlTable("zatca_activity_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }),
+  action: varchar("action", { length: 100 }).notNull(),
+  message: text("message"),
+  metadata: json("metadata"),
+  ipAddress: varchar("ip_address", { length: 100 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("zatca_activity_tenant_idx").on(table.tenantId),
+  index("zatca_activity_invoice_idx").on(table.tenantId, table.invoiceId),
+]);
+
 export const complianceProfiles = mysqlTable("compliance_profiles", {
   id: serial("id").primaryKey(),
   tenantId: bigint("tenant_id", { mode: "number", unsigned: true }),
@@ -1803,5 +1991,298 @@ export const tenantUsageLogs = mysqlTable("tenant_usage_logs", {
   apiCalls: int("api_calls").default(0),
   invoicesGenerated: int("invoices_generated").default(0),
   transactionsCount: int("transactions_count").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// =====================================================
+// 28. SUBSCRIPTION PLANS
+// =====================================================
+
+export const plans = mysqlTable("plans", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  nameAr: varchar("name_ar", { length: 100 }),
+  description: text("description"),
+  descriptionAr: text("description_ar"),
+  priceMonth: decimal("price_month", { precision: 10, scale: 2 }).default("0").notNull(),
+  priceYear: decimal("price_year", { precision: 10, scale: 2 }).default("0").notNull(),
+  currency: varchar("currency", { length: 10 }).default("SAR").notNull(),
+  productLimit: int("product_limit").default(60),
+  userLimit: int("user_limit").default(5),
+  branchLimit: int("branch_limit").default(1),
+  warehouseLimit: int("warehouse_limit").default(1),
+  trialDays: int("trial_days").default(3),
+  isActive: boolean("is_active").default(true),
+  sortOrder: int("sort_order").default(0),
+  features: json("features"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export type Plan = typeof plans.$inferSelect;
+export type InsertPlan = typeof plans.$inferInsert;
+
+export const planFeatures = mysqlTable("plan_features", {
+  id: serial("id").primaryKey(),
+  planId: bigint("plan_id", { mode: "number", unsigned: true }).notNull(),
+  featureKey: varchar("feature_key", { length: 100 }).notNull(),
+  featureName: varchar("feature_name", { length: 255 }).notNull(),
+  featureNameAr: varchar("feature_name_ar", { length: 255 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const subscriptions = mysqlTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull().unique(),
+  planId: bigint("plan_id", { mode: "number", unsigned: true }).notNull(),
+  status: mysqlEnum("status", ["trial", "active", "past_due", "cancelled", "expired", "suspended"]).default("trial").notNull(),
+  trialStartAt: timestamp("trial_start_at"),
+  trialEndAt: timestamp("trial_end_at"),
+  currentPeriodStartAt: timestamp("current_period_start_at"),
+  currentPeriodEndAt: timestamp("current_period_end_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  gracePeriodEndsAt: timestamp("grace_period_ends_at"),
+  billingCycle: mysqlEnum("billing_cycle", ["monthly", "yearly"]).default("monthly").notNull(),
+  productLimit: int("product_limit").default(60),
+  userLimit: int("user_limit").default(5),
+  branchLimit: int("branch_limit").default(1),
+  warehouseLimit: int("warehouse_limit").default(1),
+  couponCode: varchar("coupon_code", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export type Subscription = typeof subscriptions.$inferSelect;
+
+export const subscriptionInvoices = mysqlTable("subscription_invoices", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  subscriptionId: bigint("subscription_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceNumber: varchar("invoice_number", { length: 50 }).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("SAR").notNull(),
+  status: mysqlEnum("status", ["draft", "sent", "paid", "overdue", "cancelled"]).default("draft").notNull(),
+  billingPeriodStart: timestamp("billing_period_start"),
+  billingPeriodEnd: timestamp("billing_period_end"),
+  paidAt: timestamp("paid_at"),
+  paymentMethod: varchar("payment_method", { length: 50 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const subscriptionPayments = mysqlTable("subscription_payments", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("SAR").notNull(),
+  paymentMethod: varchar("payment_method", { length: 50 }),
+  transactionId: varchar("transaction_id", { length: 255 }),
+  status: mysqlEnum("status", ["pending", "completed", "failed", "refunded"]).default("completed").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// =====================================================
+// 29. OTP CODES
+// =====================================================
+
+export const otpCodes = mysqlTable("otp_codes", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(),
+  otpHash: varchar("otp_hash", { length: 255 }).notNull(),
+  purpose: mysqlEnum("purpose", ["registration", "login", "forgot_password", "email_change", "sensitive_action"]).default("login").notNull(),
+  attempts: int("attempts").default(0).notNull(),
+  maxAttempts: int("max_attempts").default(5).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  isVerified: boolean("is_verified").default(false),
+  verifiedAt: timestamp("verified_at"),
+  ipAddress: varchar("ip_address", { length: 100 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("otp_email_idx").on(table.email),
+  index("otp_purpose_idx").on(table.email, table.purpose),
+]);
+
+// =====================================================
+// 30. SMTP SETTINGS & EMAIL
+// =====================================================
+
+export const smtpSettings = mysqlTable("smtp_settings", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull().unique(),
+  host: varchar("host", { length: 255 }).notNull(),
+  port: int("port").default(587).notNull(),
+  username: varchar("username", { length: 255 }),
+  passwordEncrypted: text("password_encrypted"),
+  encryption: mysqlEnum("encryption", ["none", "ssl", "tls", "starttls"]).default("starttls").notNull(),
+  senderName: varchar("sender_name", { length: 255 }),
+  senderEmail: varchar("sender_email", { length: 320 }).notNull(),
+  replyToEmail: varchar("reply_to_email", { length: 320 }),
+  isActive: boolean("is_active").default(false),
+  testStatus: mysqlEnum("test_status", ["untested", "success", "failed"]).default("untested").notNull(),
+  lastTestedAt: timestamp("last_tested_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const emailTemplates = mysqlTable("email_templates", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }),
+  templateKey: varchar("template_key", { length: 100 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  subjectAr: varchar("subject_ar", { length: 500 }),
+  body: text("body").notNull(),
+  bodyAr: text("body_ar"),
+  variables: json("variables"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const emailLogs = mysqlTable("email_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }),
+  templateKey: varchar("template_key", { length: 100 }),
+  recipient: varchar("recipient", { length: 320 }).notNull(),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  body: text("body"),
+  status: mysqlEnum("status", ["sent", "failed", "queued"]).default("sent").notNull(),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
+
+// =====================================================
+// 31. NOTIFICATION TEMPLATES
+// =====================================================
+
+export const notificationTemplates = mysqlTable("notification_templates", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }),
+  templateKey: varchar("template_key", { length: 100 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  titleAr: varchar("title_ar", { length: 500 }),
+  message: text("message").notNull(),
+  messageAr: text("message_ar"),
+  type: mysqlEnum("type", ["info", "warning", "success", "error"]).default("info").notNull(),
+  icon: varchar("icon", { length: 50 }),
+  variables: json("variables"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// =====================================================
+// 32. COUPONS & OFFERS
+// =====================================================
+
+export const coupons = mysqlTable("coupons", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  description: text("description"),
+  discountType: mysqlEnum("discount_type", ["percentage", "fixed"]).default("percentage").notNull(),
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull(),
+  maxUses: int("max_uses").default(0),
+  usedCount: int("used_count").default(0),
+  minPlanPrice: decimal("min_plan_price", { precision: 10, scale: 2 }),
+  applicablePlans: json("applicable_plans"),
+  startsAt: timestamp("starts_at"),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const offers = mysqlTable("offers", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  nameAr: varchar("name_ar", { length: 255 }),
+  description: text("description"),
+  descriptionAr: text("description_ar"),
+  offerType: mysqlEnum("offer_type", ["free_days", "discount_percentage", "discount_fixed", "free_upgrade"]).default("free_days").notNull(),
+  offerValue: decimal("offer_value", { precision: 10, scale: 2 }).notNull(),
+  minDurationMonths: int("min_duration_months").default(0),
+  planId: bigint("plan_id", { mode: "number", unsigned: true }),
+  startsAt: timestamp("starts_at"),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// =====================================================
+// 33. MEETINGS
+// =====================================================
+
+export const meetings = mysqlTable("meetings", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  date: date("date", { mode: "string" }).notNull(),
+  startTime: varchar("start_time", { length: 10 }).notNull(),
+  endTime: varchar("end_time", { length: 10 }).notNull(),
+  timezone: varchar("timezone", { length: 50 }).default("UTC").notNull(),
+  meetingType: mysqlEnum("meeting_type", ["online", "offline"]).default("online").notNull(),
+  location: varchar("location", { length: 255 }),
+  meetingLink: varchar("meeting_link", { length: 500 }),
+  status: mysqlEnum("status", ["scheduled", "in_progress", "completed", "cancelled", "rescheduled"]).default("scheduled").notNull(),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }).notNull(),
+  reminderSent: boolean("reminder_sent").default(false),
+  outcome: text("outcome"),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }),
+  relatedType: varchar("related_type", { length: 50 }),
+  relatedId: bigint("related_id", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("meeting_tenant_idx").on(table.tenantId),
+  index("meeting_date_idx").on(table.tenantId, table.date),
+]);
+
+export const meetingAttendees = mysqlTable("meeting_attendees", {
+  id: serial("id").primaryKey(),
+  meetingId: bigint("meeting_id", { mode: "number", unsigned: true }).notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  email: varchar("email", { length: 320 }),
+  name: varchar("name", { length: 255 }),
+  isRequired: boolean("is_required").default(true),
+  status: mysqlEnum("status", ["pending", "accepted", "declined", "tentative"]).default("pending").notNull(),
+  responseMessage: text("response_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const meetingNotes = mysqlTable("meeting_notes", {
+  id: serial("id").primaryKey(),
+  meetingId: bigint("meeting_id", { mode: "number", unsigned: true }).notNull(),
+  content: text("content").notNull(),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// =====================================================
+// 34. TASK COMMENTS & ATTACHMENTS
+// =====================================================
+
+export const taskComments = mysqlTable("task_comments", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  taskId: bigint("task_id", { mode: "number", unsigned: true }).notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  comment: text("comment").notNull(),
+  isInternal: boolean("is_internal").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const taskAttachments = mysqlTable("task_attachments", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  taskId: bigint("task_id", { mode: "number", unsigned: true }).notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  filePath: text("file_path"),
+  fileSize: bigint("file_size", { mode: "number" }),
+  mimeType: varchar("mime_type", { length: 100 }),
+  uploadedBy: bigint("uploaded_by", { mode: "number", unsigned: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

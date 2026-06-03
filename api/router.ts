@@ -19,6 +19,15 @@ import { websiteRouter } from "./websiteRouter";
 import { localizationRouter } from "./localizationRouter";
 import { taxComplianceRouter } from "./taxComplianceRouter";
 import { aiAssistantRouter } from "./aiAssistantRouter";
+import { masterRouter } from "./masterRouter";
+import { zatcaRouter } from "./zatcaRouter";
+import { saasRouter } from "./saasRouter";
+import { registrationRouter } from "./registrationRouter";
+import { superAdminRouter } from "./superAdminRouter";
+import { meetingRouter } from "./meetingRouter";
+import { taskRouter } from "./taskRouter";
+import { notificationRouter } from "./notificationRouter";
+import { emailRouter } from "./emailRouter";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -44,6 +53,15 @@ export const appRouter = createRouter({
   localization: localizationRouter,
   taxCompliance: taxComplianceRouter,
   aiAssistant: aiAssistantRouter,
+  master: masterRouter,
+  zatca: zatcaRouter,
+  saas: saasRouter,
+  registration: registrationRouter,
+  superAdmin: superAdminRouter,
+  meetings: meetingRouter,
+  tasks: taskRouter,
+  notifications2: notificationRouter,
+  emails: emailRouter,
 });
 
 export type AppRouter = typeof appRouter;

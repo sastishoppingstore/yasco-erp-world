@@ -9,9 +9,16 @@ import {
   taxRates,
   suppliers,
   auditLogs,
+  taxIntegrations,
+  taxCredentials,
+  taxSubmissions,
+  taxSubmissionLogs,
+  eInvoiceDocuments,
 } from "@db/schema";
 import { eq, and, gte, lte, desc, lt, sum, count, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import { env } from "./lib/env";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -23,6 +30,23 @@ function decimal(n: number) {
 
 function isoNow() {
   return new Date().toISOString();
+}
+
+function encryptionKey() {
+  const secret = env.appSecret || process.env.ENCRYPTION_KEY || "development-only-encryption-key";
+  return createHash("sha256").update(secret).digest();
+}
+
+function encryptSecret(value: string) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `v1:${iv.toString("base64")}:${tag.toString("base64")}:${encrypted.toString("base64")}`;
+}
+
+function sha256Base64(value: string) {
+  return createHash("sha256").update(value).digest("base64");
 }
 
 /**
@@ -37,6 +61,12 @@ function isoNow() {
 function encodeZatcaTlv(tag: number, value: string): Uint8Array {
   const encoder = new TextEncoder();
   const valueBytes = encoder.encode(value);
+  if (valueBytes.length > 255) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `ZATCA QR tag ${tag} is too long for TLV encoding.`,
+    });
+  }
   const buf = new Uint8Array(1 + 1 + valueBytes.length);
   buf[0] = tag;
   buf[1] = valueBytes.length;
@@ -65,6 +95,89 @@ function buildZatcaQrPayload(
     offset += p.length;
   }
   return btoa(String.fromCharCode(...combined));
+}
+
+function buildZatcaPhase2QrPayload(input: {
+  sellerName: string;
+  vatNumber: string;
+  timestamp: string;
+  totalWithVat: string;
+  vatTotal: string;
+  invoiceHash: string;
+  cryptographicStamp: string;
+  publicKey: string;
+  ecdsaSignature: string;
+}) {
+  const parts = [
+    encodeZatcaTlv(1, input.sellerName),
+    encodeZatcaTlv(2, input.vatNumber),
+    encodeZatcaTlv(3, input.timestamp),
+    encodeZatcaTlv(4, input.totalWithVat),
+    encodeZatcaTlv(5, input.vatTotal),
+    encodeZatcaTlv(6, input.invoiceHash),
+    encodeZatcaTlv(7, input.cryptographicStamp),
+    encodeZatcaTlv(8, input.publicKey),
+    encodeZatcaTlv(9, input.ecdsaSignature),
+  ];
+  const combined = new Uint8Array(parts.reduce((acc, p) => acc + p.length, 0));
+  let offset = 0;
+  for (const p of parts) {
+    combined.set(p, offset);
+    offset += p.length;
+  }
+  return Buffer.from(combined).toString("base64");
+}
+
+function validSaudiVat(vatNumber: string) {
+  return /^3\d{13}3$/.test(vatNumber.replace(/\D/g, ""));
+}
+
+async function getZatcaPhase2Profile(db: ReturnType<typeof getDb>, tenantId: number) {
+  const settings = await db.query.companySettings.findFirst({
+    where: eq(companySettings.tenantId, tenantId),
+  });
+  const integration = await db.query.taxIntegrations.findFirst({
+    where: and(
+      eq(taxIntegrations.tenantId, tenantId),
+      eq(taxIntegrations.countryCode, "SA"),
+      eq(taxIntegrations.integrationType, "zatca_phase2"),
+    ),
+  });
+  const credentials = integration
+    ? await db.select()
+      .from(taxCredentials)
+      .where(and(eq(taxCredentials.integrationId, integration.id), eq(taxCredentials.isActive, true)))
+    : [];
+  const credentialTypes = new Set(credentials.map((credential) => credential.credentialType));
+  const config = (integration?.config as Record<string, any> | null) ?? {};
+  const checks = [
+    { key: "company_name", label: "Seller name", ok: Boolean(settings?.companyName || settings?.companyNameAr), detail: "Required in Arabic/English seller identity." },
+    { key: "vat_number", label: "Saudi VAT number", ok: validSaudiVat(settings?.taxNumber || ""), detail: "15 digits, starts with 3 and ends with 3." },
+    { key: "cr_number", label: "Commercial registration", ok: Boolean(settings?.crNumber), detail: "Required for Saudi commercial profile." },
+    { key: "zatca_enabled", label: "ZATCA enabled", ok: Boolean(settings?.zatcaEnabled), detail: "Enable ZATCA readiness in settings." },
+    { key: "ccsid", label: "Compliance CSID", ok: credentialTypes.has("ccsid"), detail: "Needed for sandbox compliance checks." },
+    { key: "pcsid", label: "Production CSID", ok: credentialTypes.has("pcsid"), detail: "Needed before live clearance/reporting." },
+    { key: "private_key", label: "EGS private key", ok: credentialTypes.has("private_key"), detail: "Needed for signing Phase 2 XML." },
+    { key: "csr", label: "CSR generated", ok: credentialTypes.has("csr"), detail: "Needed for onboarding with ZATCA." },
+  ];
+  const readyForSandbox = checks.slice(0, 5).every((check) => check.ok);
+  const readyForProduction = checks.every((check) => check.ok) && !integration?.isSandbox;
+
+  return {
+    enabled: integration?.isEnabled ?? false,
+    sandbox: integration?.isSandbox ?? settings?.zatcaSandbox ?? true,
+    endpointUrl: integration?.endpointUrl || "https://gw-fatoora.zatca.gov.sa/e-invoicing/core",
+    sandboxUrl: integration?.sandboxUrl || "https://gw-fatoora.zatca.gov.sa/e-invoicing/developer-portal",
+    apiVersion: integration?.apiVersion || "v2",
+    waveNumber: config.waveNumber || "",
+    egsUnitName: config.egsUnitName || "",
+    invoiceMode: config.invoiceMode || "auto",
+    certificateExpiresAt: credentials.find((credential) => credential.credentialType === "pcsid")?.expiresAt ?? null,
+    checks,
+    readyForSandbox,
+    readyForProduction,
+    status: readyForProduction ? "production_ready" : readyForSandbox ? "sandbox_ready" : "setup_required",
+  };
 }
 
 function buildSimplifiedZatcaXml(invoice: typeof invoices.$inferSelect, items: any[], settings: any) {
@@ -187,6 +300,271 @@ export const taxComplianceRouter = createRouter({
       return { success: true };
     }),
 
+  zatcaPhase2Profile: authedQuery
+    .query(async ({ ctx }) => {
+      const db = getDb();
+      const tenantId = ctx.user.tenantId!;
+      return getZatcaPhase2Profile(db, tenantId);
+    }),
+
+  updateZatcaPhase2Profile: adminQuery
+    .input(z.object({
+      enabled: z.boolean().optional(),
+      sandbox: z.boolean().optional(),
+      endpointUrl: z.string().url().optional(),
+      sandboxUrl: z.string().url().optional(),
+      apiVersion: z.string().optional(),
+      waveNumber: z.string().optional(),
+      egsUnitName: z.string().optional(),
+      invoiceMode: z.enum(["auto", "standard", "simplified"]).optional(),
+      csr: z.string().optional(),
+      ccsid: z.string().optional(),
+      pcsid: z.string().optional(),
+      privateKey: z.string().optional(),
+      publicKey: z.string().optional(),
+      certificateExpiresAt: z.string().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const tenantId = ctx.user.tenantId!;
+      const existing = await db.query.taxIntegrations.findFirst({
+        where: and(
+          eq(taxIntegrations.tenantId, tenantId),
+          eq(taxIntegrations.countryCode, "SA"),
+          eq(taxIntegrations.integrationType, "zatca_phase2"),
+        ),
+      });
+      const config = {
+        waveNumber: input.waveNumber,
+        egsUnitName: input.egsUnitName,
+        invoiceMode: input.invoiceMode ?? "auto",
+      };
+
+      let integrationId = existing?.id;
+      const values = {
+        tenantId,
+        countryCode: "SA",
+        integrationType: "zatca_phase2",
+        name: "Saudi ZATCA Phase 2",
+        isEnabled: input.enabled ?? existing?.isEnabled ?? false,
+        isSandbox: input.sandbox ?? existing?.isSandbox ?? true,
+        endpointUrl: input.endpointUrl ?? existing?.endpointUrl ?? "https://gw-fatoora.zatca.gov.sa/e-invoicing/core",
+        sandboxUrl: input.sandboxUrl ?? existing?.sandboxUrl ?? "https://gw-fatoora.zatca.gov.sa/e-invoicing/developer-portal",
+        apiVersion: input.apiVersion ?? existing?.apiVersion ?? "v2",
+        config,
+      };
+
+      if (existing) {
+        await db.update(taxIntegrations)
+          .set(values)
+          .where(eq(taxIntegrations.id, existing.id));
+      } else {
+        const [{ id }] = await db.insert(taxIntegrations).values(values).$returningId();
+        integrationId = id;
+      }
+
+      const credentialInputs = [
+        ["csr", input.csr],
+        ["ccsid", input.ccsid],
+        ["pcsid", input.pcsid],
+        ["private_key", input.privateKey],
+        ["public_key", input.publicKey],
+      ] as const;
+
+      for (const [credentialType, rawValue] of credentialInputs) {
+        if (!rawValue || !integrationId) continue;
+        const encryptedValue = encryptSecret(rawValue);
+        const existingCredential = await db.query.taxCredentials.findFirst({
+          where: and(
+            eq(taxCredentials.integrationId, integrationId),
+            eq(taxCredentials.credentialType, credentialType),
+            eq(taxCredentials.isActive, true),
+          ),
+        });
+        if (existingCredential) {
+          await db.update(taxCredentials)
+            .set({
+              encryptedValue,
+              expiresAt: credentialType === "pcsid" && input.certificateExpiresAt ? new Date(input.certificateExpiresAt) : existingCredential.expiresAt,
+            })
+            .where(eq(taxCredentials.id, existingCredential.id));
+        } else {
+          await db.insert(taxCredentials).values({
+            tenantId,
+            integrationId,
+            credentialType,
+            encryptedValue,
+            expiresAt: credentialType === "pcsid" && input.certificateExpiresAt ? new Date(input.certificateExpiresAt) : undefined,
+            isActive: true,
+          });
+        }
+      }
+
+      await db.insert(auditLogs).values({
+        tenantId,
+        userId: ctx.user.id,
+        action: "zatca_phase2_profile_update",
+        entityType: "tax_integration",
+        entityId: integrationId,
+        newValues: {
+          enabled: values.isEnabled,
+          sandbox: values.isSandbox,
+          apiVersion: values.apiVersion,
+          endpointConfigured: Boolean(values.endpointUrl),
+          sandboxConfigured: Boolean(values.sandboxUrl),
+          credentialsUpdated: credentialInputs.filter(([, raw]) => Boolean(raw)).map(([type]) => type),
+        },
+        createdAt: new Date(),
+      });
+
+      return { success: true, integrationId };
+    }),
+
+  zatcaComplianceChecks: authedQuery
+    .query(async ({ ctx }) => {
+      const db = getDb();
+      const profile = await getZatcaPhase2Profile(db, ctx.user.tenantId!);
+      const requiredInvoiceTypes = [
+        "standard_tax_invoice",
+        "standard_credit_note",
+        "standard_debit_note",
+        "simplified_tax_invoice",
+        "simplified_credit_note",
+        "simplified_debit_note",
+        "export_invoice",
+        "nominal_invoice",
+      ];
+      return {
+        profileStatus: profile.status,
+        requiredInvoiceTypes: requiredInvoiceTypes.map((type) => ({
+          type,
+          status: profile.readyForSandbox ? "ready_for_sandbox_test" : "blocked_by_setup",
+          note: profile.readyForSandbox
+            ? "Ready to submit to ZATCA compliance endpoint when official CCSID is configured."
+            : "Complete seller, VAT, CR, ZATCA enablement and CCSID setup first.",
+        })),
+        liveApiEnabled: false,
+        message: "Compliance check matrix is ready. Live ZATCA API calls remain disabled until certified connector credentials are verified.",
+      };
+    }),
+
+  prepareZatcaPhase2Invoice: authedQuery
+    .input(z.object({
+      invoiceId: z.number(),
+      invoiceMode: z.enum(["standard", "simplified"]).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const tenantId = ctx.user.tenantId!;
+      const invoice = await db.query.invoices.findFirst({
+        where: and(eq(invoices.id, input.invoiceId), eq(invoices.tenantId, tenantId)),
+      });
+      if (!invoice) throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found" });
+
+      const settings = await db.query.companySettings.findFirst({
+        where: eq(companySettings.tenantId, tenantId),
+      });
+      if (!settings?.companyName && !settings?.companyNameAr) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Saudi ZATCA requires company name before issuing." });
+      }
+      if (!validSaudiVat(settings?.taxNumber || "")) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Saudi VAT number must be 15 digits and start/end with 3." });
+      }
+
+      const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, invoice.id));
+      const xml = buildSimplifiedZatcaXml(invoice, items, {
+        sellerName: settings.companyName || settings.companyNameAr,
+        vatNumber: settings.taxNumber,
+      });
+      const invoiceHash = sha256Base64(xml);
+      const timestamp = new Date(invoice.date).toISOString();
+      const mode = input.invoiceMode || "simplified";
+      const readinessStamp = sha256Base64(`${invoice.invoiceNumber}:${invoiceHash}:readiness`).slice(0, 64);
+      const readinessPublicKey = "pending-public-key";
+      const readinessSignature = sha256Base64(`${invoiceHash}:pending-signature`).slice(0, 64);
+      const qrPayload = buildZatcaPhase2QrPayload({
+        sellerName: settings.companyName || settings.companyNameAr || "",
+        vatNumber: settings.taxNumber || "",
+        timestamp,
+        totalWithVat: decimal(Number(invoice.totalAmount)),
+        vatTotal: decimal(Number(invoice.taxAmount)),
+        invoiceHash,
+        cryptographicStamp: readinessStamp,
+        publicKey: readinessPublicKey,
+        ecdsaSignature: readinessSignature,
+      });
+
+      await db.update(invoices)
+        .set({
+          zatcaStatus: "pending",
+          zatcaXml: xml,
+          zatcaQrCode: qrPayload,
+        })
+        .where(eq(invoices.id, invoice.id));
+
+      const [{ id: submissionId }] = await db.insert(taxSubmissions).values({
+        tenantId,
+        submissionType: mode === "standard" ? "zatca_clearance_readiness" : "zatca_reporting_readiness",
+        submissionNumber: `ZATCA-P2-${Date.now()}`,
+        status: "pending",
+        payload: {
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceMode: mode,
+          uuidRequired: true,
+          invoiceHash,
+          qrTags: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+          liveApiSubmitted: false,
+        },
+        createdAt: new Date(),
+      }).$returningId();
+
+      await db.insert(taxSubmissionLogs).values({
+        submissionId,
+        action: "zatca_phase2_prepare",
+        status: "ready_for_connector",
+        message: mode === "standard"
+          ? "Standard invoice prepared for ZATCA clearance workflow. Live clearance requires PCSID/private key."
+          : "Simplified invoice prepared for ZATCA reporting workflow. Live reporting requires PCSID/private key.",
+        metadata: { invoiceId: invoice.id, invoiceHash },
+        createdAt: new Date(),
+      });
+
+      await db.insert(eInvoiceDocuments).values({
+        tenantId,
+        invoiceId: invoice.id,
+        countryCode: "SA",
+        documentType: mode,
+        xmlPayload: xml,
+        qrCode: qrPayload,
+        hash: invoiceHash,
+        digitalSignature: readinessStamp,
+        status: "draft",
+        submissionId,
+        createdAt: new Date(),
+      });
+
+      await db.insert(auditLogs).values({
+        tenantId,
+        userId: ctx.user.id,
+        action: "zatca_phase2_invoice_prepare",
+        entityType: "invoice",
+        entityId: invoice.id,
+        newValues: { submissionId, invoiceHash, invoiceMode: mode, qrTags: 9, liveApiSubmitted: false },
+        createdAt: new Date(),
+      });
+
+      return {
+        success: true,
+        submissionId,
+        invoiceId: invoice.id,
+        invoiceHash,
+        qrCodeBase64: qrPayload,
+        status: "ready_for_connector",
+        message: "ZATCA Phase 2 invoice package prepared locally. Live API submission requires certified PCSID/private key configuration.",
+      };
+    }),
+
   zatcaSubmitInvoice: authedQuery
     .input(z.object({
       invoiceId: z.number(),
@@ -210,7 +588,8 @@ export const taxComplianceRouter = createRouter({
       const isSandbox = settings?.zatcaSandbox ?? true;
       const environment = isSandbox ? "sandbox" : "production";
 
-      // Simulate submission – in production this would call the ZATCA API
+      // Readiness-mode submission: prepare and audit the invoice without claiming
+      // government clearance until a certified ZATCA connector is configured.
       const submissionId = `ZATCA-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       const submittedAt = isoNow();
 
@@ -225,10 +604,10 @@ export const taxComplianceRouter = createRouter({
       await db.insert(auditLogs).values({
         tenantId: ctx.user.tenantId!,
         userId: ctx.user.id,
-        action: "zatca_submit",
+        action: "zatca_prepare_submission",
         entityType: "invoice",
         entityId: input.invoiceId,
-        newValues: { submissionId, environment, submittedAt },
+        newValues: { submissionId, environment, submittedAt, mode: "readiness" },
         createdAt: new Date(),
       });
 
@@ -236,8 +615,8 @@ export const taxComplianceRouter = createRouter({
         submissionId,
         environment,
         submittedAt,
-        status: "pending",
-        message: `Invoice submitted to ZATCA ${environment} successfully`,
+        status: "ready_for_connector",
+        message: `Invoice prepared for ZATCA ${environment}. Configure the certified connector and credentials before live clearance/reporting.`,
       };
     }),
 
@@ -257,10 +636,10 @@ export const taxComplianceRouter = createRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found" });
       }
 
-      // Simulate status – in production would poll ZATCA API
+      // Readiness-mode status: report the local workflow state only.
       const status = invoice.zatcaStatus || "pending";
       const statusMap: Record<string, string> = {
-        pending: "Invoice submitted, awaiting clearance from ZATCA",
+        pending: "Invoice is prepared locally and waiting for a configured ZATCA connector",
         reported: "Invoice reported to ZATCA",
         cleared: "Invoice cleared by ZATCA",
       };
@@ -432,19 +811,21 @@ export const taxComplianceRouter = createRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found" });
       }
 
-      // Simulate FBR submission
+      // Readiness-mode submission: prepare and audit the invoice without claiming
+      // FBR acceptance until official API credentials and connector settings exist.
       const submissionNumber = `FBR-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       const submittedAt = isoNow();
 
       await db.insert(auditLogs).values({
         tenantId: ctx.user.tenantId!,
         userId: ctx.user.id,
-        action: "fbr_submit",
+        action: "fbr_prepare_submission",
         entityType: "invoice",
         entityId: input.invoiceId,
         newValues: {
           submissionNumber,
           submittedAt,
+          mode: "readiness",
           invoiceNumber: invoice.invoiceNumber,
           totalAmount: invoice.totalAmount,
         },
@@ -454,15 +835,9 @@ export const taxComplianceRouter = createRouter({
       return {
         submissionNumber,
         submittedAt,
-        status: "submitted",
-        message: "Invoice submitted to FBR digital invoicing system successfully",
-        fbrResponse: {
-          code: 200,
-          body: {
-            message: "Success",
-            invoiceNumber: invoice.invoiceNumber,
-          },
-        },
+        status: "ready_for_connector",
+        message: "Invoice prepared for FBR Digital Invoicing/POS integration. Configure official credentials before live submission.",
+        fbrResponse: null,
       };
     }),
 
@@ -475,7 +850,7 @@ export const taxComplianceRouter = createRouter({
       const log = await db.query.auditLogs.findFirst({
         where: and(
           eq(auditLogs.tenantId, ctx.user.tenantId!),
-          eq(auditLogs.action, "fbr_submit"),
+          eq(auditLogs.action, "fbr_prepare_submission"),
           sql`JSON_EXTRACT(${auditLogs.newValues}, '$.submissionNumber') = ${input.submissionNumber}`,
         ),
         orderBy: desc(auditLogs.createdAt),
@@ -486,10 +861,10 @@ export const taxComplianceRouter = createRouter({
 
       return {
         submissionNumber: input.submissionNumber,
-        status: "processed",
-        fbrStatus: "submitted",
+        status: "ready_for_connector",
+        fbrStatus: "not_submitted",
         lastCheckedAt: isoNow(),
-        message: "Invoice has been processed by FBR system",
+        message: "Invoice is prepared locally and waiting for a configured FBR connector",
       };
     }),
 
@@ -503,7 +878,7 @@ export const taxComplianceRouter = createRouter({
       const db = getDb();
       const conditions = [
         eq(auditLogs.tenantId, ctx.user.tenantId!),
-        eq(auditLogs.action, "fbr_submit"),
+        eq(auditLogs.action, "fbr_prepare_submission"),
       ];
       if (input.invoiceId) {
         conditions.push(eq(auditLogs.entityId, input.invoiceId));
@@ -525,7 +900,7 @@ export const taxComplianceRouter = createRouter({
           id: l.id!,
           submissionNumber: (l.newValues as any)?.submissionNumber || "",
           invoiceId: l.entityId,
-          status: "submitted",
+          status: "ready_for_connector",
           submittedAt: l.createdAt.toISOString(),
           response: l.newValues,
         })),

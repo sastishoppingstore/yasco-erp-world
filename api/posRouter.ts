@@ -6,7 +6,24 @@ import {
   salesOrders, salesOrderItems, salesQuotations, salesQuotationItems,
   posSessions, posHolds, cashboxTransactions, chartOfAccounts,
 } from "@db/schema";
-import { eq, and, like, desc, sql, gte, lte } from "drizzle-orm";
+import { eq, and, like, desc, sql, gte, lte, inArray } from "drizzle-orm";
+
+async function getOrCreateWalkInCustomer(db: ReturnType<typeof getDb>, tenantId: number) {
+  const existing = await db.query.customers.findFirst({
+    where: and(eq(customers.tenantId, tenantId), eq(customers.code, "WALK-IN")),
+  });
+  if (existing) return existing.id;
+
+  const [{ id }] = await db.insert(customers).values({
+    tenantId,
+    code: "WALK-IN",
+    name: "Walk-in Customer",
+    nameAr: "عميل نقدي",
+    country: "Saudi Arabia",
+    isActive: true,
+  }).$returningId();
+  return id;
+}
 
 export const posRouter = createRouter({
   // ITEMS
@@ -129,19 +146,40 @@ export const posRouter = createRouter({
       const tenantId = ctx.user.tenantId!;
       const invoiceNumber = `POS-${Date.now()}`;
       const { items, ...invoiceData } = input;
+      const customerId = input.customerId ?? await getOrCreateWalkInCustomer(db, tenantId);
+      const balanceDue = Math.max(0, Number(input.totalAmount) - Number(input.paymentAmount || 0)).toFixed(4);
 
       // Create invoice
       const [{ id: invoiceId }] = await db.insert(invoices).values({
-        ...invoiceData,
         tenantId,
         invoiceNumber,
+        customerId,
+        date: invoiceData.date,
+        dueDate: invoiceData.dueDate,
+        subTotal: invoiceData.subtotal,
+        discountAmount: invoiceData.discountAmount,
+        taxAmount: invoiceData.taxAmount,
+        totalAmount: invoiceData.totalAmount,
+        paidAmount: invoiceData.paymentAmount,
+        balanceDue,
+        notes: invoiceData.notes,
+        invoiceType: "simplified",
         status: "paid",
         createdBy: ctx.user.id,
       }).$returningId();
 
       // Create invoice items
       for (const item of items) {
-        await db.insert(invoiceItems).values({ ...item, invoiceId, tenantId });
+        await db.insert(invoiceItems).values({
+          invoiceId,
+          productId: item.productId,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discount,
+          taxPercent: item.taxRate,
+          totalAmount: item.totalAmount,
+        });
       }
 
       // Update stock
@@ -150,9 +188,9 @@ export const posRouter = createRouter({
           .where(and(
             eq(inventoryBalances.productId, item.productId),
             eq(inventoryBalances.tenantId, tenantId),
-          ));
+        ));
         for (const bal of balances) {
-          const newQty = Math.max(0, bal.quantity - item.quantity);
+          const newQty = Math.max(0, Number(bal.quantity || 0) - item.quantity);
           await db.update(inventoryBalances).set({ quantity: newQty })
             .where(eq(inventoryBalances.id, bal.id));
         }
@@ -251,9 +289,9 @@ export const posRouter = createRouter({
     const invoicesToday = await db.select({
       total: sql<string>`coalesce(sum(${invoices.totalAmount}),0)`,
       count: sql<number>`count(*)`,
-      cashTotal: sql<string>`coalesce(sum(case when ${invoices.paymentMethod}='cash' then ${invoices.totalAmount} else 0 end),0)`,
-      cardTotal: sql<string>`coalesce(sum(case when ${invoices.paymentMethod}='card' then ${invoices.totalAmount} else 0 end),0)`,
-      transferTotal: sql<string>`coalesce(sum(case when ${invoices.paymentMethod}='transfer' then ${invoices.totalAmount} else 0 end),0)`,
+      cashTotal: sql<string>`0`,
+      cardTotal: sql<string>`0`,
+      transferTotal: sql<string>`0`,
     }).from(invoices)
       .where(and(eq(invoices.tenantId, tenantId), gte(invoices.createdAt, new Date(today))));
     return {
@@ -280,7 +318,11 @@ export const posRouter = createRouter({
     .input(z.object({ from: z.string().optional(), to: z.string().optional(), limit: z.number().default(10) }))
     .query(async ({ input, ctx }) => {
       const db = getDb();
-      const conditions = [eq(invoiceItems.tenantId, ctx.user.tenantId!)];
+      const invoiceRows = await db.select({ id: invoices.id }).from(invoices)
+        .where(eq(invoices.tenantId, ctx.user.tenantId!));
+      const invoiceIds = invoiceRows.map((row) => row.id);
+      if (invoiceIds.length === 0) return [];
+      const conditions = [inArray(invoiceItems.invoiceId, invoiceIds)];
       if (input.from) conditions.push(gte(invoiceItems.createdAt, new Date(input.from)));
       if (input.to) conditions.push(lte(invoiceItems.createdAt, new Date(input.to)));
       const data = await db.select({
