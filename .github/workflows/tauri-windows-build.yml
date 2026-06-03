@@ -56,21 +56,38 @@ jobs:
             throw "MSI install failed with exit code $($install.ExitCode)."
           }
 
-          $searchRoots = @(
-            $env:ProgramFiles,
-            ${env:ProgramFiles(x86)},
-            $env:LOCALAPPDATA
-          ) | Where-Object { $_ -and (Test-Path $_) }
+          $uninstallKeys = @(
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
 
-          $exe = $searchRoots |
-            ForEach-Object { Get-ChildItem -Path $_ -Recurse -Filter "ERP System.exe" -ErrorAction SilentlyContinue } |
+          $installInfo = $uninstallKeys |
+            ForEach-Object { Get-ItemProperty $_ -ErrorAction SilentlyContinue } |
+            Where-Object { $_.DisplayName -eq "ERP System" } |
+            Select-Object -First 1
+
+          $candidatePaths = @()
+          if ($installInfo -and $installInfo.InstallLocation) {
+            $candidatePaths += Join-Path $installInfo.InstallLocation "ERP System.exe"
+          }
+
+          $candidatePaths += @(
+            (Join-Path $env:ProgramFiles "ERP System\ERP System.exe"),
+            (Join-Path ${env:ProgramFiles(x86)} "ERP System\ERP System.exe"),
+            (Join-Path $env:LOCALAPPDATA "Programs\ERP System\ERP System.exe"),
+            (Join-Path $env:LOCALAPPDATA "ERP System\ERP System.exe")
+          )
+
+          $exe = $candidatePaths |
+            Where-Object { $_ -and (Test-Path $_) } |
             Select-Object -First 1
 
           if (-not $exe) {
             throw "Installed ERP System.exe was not found."
           }
 
-          $process = Start-Process -FilePath $exe.FullName -PassThru
+          $process = Start-Process -FilePath $exe -PassThru
           Start-Sleep -Seconds 10
 
           $running = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
