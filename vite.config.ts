@@ -1,11 +1,45 @@
 import path from "path"
-const __dirname = import.meta.dirname
+import { fileURLToPath } from "url"
+const __dirname = import.meta.dirname || path.dirname(fileURLToPath(import.meta.url))
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
+import { VitePWA } from "vite-plugin-pwa"
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["icon.svg", "manifest.json"],
+      manifest: {
+        name: "ERP System",
+        short_name: "ERP",
+        description: "Enterprise Resource Planning System",
+        theme_color: "#2563eb",
+        background_color: "#ffffff",
+        display: "standalone",
+        scope: "/",
+        start_url: "/",
+        icons: [
+          { src: "icon.svg", sizes: "192x192", type: "image/svg+xml" },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,json}"],
+        runtimeCaching: [
+          {
+            urlPattern: /^\/api\//,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "api-cache",
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
+            },
+          },
+        ],
+      },
+    }),
+  ],
   server: {
     port: 3000,
   },

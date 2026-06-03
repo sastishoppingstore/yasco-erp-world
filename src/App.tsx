@@ -47,6 +47,14 @@ const SuperAdminEmailTemplates = lazy(() => import("./pages/SuperAdminEmailTempl
 const TaskList = lazy(() => import("./pages/tasks/TaskList"));
 const MeetingList = lazy(() => import("./pages/meetings/MeetingList"));
 
+// Sync Pages
+const SyncQueuePage = lazy(() => import("./pages/sync/SyncQueuePage"));
+const SyncLogsPage = lazy(() => import("./pages/sync/SyncLogsPage"));
+const ConflictResolutionPage = lazy(() => import("./pages/sync/ConflictResolutionPage"));
+const DeviceManagementPage = lazy(() => import("./pages/sync/DeviceManagementPage"));
+const OfflineSettingsPage = lazy(() => import("./pages/sync/OfflineSettingsPage"));
+const LocalDatabaseStatusPage = lazy(() => import("./pages/sync/LocalDatabaseStatusPage"));
+
 // Accounting
 const AccountingPage = lazy(() => import("./pages/accounting"));
 const ChartOfAccountsPage = lazy(() => import("./pages/accounting/coa"));
@@ -258,6 +266,14 @@ export default function App() {
       <Route path="/app/tax-settings/fbr" element={<LayoutWrapper><FbrTaxSettings /></LayoutWrapper>} />
       <Route path="/app/tasks" element={<LayoutWrapper><TaskList /></LayoutWrapper>} />
       <Route path="/app/meetings" element={<LayoutWrapper><MeetingList /></LayoutWrapper>} />
+
+      {/* Sync Routes */}
+      <Route path="/app/sync/queue" element={<LayoutWrapper><SyncQueuePage /></LayoutWrapper>} />
+      <Route path="/app/sync/logs" element={<LayoutWrapper><SyncLogsPage /></LayoutWrapper>} />
+      <Route path="/app/sync/conflicts" element={<LayoutWrapper><ConflictResolutionPage /></LayoutWrapper>} />
+      <Route path="/app/sync/devices" element={<LayoutWrapper><DeviceManagementPage /></LayoutWrapper>} />
+      <Route path="/app/sync/settings" element={<LayoutWrapper><OfflineSettingsPage /></LayoutWrapper>} />
+      <Route path="/app/sync/database-status" element={<LayoutWrapper><LocalDatabaseStatusPage /></LayoutWrapper>} />
 
       {/* Redirect old ERP paths to /app/ prefix */}
       <Route path="/:prefix/*" element={<OldPathRedirect />} />

@@ -28,6 +28,7 @@ import { meetingRouter } from "./meetingRouter";
 import { taskRouter } from "./taskRouter";
 import { notificationRouter } from "./notificationRouter";
 import { emailRouter } from "./emailRouter";
+import { syncRouter } from "./syncRouter";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -62,6 +63,7 @@ export const appRouter = createRouter({
   tasks: taskRouter,
   notifications2: notificationRouter,
   emails: emailRouter,
+  sync: syncRouter,
 });
 
 export type AppRouter = typeof appRouter;

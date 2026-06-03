@@ -2286,3 +2286,45 @@ export const taskAttachments = mysqlTable("task_attachments", {
   uploadedBy: bigint("uploaded_by", { mode: "number", unsigned: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// =====================================================
+// 35. SYNC SYSTEM
+// =====================================================
+
+export const deviceRegistrations = mysqlTable("device_registrations", {
+  id: serial("id").primaryKey(),
+  deviceId: varchar("device_id", { length: 255 }).notNull().unique(),
+  deviceName: varchar("device_name", { length: 255 }),
+  platform: varchar("platform", { length: 50 }),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }),
+  lastSeen: timestamp("last_seen"),
+  lastSyncAt: timestamp("last_sync_at"),
+  appVersion: varchar("app_version", { length: 50 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const syncLogs = mysqlTable("sync_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  direction: mysqlEnum("direction", ["push", "pull"]).notNull(),
+  entityType: varchar("entity_type", { length: 100 }),
+  entityId: varchar("entity_id", { length: 255 }),
+  action: varchar("action", { length: 50 }),
+  status: varchar("status", { length: 50 }).notNull(),
+  message: text("message"),
+  detailsJson: json("details_json"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const deletedRecordsTombstone = mysqlTable("deleted_records_tombstone", {
+  id: serial("id").primaryKey(),
+  entityType: varchar("entity_type", { length: 100 }).notNull(),
+  entityId: varchar("entity_id", { length: 255 }).notNull(),
+  serverId: bigint("server_id", { mode: "number", unsigned: true }),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }),
+  deletedAt: timestamp("deleted_at").defaultNow().notNull(),
+  synced: boolean("synced").default(false),
+});

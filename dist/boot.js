@@ -7720,9 +7720,11 @@ __export(schema_exports, {
   currencies: () => currencies,
   customerPayments: () => customerPayments,
   customers: () => customers,
+  deletedRecordsTombstone: () => deletedRecordsTombstone,
   departments: () => departments,
   depreciationEntries: () => depreciationEntries,
   designations: () => designations,
+  deviceRegistrations: () => deviceRegistrations,
   documentCategories: () => documentCategories,
   documents: () => documents,
   drivers: () => drivers,
@@ -7792,6 +7794,7 @@ __export(schema_exports, {
   supplierPayments: () => supplierPayments,
   suppliers: () => suppliers,
   supportTickets: () => supportTickets,
+  syncLogs: () => syncLogs,
   taskAttachments: () => taskAttachments,
   taskComments: () => taskComments,
   taxCredentials: () => taxCredentials,
@@ -7824,7 +7827,7 @@ __export(schema_exports, {
   zatcaQrCodes: () => zatcaQrCodes,
   zatcaXmlDocuments: () => zatcaXmlDocuments
 });
-var tenants, companies, users, roles, userRoles, fiscalYears, chartOfAccounts, costCenters, journalEntries, journalEntryLines, budgets, productCategories, brands, units, warehouses, products, inventoryBalances, inventoryMovements, stockTransfers, stockTransferItems, stockAdjustments, stockAdjustmentItems, customers, salesQuotations, salesQuotationItems, salesOrders, salesOrderItems, invoices, invoiceItems, creditNotes, customerPayments, suppliers, purchaseOrders, purchaseOrderItems, goodsReceivedNotes, grnItems, supplierPayments, leads, opportunities, crmActivities, departments, designations, employees, attendance, leaveTypes, leaveRequests, payrollPeriods, salarySlips, employeeLoans, advances, performanceReviews, billOfMaterials, bomItems, workOrders, productionOrders, productionItems, projects, projectTasks, projectMilestones, timesheets, supportTickets, ticketComments, assets, assetMaintenance, depreciationEntries, vehicles, fuelRecords, vehicleMaintenance, drivers, documentCategories, documents, companySettings, companyLegalDetails, taxRates, currencies, auditLogs, notifications, posSessions, posHolds, cashboxTransactions, installments, installmentPayments, printTemplates, countries, regions, localizationProfiles, taxProfiles, taxRules, taxIdentifiers, taxIntegrations, taxCredentials, taxSubmissions, taxSubmissionLogs, eInvoiceDocuments, zatcaCredentials, zatcaCertificates, zatcaApiLogs, zatcaInvoiceStatus, zatcaQrCodes, zatcaXmlDocuments, zatcaActivityLogs, complianceProfiles, moduleRegistry, websiteModuleCards, websiteSections, websiteHeroSlides, aiChatLogs, approvalWorkflows, approvalRequests, apiWebhooks, partnerAccounts, securityLogs, tenantUsageLogs, plans, planFeatures, subscriptions, subscriptionInvoices, subscriptionPayments, otpCodes, smtpSettings, emailTemplates, emailLogs, notificationTemplates, coupons, offers, meetings, meetingAttendees, meetingNotes, taskComments, taskAttachments;
+var tenants, companies, users, roles, userRoles, fiscalYears, chartOfAccounts, costCenters, journalEntries, journalEntryLines, budgets, productCategories, brands, units, warehouses, products, inventoryBalances, inventoryMovements, stockTransfers, stockTransferItems, stockAdjustments, stockAdjustmentItems, customers, salesQuotations, salesQuotationItems, salesOrders, salesOrderItems, invoices, invoiceItems, creditNotes, customerPayments, suppliers, purchaseOrders, purchaseOrderItems, goodsReceivedNotes, grnItems, supplierPayments, leads, opportunities, crmActivities, departments, designations, employees, attendance, leaveTypes, leaveRequests, payrollPeriods, salarySlips, employeeLoans, advances, performanceReviews, billOfMaterials, bomItems, workOrders, productionOrders, productionItems, projects, projectTasks, projectMilestones, timesheets, supportTickets, ticketComments, assets, assetMaintenance, depreciationEntries, vehicles, fuelRecords, vehicleMaintenance, drivers, documentCategories, documents, companySettings, companyLegalDetails, taxRates, currencies, auditLogs, notifications, posSessions, posHolds, cashboxTransactions, installments, installmentPayments, printTemplates, countries, regions, localizationProfiles, taxProfiles, taxRules, taxIdentifiers, taxIntegrations, taxCredentials, taxSubmissions, taxSubmissionLogs, eInvoiceDocuments, zatcaCredentials, zatcaCertificates, zatcaApiLogs, zatcaInvoiceStatus, zatcaQrCodes, zatcaXmlDocuments, zatcaActivityLogs, complianceProfiles, moduleRegistry, websiteModuleCards, websiteSections, websiteHeroSlides, aiChatLogs, approvalWorkflows, approvalRequests, apiWebhooks, partnerAccounts, securityLogs, tenantUsageLogs, plans, planFeatures, subscriptions, subscriptionInvoices, subscriptionPayments, otpCodes, smtpSettings, emailTemplates, emailLogs, notificationTemplates, coupons, offers, meetings, meetingAttendees, meetingNotes, taskComments, taskAttachments, deviceRegistrations, syncLogs, deletedRecordsTombstone;
 var init_schema2 = __esm({
   "db/schema.ts"() {
     init_mysql_core();
@@ -9839,6 +9842,41 @@ var init_schema2 = __esm({
       mimeType: varchar("mime_type", { length: 100 }),
       uploadedBy: bigint4("uploaded_by", { mode: "number", unsigned: true }),
       createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    deviceRegistrations = mysqlTable("device_registrations", {
+      id: serial("id").primaryKey(),
+      deviceId: varchar("device_id", { length: 255 }).notNull().unique(),
+      deviceName: varchar("device_name", { length: 255 }),
+      platform: varchar("platform", { length: 50 }),
+      userId: bigint4("user_id", { mode: "number", unsigned: true }),
+      tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }),
+      lastSeen: timestamp("last_seen"),
+      lastSyncAt: timestamp("last_sync_at"),
+      appVersion: varchar("app_version", { length: 50 }),
+      isActive: boolean4("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    syncLogs = mysqlTable("sync_logs", {
+      id: serial("id").primaryKey(),
+      tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }),
+      userId: bigint4("user_id", { mode: "number", unsigned: true }),
+      direction: mysqlEnum("direction", ["push", "pull"]).notNull(),
+      entityType: varchar("entity_type", { length: 100 }),
+      entityId: varchar("entity_id", { length: 255 }),
+      action: varchar("action", { length: 50 }),
+      status: varchar("status", { length: 50 }).notNull(),
+      message: text("message"),
+      detailsJson: json2("details_json"),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    deletedRecordsTombstone = mysqlTable("deleted_records_tombstone", {
+      id: serial("id").primaryKey(),
+      entityType: varchar("entity_type", { length: 100 }).notNull(),
+      entityId: varchar("entity_id", { length: 255 }).notNull(),
+      serverId: bigint4("server_id", { mode: "number", unsigned: true }),
+      tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }),
+      deletedAt: timestamp("deleted_at").defaultNow().notNull(),
+      synced: boolean4("synced").default(false)
     });
   }
 });
@@ -58520,9 +58558,9 @@ var projectsRouter = createRouter({
   projectGet: authedQuery.input(external_exports.object({ id: external_exports.number() })).query(async ({ input }) => {
     const db = getDb();
     const project = await db.query.projects.findFirst({ where: eq(projects.id, input.id) });
-    const tasks = await db.select().from(projectTasks).where(eq(projectTasks.projectId, input.id));
+    const tasks2 = await db.select().from(projectTasks).where(eq(projectTasks.projectId, input.id));
     const milestones = await db.select().from(projectMilestones).where(eq(projectMilestones.projectId, input.id));
-    return { project, tasks, milestones };
+    return { project, tasks: tasks2, milestones };
   }),
   projectCreate: authedQuery.input(external_exports.object({
     projectCode: external_exports.string(),
@@ -59562,8 +59600,8 @@ var installmentsRouter = createRouter({
     });
     if (!inst) return null;
     const customer = inst.customerId ? await db.query.customers.findFirst({ where: eq(customers.id, inst.customerId) }) : null;
-    const payments = await db.select().from(installmentPayments).where(eq(installmentPayments.installmentId, inst.id)).orderBy(installmentPayments.dueDate);
-    return { ...inst, customerName: customer?.name || "Walk-in", payments };
+    const payments2 = await db.select().from(installmentPayments).where(eq(installmentPayments.installmentId, inst.id)).orderBy(installmentPayments.dueDate);
+    return { ...inst, customerName: customer?.name || "Walk-in", payments: payments2 };
   }),
   // CREATE
   create: authedQuery.input(external_exports.object({
@@ -59645,10 +59683,10 @@ var installmentsRouter = createRouter({
       where: eq(installments.id, payment.installmentId)
     });
     if (inst) {
-      const payments = await db.select({
+      const payments2 = await db.select({
         totalPaid: sql`coalesce(sum(${installmentPayments.paidAmount}),0)`
       }).from(installmentPayments).where(and(eq(installmentPayments.installmentId, inst.id), eq(installmentPayments.status, "paid")));
-      const totalPaid = Number(payments[0]?.totalPaid || 0) + Number(inst.downPayment);
+      const totalPaid = Number(payments2[0]?.totalPaid || 0) + Number(inst.downPayment);
       const remaining = Number(inst.totalAmount) - totalPaid;
       const newStatus = remaining <= 0 ? "completed" : "active";
       await db.update(installments).set({
@@ -63027,7 +63065,7 @@ async function handleProfitThisMonth(ctx) {
   const start = monthStart();
   const month = currentMonth();
   const year3 = currentYear();
-  const sales = await db.select({
+  const sales2 = await db.select({
     total: sql`COALESCE(SUM(${invoices.totalAmount}), 0)`
   }).from(invoices).where(
     and(
@@ -63043,7 +63081,7 @@ async function handleProfitThisMonth(ctx) {
       gte(purchaseOrders.date, start)
     )
   );
-  const revenue = Number(sales[0].total);
+  const revenue = Number(sales2[0].total);
   const expense = Number(costs[0].total);
   const profit = revenue - expense;
   return {
@@ -65532,22 +65570,22 @@ var taskRouter = createRouter({
   kanbanBoard: authedQuery.query(async ({ ctx }) => {
     const db = getDb();
     const tenantId = ctx.user.tenantId;
-    const tasks = await db.select().from(projectTasks).where(eq(projectTasks.tenantId, tenantId)).orderBy(desc(projectTasks.createdAt));
+    const tasks2 = await db.select().from(projectTasks).where(eq(projectTasks.tenantId, tenantId)).orderBy(desc(projectTasks.createdAt));
     return {
-      todo: tasks.filter((t2) => t2.status === "todo"),
-      in_progress: tasks.filter((t2) => t2.status === "in_progress"),
-      review: tasks.filter((t2) => t2.status === "review"),
-      done: tasks.filter((t2) => t2.status === "done"),
-      cancelled: tasks.filter((t2) => t2.status === "cancelled")
+      todo: tasks2.filter((t2) => t2.status === "todo"),
+      in_progress: tasks2.filter((t2) => t2.status === "in_progress"),
+      review: tasks2.filter((t2) => t2.status === "review"),
+      done: tasks2.filter((t2) => t2.status === "done"),
+      cancelled: tasks2.filter((t2) => t2.status === "cancelled")
     };
   }),
   calendarData: authedQuery.query(async ({ ctx }) => {
     const db = getDb();
     const tenantId = ctx.user.tenantId;
-    const tasks = await db.select().from(projectTasks).where(
+    const tasks2 = await db.select().from(projectTasks).where(
       and(eq(projectTasks.tenantId, tenantId), sql`${projectTasks.dueDate} IS NOT NULL`)
     ).orderBy(asc(projectTasks.dueDate));
-    return tasks.map((t2) => ({
+    return tasks2.map((t2) => ({
       id: t2.id,
       title: t2.name,
       start: t2.dueDate,
@@ -65665,6 +65703,313 @@ var emailRouter = createRouter({
   }
 });
 
+// api/syncRouter.ts
+init_schema2();
+init_drizzle_orm();
+var SYNCABLE_TABLES = [
+  "products",
+  "customers",
+  "suppliers",
+  "invoices",
+  "invoiceItems",
+  "sales",
+  "saleItems",
+  "purchases",
+  "purchaseItems",
+  "payments",
+  "tasks",
+  "meetings"
+];
+var tableMap = {
+  products,
+  customers,
+  suppliers,
+  invoices,
+  invoiceItems,
+  sales: void 0,
+  saleItems: void 0,
+  purchases: void 0,
+  purchaseItems: void 0,
+  payments: void 0,
+  tasks: void 0,
+  meetings
+};
+var syncRouter = createRouter({
+  // Register device
+  registerDevice: authedQuery.input(external_exports.object({
+    deviceId: external_exports.string(),
+    deviceName: external_exports.string().optional(),
+    platform: external_exports.string().optional(),
+    appVersion: external_exports.string().optional()
+  })).mutation(async ({ input, ctx }) => {
+    const db = getDb();
+    const existing = await db.query.deviceRegistrations.findFirst({
+      where: eq(deviceRegistrations.deviceId, input.deviceId)
+    });
+    if (existing) {
+      await db.update(deviceRegistrations).set({
+        lastSeen: /* @__PURE__ */ new Date(),
+        deviceName: input.deviceName || existing.deviceName,
+        platform: input.platform || existing.platform,
+        appVersion: input.appVersion || existing.appVersion,
+        lastSyncAt: /* @__PURE__ */ new Date()
+      }).where(eq(deviceRegistrations.deviceId, input.deviceId));
+      return { deviceId: input.deviceId, registered: true, message: "Device updated" };
+    }
+    await db.insert(deviceRegistrations).values({
+      deviceId: input.deviceId,
+      deviceName: input.deviceName || "Unknown",
+      platform: input.platform || "unknown",
+      userId: ctx.user.id,
+      tenantId: ctx.user.tenantId,
+      lastSeen: /* @__PURE__ */ new Date(),
+      lastSyncAt: /* @__PURE__ */ new Date(),
+      appVersion: input.appVersion || "1.0.0",
+      isActive: true
+    });
+    await db.insert(auditLogs).values({
+      tenantId: ctx.user.tenantId,
+      userId: ctx.user.id,
+      action: "device_registered",
+      entityType: "device",
+      entityId: input.deviceId,
+      newValue: JSON.stringify({ deviceName: input.deviceName, platform: input.platform }),
+      ipAddress: ctx.req?.header("x-forwarded-for") || ctx.req?.header("x-real-ip") || ""
+    });
+    return { deviceId: input.deviceId, registered: true, message: "Device registered" };
+  }),
+  // Pull changes from server
+  pull: authedQuery.input(external_exports.object({
+    since: external_exports.string().optional(),
+    entityTypes: external_exports.array(external_exports.string()).optional()
+  })).query(async ({ input, ctx }) => {
+    const db = getDb();
+    const tenantId = ctx.user.tenantId;
+    const sinceDate = input.since || (/* @__PURE__ */ new Date(0)).toISOString();
+    const types = input.entityTypes || [...SYNCABLE_TABLES];
+    const result = {};
+    const deletedResult = {};
+    for (const type of types) {
+      const tbl = tableMap[type];
+      if (!tbl) continue;
+      try {
+        const records = await db.select().from(tbl).where(
+          and(
+            eq(tbl.tenantId, tenantId),
+            gte(tbl.updatedAt || tbl.createdAt, new Date(sinceDate))
+          )
+        );
+        result[type] = records.map((r) => ({
+          ...r,
+          local_uuid: r.localUuid || r.id,
+          sync_status: "synced"
+        }));
+      } catch (e) {
+        result[type] = [];
+      }
+    }
+    const tombstones = await db.select().from(deletedRecordsTombstone).where(and(
+      eq(deletedRecordsTombstone.tenantId, tenantId),
+      gte(deletedRecordsTombstone.deletedAt, new Date(sinceDate))
+    ));
+    return {
+      data: result,
+      tombstones,
+      serverTime: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }),
+  // Push changes to server
+  push: authedQuery.input(external_exports.object({
+    changes: external_exports.array(external_exports.object({
+      entityType: external_exports.string(),
+      entityId: external_exports.string(),
+      action: external_exports.enum(["create", "update", "delete"]),
+      payload: external_exports.any(),
+      deviceId: external_exports.string().optional(),
+      localUuid: external_exports.string().optional()
+    }))
+  })).mutation(async ({ input, ctx }) => {
+    const db = getDb();
+    const tenantId = ctx.user.tenantId;
+    const results = [];
+    const conflicts = [];
+    for (const change of input.changes) {
+      try {
+        const tbl = tableMap[change.entityType];
+        if (!tbl) {
+          results.push({ entityId: change.entityId, status: "failed", error: "Unknown entity type" });
+          continue;
+        }
+        const payload = change.payload || {};
+        const localUuid = change.localUuid || change.entityId;
+        if (change.action === "create") {
+          const insertData = {
+            ...payload,
+            tenantId,
+            localUuid,
+            updatedAt: /* @__PURE__ */ new Date()
+          };
+          delete insertData.id;
+          delete insertData.serverId;
+          const [inserted] = await db.insert(tbl).values(insertData);
+          const serverId = Number(inserted.insertId);
+          results.push({
+            entityId: change.entityId,
+            localUuid,
+            serverId,
+            status: "synced",
+            action: "create"
+          });
+          await db.insert(auditLogs).values({
+            tenantId,
+            userId: ctx.user.id,
+            action: "sync_create",
+            entityType: change.entityType,
+            entityId: String(serverId),
+            newValue: JSON.stringify(payload)
+          });
+        } else if (change.action === "update") {
+          const existing = await db.select().from(tbl).where(
+            and(eq(tbl.tenantId, tenantId), eq(tbl.localUuid, localUuid))
+          ).limit(1);
+          if (existing.length > 0) {
+            const current = existing[0];
+            const clientVersion = payload.version || 0;
+            const serverVersion = current.version || 0;
+            if (clientVersion < serverVersion) {
+              conflicts.push({
+                entityType: change.entityType,
+                entityId: change.entityId,
+                localUuid,
+                serverVersion: current,
+                clientVersion: payload,
+                message: "Version conflict: server has newer version"
+              });
+              results.push({
+                entityId: change.entityId,
+                localUuid,
+                status: "conflict",
+                serverVersion: current
+              });
+              continue;
+            }
+            const updateData = {
+              ...payload,
+              tenantId,
+              updatedAt: /* @__PURE__ */ new Date(),
+              version: serverVersion + 1
+            };
+            delete updateData.id;
+            delete updateData.serverId;
+            delete updateData.localUuid;
+            delete updateData.createdAt;
+            await db.update(tbl).set(updateData).where(and(eq(tbl.tenantId, tenantId), eq(tbl.localUuid, localUuid)));
+            results.push({
+              entityId: change.entityId,
+              localUuid,
+              serverId: current.serverId || current.id,
+              status: "synced",
+              action: "update"
+            });
+          }
+        } else if (change.action === "delete") {
+          const existing = await db.select().from(tbl).where(
+            and(eq(tbl.tenantId, tenantId), eq(tbl.localUuid, localUuid))
+          ).limit(1);
+          if (existing.length > 0) {
+            await db.update(tbl).set({ deletedAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(tbl.tenantId, tenantId), eq(tbl.localUuid, localUuid)));
+            await db.insert(deletedRecordsTombstone).values({
+              entityType: change.entityType,
+              entityId: localUuid,
+              serverId: existing[0].serverId || existing[0].id,
+              tenantId,
+              deletedAt: /* @__PURE__ */ new Date()
+            });
+            results.push({
+              entityId: change.entityId,
+              localUuid,
+              status: "synced",
+              action: "delete"
+            });
+          }
+        }
+      } catch (error48) {
+        results.push({
+          entityId: change.entityId,
+          status: "failed",
+          error: error48.message
+        });
+      }
+    }
+    if (input.changes.length > 0 && input.changes[0].deviceId) {
+      await db.update(deviceRegistrations).set({ lastSyncAt: /* @__PURE__ */ new Date(), lastSeen: /* @__PURE__ */ new Date() }).where(eq(deviceRegistrations.deviceId, input.changes[0].deviceId));
+    }
+    return { results, conflicts, serverTime: (/* @__PURE__ */ new Date()).toISOString() };
+  }),
+  // Resolve conflict
+  resolveConflict: authedQuery.input(external_exports.object({
+    entityType: external_exports.string(),
+    localUuid: external_exports.string(),
+    resolution: external_exports.enum(["keep_local", "keep_server", "merge"]),
+    mergedPayload: external_exports.any().optional()
+  })).mutation(async ({ input, ctx }) => {
+    const db = getDb();
+    const tbl = tableMap[input.entityType];
+    if (!tbl) throw new TRPCError({ code: "BAD_REQUEST", message: "Unknown entity type" });
+    const existing = await db.select().from(tbl).where(
+      and(eq(tbl.tenantId, ctx.user.tenantId), eq(tbl.localUuid, input.localUuid))
+    ).limit(1);
+    if (existing.length === 0) throw new TRPCError({ code: "NOT_FOUND", message: "Record not found" });
+    if (input.resolution === "keep_local") {
+      await db.update(tbl).set({ version: sql`version + 1`, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tbl.localUuid, input.localUuid));
+    } else if (input.resolution === "keep_server") {
+    } else if (input.resolution === "merge" && input.mergedPayload) {
+      await db.update(tbl).set({ ...input.mergedPayload, updatedAt: /* @__PURE__ */ new Date(), version: sql`version + 1` }).where(eq(tbl.localUuid, input.localUuid));
+    }
+    await db.insert(auditLogs).values({
+      tenantId: ctx.user.tenantId,
+      userId: ctx.user.id,
+      action: "sync_conflict_resolved",
+      entityType: input.entityType,
+      entityId: input.localUuid,
+      newValue: JSON.stringify({ resolution: input.resolution, mergedPayload: input.mergedPayload })
+    });
+    return { success: true, message: `Conflict resolved: ${input.resolution}` };
+  }),
+  // Sync status
+  status: authedQuery.query(async ({ ctx }) => {
+    const db = getDb();
+    const tenantId = ctx.user.tenantId;
+    const devices = await db.select().from(deviceRegistrations).where(eq(deviceRegistrations.tenantId, tenantId));
+    return {
+      devices,
+      serverTime: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }),
+  // Sync logs
+  logs: authedQuery.input(external_exports.object({ limit: external_exports.number().default(50), offset: external_exports.number().default(0) }).optional()).query(async ({ input, ctx }) => {
+    const db = getDb();
+    const tenantId = ctx.user.tenantId;
+    const items = await db.select().from(syncLogs).where(eq(syncLogs.tenantId, tenantId)).orderBy(desc(syncLogs.createdAt)).limit(input?.limit || 50).offset(input?.offset || 0);
+    const [totalResult] = await db.select({ total: sql`count(*)` }).from(syncLogs).where(eq(syncLogs.tenantId, tenantId));
+    return { items, total: totalResult?.total || 0 };
+  }),
+  // List registered devices
+  listDevices: authedQuery.query(async ({ ctx }) => {
+    const db = getDb();
+    return await db.select().from(deviceRegistrations).where(eq(deviceRegistrations.tenantId, ctx.user.tenantId)).orderBy(desc(deviceRegistrations.lastSeen));
+  }),
+  // Deactivate device
+  deactivateDevice: authedQuery.input(external_exports.object({ deviceId: external_exports.string() })).mutation(async ({ input, ctx }) => {
+    const db = getDb();
+    await db.update(deviceRegistrations).set({ isActive: false }).where(and(
+      eq(deviceRegistrations.deviceId, input.deviceId),
+      eq(deviceRegistrations.tenantId, ctx.user.tenantId)
+    ));
+    return { success: true };
+  })
+});
+
 // api/router.ts
 var appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -65697,7 +66042,8 @@ var appRouter = createRouter({
   meetings: meetingRouter,
   tasks: taskRouter,
   notifications2: notificationRouter,
-  emails: emailRouter
+  emails: emailRouter,
+  sync: syncRouter
 });
 
 // node_modules/hono/dist/utils/cookie.js

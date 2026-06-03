@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import SyncStatusBadge from "@/components/sync/SyncStatusBadge";
+import OfflineBanner from "@/components/sync/OfflineBanner";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/providers/language";
@@ -331,6 +333,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <div className="hidden md:block"><SyncStatusBadge /></div>
             <Badge variant="outline" className={cn("hidden lg:inline-flex", theme.badge)}>
               {countryDetection.countryFlag}
               <span className="mx-1">{countryDetection.selectedCountry}</span>
@@ -361,6 +364,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </header>
+
+        {/* Offline Banner */}
+        <OfflineBanner />
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-4 lg:p-6">

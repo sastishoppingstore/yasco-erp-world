@@ -6,6 +6,7 @@ import { TRPCProvider } from "@/providers/trpc"
 import { LanguageProvider } from "@/providers/language"
 import { CountryDetectionProvider, useCountryDetection } from "@/providers/country-detection"
 import { useLanguage } from "@/providers/language"
+import { SyncProvider } from "@/providers/sync"
 import App from './App.tsx'
 
 function CountryLanguageBridge() {
@@ -33,7 +34,9 @@ createRoot(document.getElementById('root')!).render(
         <CountryDetectionProvider>
           <CountryLanguageBridge />
           <TRPCProvider>
-            <App />
+            <SyncProvider>
+              <App />
+            </SyncProvider>
           </TRPCProvider>
         </CountryDetectionProvider>
       </LanguageProvider>

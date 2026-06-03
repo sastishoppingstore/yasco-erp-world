@@ -1,1 +1,0 @@
-import{c as o}from"./index-C1STZeUS.js";const t=[["path",{d:"M17 7 7 17",key:"15tmo1"}],["path",{d:"M17 17H7V7",key:"1org7z"}]],d=o("arrow-down-left",t);const n=[["path",{d:"M16 17h6v-6",key:"t6n2it"}],["path",{d:"m22 17-8.5-8.5-5 5L2 7",key:"x473p"}]],r=o("trending-down",n);export{d as A,r as T};
