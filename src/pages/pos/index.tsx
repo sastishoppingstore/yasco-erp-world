@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLanguage } from "@/providers/language";
 import { trpc } from "@/providers/trpc";
+import { createSaleOffline } from "@/lib/sync/offlineStorage";
+import { syncEngine } from "@/lib/sync/syncEngine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -149,6 +151,36 @@ export default function POSPage() {
 
   const handlePayment = useCallback(async () => {
     if (cart.length === 0) { toast.error("Cart is empty"); return; }
+    const resetSale = () => {
+      setCart([]);
+      setSelectedCustomer(null);
+      setRemarks("");
+      setPaymentModal(false);
+      setCashReceived("");
+      searchRef.current?.focus();
+    };
+    const salePayload = {
+      saleNumber: `POS-OFF-${Date.now()}`,
+      customerId: selectedCustomer?.id,
+      customerName: selectedCustomer?.name,
+      saleDate: new Date().toISOString().split("T")[0],
+      paymentMethod,
+      subtotal,
+      taxAmount: taxTotal,
+      discount: discountTotal,
+      total: grandTotal,
+      status: "paid",
+      notes: remarks,
+      items: cart.map(i => ({
+        productId: i.productId,
+        productName: i.name,
+        quantity: i.quantity,
+        price: i.unitPrice,
+        total: i.totalAmount,
+        taxRate: i.taxRate,
+        discount: i.discount,
+      })),
+    };
     try {
       await createSale.mutateAsync({
         customerId: selectedCustomer?.id,
@@ -171,14 +203,16 @@ export default function POSPage() {
         })),
       });
       toast.success("Sale completed successfully!");
-      setCart([]);
-      setSelectedCustomer(null);
-      setRemarks("");
-      setPaymentModal(false);
-      setCashReceived("");
-      searchRef.current?.focus();
+      resetSale();
     } catch (e: any) {
-      toast.error(e.message || "Sale failed");
+      try {
+        await createSaleOffline(salePayload);
+        toast.success("Sale saved offline. It will sync when the server is reachable.");
+        resetSale();
+        syncEngine.sync();
+      } catch (offlineError: any) {
+        toast.error(offlineError.message || e.message || "Sale failed");
+      }
     }
   }, [cart, selectedCustomer, paymentMethod, grandTotal, subtotal, taxTotal, discountTotal, remarks, createSale]);
 

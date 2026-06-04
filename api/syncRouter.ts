@@ -7,8 +7,7 @@ import { TRPCError } from "@trpc/server";
 
 const SYNCABLE_TABLES = [
   "products", "customers", "suppliers", "invoices", "invoiceItems",
-  "sales", "saleItems", "purchases", "purchaseItems",
-  "payments", "tasks", "meetings",
+  "sales", "purchases", "payments", "tasks", "meetings",
 ] as const;
 
 const tableMap: Record<string, any> = {
@@ -17,12 +16,10 @@ const tableMap: Record<string, any> = {
   suppliers: schema.suppliers,
   invoices: schema.invoices,
   invoiceItems: schema.invoiceItems,
-  sales: schema.sales,
-  saleItems: schema.saleItems,
-  purchases: schema.purchases,
-  purchaseItems: schema.purchaseItems,
-  payments: schema.payments,
-  tasks: schema.tasks,
+  sales: schema.invoices,
+  purchases: schema.purchaseOrders,
+  payments: schema.customerPayments,
+  tasks: schema.projectTasks,
   meetings: schema.meetings,
 };
 
@@ -32,6 +29,106 @@ function generateUuid() {
     const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+}
+
+async function getOrCreateWalkInCustomer(db: ReturnType<typeof getDb>, tenantId: number) {
+  const existing = await db.query.customers.findFirst({
+    where: and(eq(schema.customers.tenantId, tenantId), eq(schema.customers.code, "WALK-IN")),
+  });
+  if (existing) return existing.id;
+
+  const [{ id }] = await db.insert(schema.customers).values({
+    tenantId,
+    code: "WALK-IN",
+    name: "Walk-in Customer",
+    nameAr: "Cash Customer",
+    country: "Saudi Arabia",
+    isActive: true,
+  }).$returningId();
+  return id;
+}
+
+async function createSyncedPosSale(
+  db: ReturnType<typeof getDb>,
+  tenantId: number,
+  userId: number,
+  payload: any,
+) {
+  const invoiceNumber = payload.saleNumber || `POS-SYNC-${Date.now()}`;
+  const customerId = payload.customerId ?? await getOrCreateWalkInCustomer(db, tenantId);
+  const totalAmount = String(payload.total ?? payload.totalAmount ?? 0);
+  const paidAmount = totalAmount;
+  const balanceDue = Math.max(0, Number(totalAmount) - Number(paidAmount || 0)).toFixed(4);
+
+  const [{ id: invoiceId }] = await db.insert(schema.invoices).values({
+    tenantId,
+    invoiceNumber,
+    customerId,
+    date: payload.saleDate || new Date().toISOString().split("T")[0],
+    subTotal: String(payload.subtotal ?? 0),
+    discountAmount: String(payload.discount ?? payload.discountAmount ?? 0),
+    taxAmount: String(payload.taxAmount ?? 0),
+    totalAmount,
+    paidAmount,
+    balanceDue,
+    notes: payload.notes,
+    invoiceType: "simplified",
+    status: "paid",
+    createdBy: userId,
+  }).$returningId();
+
+  for (const item of payload.items || []) {
+    await db.insert(schema.invoiceItems).values({
+      invoiceId,
+      productId: item.productId,
+      description: item.productName || item.description,
+      quantity: Number(item.quantity || 1),
+      unitPrice: String(item.price ?? item.unitPrice ?? 0),
+      discountPercent: String(item.discount ?? 0),
+      taxPercent: String(item.taxRate ?? 0),
+      totalAmount: String(item.total ?? item.totalAmount ?? 0),
+    });
+
+    if (item.productId) {
+      const balances = await db.select().from(schema.inventoryBalances)
+        .where(and(
+          eq(schema.inventoryBalances.productId, item.productId),
+          eq(schema.inventoryBalances.tenantId, tenantId),
+        ));
+      for (const bal of balances) {
+        const newQty = Math.max(0, Number(bal.quantity || 0) - Number(item.quantity || 1));
+        await db.update(schema.inventoryBalances)
+          .set({ quantity: newQty })
+          .where(eq(schema.inventoryBalances.id, bal.id));
+      }
+    }
+  }
+
+  if (Number(paidAmount) > 0) {
+    const lastTx = await db.select({ bal: schema.cashboxTransactions.balanceAfter })
+      .from(schema.cashboxTransactions)
+      .where(eq(schema.cashboxTransactions.tenantId, tenantId))
+      .orderBy(desc(schema.cashboxTransactions.createdAt))
+      .limit(1);
+    const prevBal = Number(lastTx[0]?.bal || 0);
+    const paymentMethod = payload.paymentMethod === "transfer" ? "transfer" : payload.paymentMethod || "cash";
+    await db.insert(schema.cashboxTransactions).values({
+      tenantId,
+      userId,
+      transactionNumber: `CB-SYNC-${Date.now()}`,
+      transactionType: "sale",
+      amount: paidAmount,
+      paymentMethod,
+      referenceType: "invoice",
+      referenceId: invoiceId,
+      description: `Offline sale invoice ${invoiceNumber}`,
+      balanceBefore: String(prevBal),
+      balanceAfter: String(prevBal + Number(paidAmount)),
+      status: "completed",
+    });
+  }
+
+  return { invoiceId, invoiceNumber };
 }
 
 export const syncRouter = createRouter({
@@ -151,6 +248,26 @@ export const syncRouter = createRouter({
 
       for (const change of input.changes) {
         try {
+          if (change.entityType === "sales" && change.action === "create") {
+            const syncedSale = await createSyncedPosSale(db, tenantId, ctx.user.id, change.payload || {});
+            results.push({
+              entityId: change.entityId,
+              localUuid: change.localUuid || change.entityId,
+              serverId: syncedSale.invoiceId,
+              status: "synced",
+              action: "create",
+            });
+            await db.insert(schema.auditLogs).values({
+              tenantId,
+              userId: ctx.user.id,
+              action: "sync_create",
+              entityType: "sales",
+              entityId: String(syncedSale.invoiceId),
+              newValue: JSON.stringify(change.payload || {}),
+            });
+            continue;
+          }
+
           const tbl = tableMap[change.entityType];
           if (!tbl) {
             results.push({ entityId: change.entityId, status: "failed", error: "Unknown entity type" });

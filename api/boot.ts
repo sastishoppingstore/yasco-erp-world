@@ -65,6 +65,9 @@ app.get("/api/localization/detect", (c) => {
   });
 });
 
+app.get("/api/ping", (c) => c.json({ ok: true, ts: Date.now() }));
+app.on("HEAD", "/api/ping", (c) => c.body(null, 204));
+
 // Apply rate limiting to API routes
 app.use("/api/trpc", rateLimiter, bodyLimit({ maxSize: 50 * 1024 * 1024 }));
 app.use("/api/trpc/*", rateLimiter, bodyLimit({ maxSize: 50 * 1024 * 1024 }));

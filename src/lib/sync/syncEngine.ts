@@ -25,6 +25,11 @@ class SyncEngine {
         this.notify();
       }
     });
+    window.setInterval(() => {
+      if (connectionDetector.isOnline()) {
+        this.sync();
+      }
+    }, 60_000);
   }
 
   private async loadStatus() {
@@ -105,7 +110,7 @@ class SyncEngine {
     const { trpcClient } = await import("@/providers/trpc");
     const pendingItems = await db.syncQueue
       .where("status")
-      .equals("pending")
+      .anyOf("pending", "failed")
       .toArray();
 
     if (pendingItems.length === 0) return;
