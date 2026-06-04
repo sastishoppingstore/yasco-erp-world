@@ -96,7 +96,7 @@ if (env.isProduction) {
 
   const port = parseInt(process.env.PORT || "3000");
   const host = process.env.HOST || "0.0.0.0";
-  serve({ fetch: app.fetch, port }, () => {
+  serve({ fetch: app.fetch, port, hostname: host }, () => {
     console.log(`Server running on http://${host}:${port}/ (High-Traffic Optimized)`);
   });
 }

@@ -1,4 +1,21 @@
+use std::{
+  net::{TcpStream, ToSocketAddrs},
+  time::{Duration, Instant},
+};
+
+use tauri::Manager;
+use tauri_plugin_shell::{process::CommandChild, ShellExt};
 use tauri_plugin_sql::{Migration, MigrationKind};
+
+struct BackendChild(Option<CommandChild>);
+
+impl Drop for BackendChild {
+  fn drop(&mut self) {
+    if let Some(child) = self.0.take() {
+      let _ = child.kill();
+    }
+  }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -12,6 +29,8 @@ pub fn run() {
         .build(),
     )
     .setup(|app| {
+      start_local_backend(app)?;
+
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
@@ -23,6 +42,63 @@ pub fn run() {
     })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+}
+
+fn start_local_backend(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+  let resource_dir = app.path().resource_dir()?;
+  let boot_script = resource_dir.join("dist").join("boot.js");
+  let static_dir = resource_dir.join("dist").join("public");
+  let backend_port = "32145";
+
+  let (_rx, child) = app
+    .shell()
+    .sidecar("node")?
+    .arg(boot_script)
+    .current_dir(&resource_dir)
+    .env("NODE_ENV", "production")
+    .env("HOST", "127.0.0.1")
+    .env("PORT", backend_port)
+    .env("ERP_STATIC_DIR", static_dir)
+    .env("APP_ID", std::env::var("APP_ID").unwrap_or_else(|_| "desktop_app".into()))
+    .env(
+      "APP_SECRET",
+      std::env::var("APP_SECRET").unwrap_or_else(|_| "desktop_local_secret".into()),
+    )
+    .env(
+      "DATABASE_URL",
+      std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "mysql://erp:erp123@localhost:3306/erp".into()),
+    )
+    .env(
+      "KIMI_AUTH_URL",
+      std::env::var("KIMI_AUTH_URL").unwrap_or_else(|_| "https://auth.kimi.com".into()),
+    )
+    .env(
+      "KIMI_OPEN_URL",
+      std::env::var("KIMI_OPEN_URL").unwrap_or_else(|_| "https://open.kimi.com".into()),
+    )
+    .spawn()?;
+
+  app.manage(BackendChild(Some(child)));
+  wait_for_backend("127.0.0.1:32145", Duration::from_secs(15))?;
+  Ok(())
+}
+
+fn wait_for_backend(addr: &str, timeout: Duration) -> Result<(), Box<dyn std::error::Error>> {
+  let socket_addr = addr
+    .to_socket_addrs()?
+    .next()
+    .ok_or_else(|| format!("Could not resolve backend address {addr}"))?;
+  let started_at = Instant::now();
+
+  while started_at.elapsed() < timeout {
+    if TcpStream::connect_timeout(&socket_addr, Duration::from_millis(250)).is_ok() {
+      return Ok(());
+    }
+    std::thread::sleep(Duration::from_millis(250));
+  }
+
+  Err(format!("Local backend did not start on {addr}").into())
 }
 
 fn get_migrations() -> Vec<Migration> {

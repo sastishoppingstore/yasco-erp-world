@@ -38,46 +38,18 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Test live ERP login API
+      - name: Prepare bundled Node.js sidecar
         shell: pwsh
         run: |
-          $baseUrl = "http://test.mzbloodbridge.pk"
-          $homeResponse = Invoke-WebRequest -Uri $baseUrl -UseBasicParsing -TimeoutSec 30
-          if ($homeResponse.StatusCode -ne 200) {
-            throw "Live ERP site returned HTTP $($homeResponse.StatusCode)."
-          }
-
-          $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-          $body = @{
-            "0" = @{
-              json = @{
-                username = "wafaweb"
-                password = "Wafa@1122"
-              }
-            }
-          } | ConvertTo-Json -Depth 5 -Compress
-
-          $login = Invoke-RestMethod `
-            -Uri "$baseUrl/api/trpc/auth.passwordLogin?batch=1" `
-            -Method Post `
-            -ContentType "application/json" `
-            -Body $body `
-            -WebSession $session `
-            -TimeoutSec 30
-
-          if (-not $login[0].result.data.json.success) {
-            throw "Live ERP password login API did not return success."
-          }
-
-          $me = Invoke-RestMethod `
-            -Uri "$baseUrl/api/trpc/auth.me?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%7D%7D" `
-            -Method Get `
-            -WebSession $session `
-            -TimeoutSec 30
-
-          if ($me[0].result.data.json.role -ne "admin") {
-            throw "Live ERP session check failed after login."
-          }
+          $nodeVersion = "v22.22.3"
+          $zipPath = Join-Path $env:RUNNER_TEMP "node-win-x64.zip"
+          $extractDir = Join-Path $env:RUNNER_TEMP "node-win-x64"
+          Invoke-WebRequest "https://nodejs.org/dist/$nodeVersion/node-$nodeVersion-win-x64.zip" -OutFile $zipPath
+          Expand-Archive $zipPath -DestinationPath $extractDir
+          New-Item -ItemType Directory -Force "src-tauri/binaries"
+          Copy-Item `
+            (Join-Path $extractDir "node-$nodeVersion-win-x64\node.exe") `
+            "src-tauri/binaries/node-x86_64-pc-windows-msvc.exe"
 
       - name: Build Tauri Windows app
         run: npx tauri build

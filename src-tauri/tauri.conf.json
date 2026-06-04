@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.erp.system",
   "build": {
-    "frontendDist": "http://test.mzbloodbridge.pk/",
-    "devUrl": "http://test.mzbloodbridge.pk/",
+    "frontendDist": "http://127.0.0.1:32145/",
+    "devUrl": "http://127.0.0.1:32145/",
     "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "npm run build"
   },
   "app": {
     "windows": [
@@ -29,6 +29,13 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": [
+      "binaries/node"
+    ],
+    "resources": {
+      "../dist/boot.js": "dist/boot.js",
+      "../dist/public": "dist/public"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
