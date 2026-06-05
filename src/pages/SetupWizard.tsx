@@ -79,12 +79,12 @@ export default function SetupWizard() {
   const [employeeEmail, setEmployeeEmail] = useState("");
   const [employeeRole, setEmployeeRole] = useState("user");
 
-  const saveProfileMut = trpc.settings.updateCompanyProfile.useMutation();
-  const saveTaxMut = trpc.taxCompliance.saveSettings.useMutation();
-  const saveInvoiceMut = trpc.settings.updateInvoiceSettings.useMutation();
-  const createProductMut = trpc.inventory.products.create.useMutation();
-  const createCustomerMut = trpc.sales.customers.create.useMutation();
-  const createEmployeeMut = trpc.hrm.employees.create.useMutation();
+  const saveProfileMut = trpc.settings.companySettingsUpdate.useMutation();
+  const saveTaxMut = trpc.settings.companySettingsUpdate.useMutation();
+  const saveInvoiceMut = trpc.settings.companySettingsUpdate.useMutation();
+  const createProductMut = trpc.inventory.productCreate.useMutation();
+  const createCustomerMut = trpc.sales.customerCreate.useMutation();
+  const createEmployeeMut = trpc.hrm.employeeCreate.useMutation();
 
   const isPending = saveProfileMut.isPending || saveTaxMut.isPending || saveInvoiceMut.isPending ||
     createProductMut.isPending || createCustomerMut.isPending || createEmployeeMut.isPending;
@@ -108,7 +108,7 @@ export default function SetupWizard() {
           if (Object.keys(taxData).length > 0) await saveTaxMut.mutateAsync(taxData as any);
           break;
         case "invoice":
-          await saveInvoiceMut.mutateAsync({ invoicePrefix, invoiceTerms, defaultTaxRate: Number(defaultTaxRate), currency } as any);
+          await saveInvoiceMut.mutateAsync({ invoicePrefix, invoiceTerms, vatRate: String(defaultTaxRate), defaultCurrency: currency } as any);
           break;
         case "product":
           await createProductMut.mutateAsync({ name: productName, sku: productSku, price: Number(productPrice), barcode: productBarcode } as any);

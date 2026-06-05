@@ -132,7 +132,8 @@ export const registrationRouter = createRouter({
         throw new Error("Invalid OTP code.");
       }
       await db.update(schema.otpCodes).set({ isVerified: true, verifiedAt: new Date() }).where(eq(schema.otpCodes.id, record.id));
-      return { success: true, message: "Email verified successfully." };
+      const user = await db.query.users.findFirst({ where: eq(schema.users.email, email) });
+      return { success: true, message: "Email verified successfully.", tenantId: user?.tenantId ?? null };
     }),
   resendOtp: publicQuery
     .input(z.object({ email: z.string().email(), purpose: z.string() }))

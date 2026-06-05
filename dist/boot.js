@@ -34678,11 +34678,11 @@ __export(vite_exports, {
 import fs from "fs";
 import path from "path";
 function serveStaticFiles(app2) {
-  const distPath = path.resolve(import.meta.dirname, "../dist/public");
-  app2.use("*", serveStatic({ root: "./dist/public" }));
+  const distPath = process.env.ERP_STATIC_DIR ? path.resolve(process.env.ERP_STATIC_DIR) : path.resolve(import.meta.dirname, "../dist/public");
+  app2.use("*", serveStatic({ root: distPath }));
   app2.notFound((c) => {
-    const accept = c.req.header("accept") ?? "";
-    if (!accept.includes("text/html")) {
+    const url2 = new URL(c.req.url);
+    if (url2.pathname.startsWith("/api/")) {
       return c.json({ error: "Not Found" }, 404);
     }
     const indexPath = path.resolve(distPath, "index.html");
@@ -58558,9 +58558,9 @@ var projectsRouter = createRouter({
   projectGet: authedQuery.input(external_exports.object({ id: external_exports.number() })).query(async ({ input }) => {
     const db = getDb();
     const project = await db.query.projects.findFirst({ where: eq(projects.id, input.id) });
-    const tasks2 = await db.select().from(projectTasks).where(eq(projectTasks.projectId, input.id));
+    const tasks = await db.select().from(projectTasks).where(eq(projectTasks.projectId, input.id));
     const milestones = await db.select().from(projectMilestones).where(eq(projectMilestones.projectId, input.id));
-    return { project, tasks: tasks2, milestones };
+    return { project, tasks, milestones };
   }),
   projectCreate: authedQuery.input(external_exports.object({
     projectCode: external_exports.string(),
@@ -59600,8 +59600,8 @@ var installmentsRouter = createRouter({
     });
     if (!inst) return null;
     const customer = inst.customerId ? await db.query.customers.findFirst({ where: eq(customers.id, inst.customerId) }) : null;
-    const payments2 = await db.select().from(installmentPayments).where(eq(installmentPayments.installmentId, inst.id)).orderBy(installmentPayments.dueDate);
-    return { ...inst, customerName: customer?.name || "Walk-in", payments: payments2 };
+    const payments = await db.select().from(installmentPayments).where(eq(installmentPayments.installmentId, inst.id)).orderBy(installmentPayments.dueDate);
+    return { ...inst, customerName: customer?.name || "Walk-in", payments };
   }),
   // CREATE
   create: authedQuery.input(external_exports.object({
@@ -59683,10 +59683,10 @@ var installmentsRouter = createRouter({
       where: eq(installments.id, payment.installmentId)
     });
     if (inst) {
-      const payments2 = await db.select({
+      const payments = await db.select({
         totalPaid: sql`coalesce(sum(${installmentPayments.paidAmount}),0)`
       }).from(installmentPayments).where(and(eq(installmentPayments.installmentId, inst.id), eq(installmentPayments.status, "paid")));
-      const totalPaid = Number(payments2[0]?.totalPaid || 0) + Number(inst.downPayment);
+      const totalPaid = Number(payments[0]?.totalPaid || 0) + Number(inst.downPayment);
       const remaining = Number(inst.totalAmount) - totalPaid;
       const newStatus = remaining <= 0 ? "completed" : "active";
       await db.update(installments).set({
@@ -63065,7 +63065,7 @@ async function handleProfitThisMonth(ctx) {
   const start = monthStart();
   const month = currentMonth();
   const year3 = currentYear();
-  const sales2 = await db.select({
+  const sales = await db.select({
     total: sql`COALESCE(SUM(${invoices.totalAmount}), 0)`
   }).from(invoices).where(
     and(
@@ -63081,7 +63081,7 @@ async function handleProfitThisMonth(ctx) {
       gte(purchaseOrders.date, start)
     )
   );
-  const revenue = Number(sales2[0].total);
+  const revenue = Number(sales[0].total);
   const expense = Number(costs[0].total);
   const profit = revenue - expense;
   return {
@@ -64713,7 +64713,9 @@ var saasRouter = createRouter({
       if (!coupon.isActive) throw new Error("Coupon is no longer active");
       if (coupon.expiresAt && new Date(coupon.expiresAt) < /* @__PURE__ */ new Date()) throw new Error("Coupon has expired");
       if (coupon.startsAt && new Date(coupon.startsAt) > /* @__PURE__ */ new Date()) throw new Error("Coupon is not yet valid");
-      if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) throw new Error("Coupon usage limit reached");
+      const maxUses = coupon.maxUses ?? 0;
+      const usedCount = coupon.usedCount ?? 0;
+      if (maxUses > 0 && usedCount >= maxUses) throw new Error("Coupon usage limit reached");
       if (coupon.applicablePlans) {
         const planIds = coupon.applicablePlans;
         if (!planIds.includes(input.planId)) throw new Error("Coupon not applicable for this plan");
@@ -64868,7 +64870,8 @@ This code expires in 10 minutes.`);
       throw new Error("Invalid OTP code.");
     }
     await db.update(otpCodes).set({ isVerified: true, verifiedAt: /* @__PURE__ */ new Date() }).where(eq(otpCodes.id, record2.id));
-    return { success: true, message: "Email verified successfully." };
+    const user = await db.query.users.findFirst({ where: eq(users.email, email3) });
+    return { success: true, message: "Email verified successfully.", tenantId: user?.tenantId ?? null };
   }),
   resendOtp: publicQuery.input(external_exports.object({ email: external_exports.string().email(), purpose: external_exports.string() })).mutation(async ({ input, ctx }) => {
     const email3 = normalizeEmail2(input.email);
@@ -65453,7 +65456,7 @@ var taskRouter = createRouter({
     status: external_exports.string().optional(),
     priority: external_exports.string().optional(),
     assignedTo: external_exports.number().optional(),
-    projectId: external_exports.number().optional(),
+    projectId: external_exports.number().positive(),
     search: external_exports.string().optional()
   }).optional()).query(async ({ input, ctx }) => {
     const db = getDb();
@@ -65480,7 +65483,7 @@ var taskRouter = createRouter({
     priority: external_exports.enum(["low", "medium", "high", "urgent"]).optional(),
     dueDate: external_exports.string().optional(),
     assignedTo: external_exports.number().optional(),
-    projectId: external_exports.number().optional(),
+    projectId: external_exports.number().positive(),
     relatedCustomerId: external_exports.number().optional(),
     relatedInvoiceId: external_exports.number().optional(),
     tags: external_exports.string().optional()
@@ -65489,7 +65492,7 @@ var taskRouter = createRouter({
     const tenantId = ctx.user.tenantId;
     const [{ id }] = await db.insert(projectTasks).values({
       tenantId,
-      projectId: input.projectId || null,
+      projectId: input.projectId,
       name: input.title,
       description: input.description || null,
       assignedTo: input.assignedTo || null,
@@ -65570,22 +65573,22 @@ var taskRouter = createRouter({
   kanbanBoard: authedQuery.query(async ({ ctx }) => {
     const db = getDb();
     const tenantId = ctx.user.tenantId;
-    const tasks2 = await db.select().from(projectTasks).where(eq(projectTasks.tenantId, tenantId)).orderBy(desc(projectTasks.createdAt));
+    const tasks = await db.select().from(projectTasks).where(eq(projectTasks.tenantId, tenantId)).orderBy(desc(projectTasks.createdAt));
     return {
-      todo: tasks2.filter((t2) => t2.status === "todo"),
-      in_progress: tasks2.filter((t2) => t2.status === "in_progress"),
-      review: tasks2.filter((t2) => t2.status === "review"),
-      done: tasks2.filter((t2) => t2.status === "done"),
-      cancelled: tasks2.filter((t2) => t2.status === "cancelled")
+      todo: tasks.filter((t2) => t2.status === "todo"),
+      in_progress: tasks.filter((t2) => t2.status === "in_progress"),
+      review: tasks.filter((t2) => t2.status === "review"),
+      done: tasks.filter((t2) => t2.status === "done"),
+      cancelled: tasks.filter((t2) => t2.status === "cancelled")
     };
   }),
   calendarData: authedQuery.query(async ({ ctx }) => {
     const db = getDb();
     const tenantId = ctx.user.tenantId;
-    const tasks2 = await db.select().from(projectTasks).where(
+    const tasks = await db.select().from(projectTasks).where(
       and(eq(projectTasks.tenantId, tenantId), sql`${projectTasks.dueDate} IS NOT NULL`)
     ).orderBy(asc(projectTasks.dueDate));
-    return tasks2.map((t2) => ({
+    return tasks.map((t2) => ({
       id: t2.id,
       title: t2.name,
       start: t2.dueDate,
@@ -65713,9 +65716,7 @@ var SYNCABLE_TABLES = [
   "invoices",
   "invoiceItems",
   "sales",
-  "saleItems",
   "purchases",
-  "purchaseItems",
   "payments",
   "tasks",
   "meetings"
@@ -65726,14 +65727,92 @@ var tableMap = {
   suppliers,
   invoices,
   invoiceItems,
-  sales: void 0,
-  saleItems: void 0,
-  purchases: void 0,
-  purchaseItems: void 0,
-  payments: void 0,
-  tasks: void 0,
+  sales: invoices,
+  purchases: purchaseOrders,
+  payments: customerPayments,
+  tasks: projectTasks,
   meetings
 };
+async function getOrCreateWalkInCustomer2(db, tenantId) {
+  const existing = await db.query.customers.findFirst({
+    where: and(eq(customers.tenantId, tenantId), eq(customers.code, "WALK-IN"))
+  });
+  if (existing) return existing.id;
+  const [{ id }] = await db.insert(customers).values({
+    tenantId,
+    code: "WALK-IN",
+    name: "Walk-in Customer",
+    nameAr: "Cash Customer",
+    country: "Saudi Arabia",
+    isActive: true
+  }).$returningId();
+  return id;
+}
+async function createSyncedPosSale(db, tenantId, userId, payload) {
+  const invoiceNumber = payload.saleNumber || `POS-SYNC-${Date.now()}`;
+  const customerId = payload.customerId ?? await getOrCreateWalkInCustomer2(db, tenantId);
+  const totalAmount = String(payload.total ?? payload.totalAmount ?? 0);
+  const paidAmount = totalAmount;
+  const balanceDue = Math.max(0, Number(totalAmount) - Number(paidAmount || 0)).toFixed(4);
+  const [{ id: invoiceId }] = await db.insert(invoices).values({
+    tenantId,
+    invoiceNumber,
+    customerId,
+    date: payload.saleDate || (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+    subTotal: String(payload.subtotal ?? 0),
+    discountAmount: String(payload.discount ?? payload.discountAmount ?? 0),
+    taxAmount: String(payload.taxAmount ?? 0),
+    totalAmount,
+    paidAmount,
+    balanceDue,
+    notes: payload.notes,
+    invoiceType: "simplified",
+    status: "paid",
+    createdBy: userId
+  }).$returningId();
+  for (const item of payload.items || []) {
+    await db.insert(invoiceItems).values({
+      invoiceId,
+      productId: item.productId,
+      description: item.productName || item.description,
+      quantity: Number(item.quantity || 1),
+      unitPrice: String(item.price ?? item.unitPrice ?? 0),
+      discountPercent: String(item.discount ?? 0),
+      taxPercent: String(item.taxRate ?? 0),
+      totalAmount: String(item.total ?? item.totalAmount ?? 0)
+    });
+    if (item.productId) {
+      const balances = await db.select().from(inventoryBalances).where(and(
+        eq(inventoryBalances.productId, item.productId),
+        eq(inventoryBalances.tenantId, tenantId)
+      ));
+      for (const bal of balances) {
+        const newQty = Math.max(0, Number(bal.quantity || 0) - Number(item.quantity || 1));
+        await db.update(inventoryBalances).set({ quantity: newQty }).where(eq(inventoryBalances.id, bal.id));
+      }
+    }
+  }
+  if (Number(paidAmount) > 0) {
+    const lastTx = await db.select({ bal: cashboxTransactions.balanceAfter }).from(cashboxTransactions).where(eq(cashboxTransactions.tenantId, tenantId)).orderBy(desc(cashboxTransactions.createdAt)).limit(1);
+    const prevBal = Number(lastTx[0]?.bal || 0);
+    const paymentMethod = payload.paymentMethod === "transfer" ? "transfer" : payload.paymentMethod || "cash";
+    await db.insert(cashboxTransactions).values({
+      tenantId,
+      userId,
+      transactionNumber: `CB-SYNC-${Date.now()}`,
+      transactionType: "sale",
+      amount: paidAmount,
+      paymentMethod,
+      referenceType: "invoice",
+      referenceId: invoiceId,
+      description: `Offline sale invoice ${invoiceNumber}`,
+      balanceBefore: String(prevBal),
+      balanceAfter: String(prevBal + Number(paidAmount)),
+      status: "completed"
+    });
+  }
+  return { invoiceId, invoiceNumber };
+}
 var syncRouter = createRouter({
   // Register device
   registerDevice: authedQuery.input(external_exports.object({
@@ -65772,9 +65851,8 @@ var syncRouter = createRouter({
       userId: ctx.user.id,
       action: "device_registered",
       entityType: "device",
-      entityId: input.deviceId,
-      newValue: JSON.stringify({ deviceName: input.deviceName, platform: input.platform }),
-      ipAddress: ctx.req?.header("x-forwarded-for") || ctx.req?.header("x-real-ip") || ""
+      newValues: { deviceName: input.deviceName, platform: input.platform },
+      ipAddress: ctx.req.headers.get("x-forwarded-for") || ctx.req.headers.get("x-real-ip") || ""
     });
     return { deviceId: input.deviceId, registered: true, message: "Device registered" };
   }),
@@ -65835,6 +65913,25 @@ var syncRouter = createRouter({
     const conflicts = [];
     for (const change of input.changes) {
       try {
+        if (change.entityType === "sales" && change.action === "create") {
+          const syncedSale = await createSyncedPosSale(db, tenantId, ctx.user.id, change.payload || {});
+          results.push({
+            entityId: change.entityId,
+            localUuid: change.localUuid || change.entityId,
+            serverId: syncedSale.invoiceId,
+            status: "synced",
+            action: "create"
+          });
+          await db.insert(auditLogs).values({
+            tenantId,
+            userId: ctx.user.id,
+            action: "sync_create",
+            entityType: "sales",
+            entityId: syncedSale.invoiceId,
+            newValues: change.payload || {}
+          });
+          continue;
+        }
         const tbl = tableMap[change.entityType];
         if (!tbl) {
           results.push({ entityId: change.entityId, status: "failed", error: "Unknown entity type" });
@@ -65865,8 +65962,8 @@ var syncRouter = createRouter({
             userId: ctx.user.id,
             action: "sync_create",
             entityType: change.entityType,
-            entityId: String(serverId),
-            newValue: JSON.stringify(payload)
+            entityId: serverId,
+            newValues: payload
           });
         } else if (change.action === "update") {
           const existing = await db.select().from(tbl).where(
@@ -65971,8 +66068,7 @@ var syncRouter = createRouter({
       userId: ctx.user.id,
       action: "sync_conflict_resolved",
       entityType: input.entityType,
-      entityId: input.localUuid,
-      newValue: JSON.stringify({ resolution: input.resolution, mergedPayload: input.mergedPayload })
+      newValues: { resolution: input.resolution, mergedPayload: input.mergedPayload }
     });
     return { success: true, message: `Conflict resolved: ${input.resolution}` };
   }),
@@ -66357,6 +66453,8 @@ app.get("/api/localization/detect", (c) => {
     source: countryCode ? "edge-header" : "unavailable"
   });
 });
+app.get("/api/ping", (c) => c.json({ ok: true, ts: Date.now() }));
+app.on("HEAD", "/api/ping", (c) => c.body(null, 204));
 app.use("/api/trpc", rateLimiter, bodyLimit({ maxSize: 50 * 1024 * 1024 }));
 app.use("/api/trpc/*", rateLimiter, bodyLimit({ maxSize: 50 * 1024 * 1024 }));
 app.use(
@@ -66385,7 +66483,7 @@ if (env.isProduction) {
   serveStaticFiles2(app);
   const port = parseInt(process.env.PORT || "3000");
   const host = process.env.HOST || "0.0.0.0";
-  serve2({ fetch: app.fetch, port }, () => {
+  serve2({ fetch: app.fetch, port, hostname: host }, () => {
     console.log(`Server running on http://${host}:${port}/ (High-Traffic Optimized)`);
   });
 }

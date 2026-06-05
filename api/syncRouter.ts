@@ -173,9 +173,8 @@ export const syncRouter = createRouter({
         userId: ctx.user.id,
         action: "device_registered",
         entityType: "device",
-        entityId: input.deviceId,
-        newValue: JSON.stringify({ deviceName: input.deviceName, platform: input.platform }),
-        ipAddress: ctx.req?.header("x-forwarded-for") || ctx.req?.header("x-real-ip") || "",
+        newValues: { deviceName: input.deviceName, platform: input.platform },
+        ipAddress: ctx.req.headers.get("x-forwarded-for") || ctx.req.headers.get("x-real-ip") || "",
       });
       return { deviceId: input.deviceId, registered: true, message: "Device registered" };
     }),
@@ -262,8 +261,8 @@ export const syncRouter = createRouter({
               userId: ctx.user.id,
               action: "sync_create",
               entityType: "sales",
-              entityId: String(syncedSale.invoiceId),
-              newValue: JSON.stringify(change.payload || {}),
+              entityId: syncedSale.invoiceId,
+              newValues: change.payload || {},
             });
             continue;
           }
@@ -300,8 +299,8 @@ export const syncRouter = createRouter({
               userId: ctx.user.id,
               action: "sync_create",
               entityType: change.entityType,
-              entityId: String(serverId),
-              newValue: JSON.stringify(payload),
+              entityId: serverId,
+              newValues: payload,
             });
           } else if (change.action === "update") {
             // Check for conflict
@@ -438,8 +437,7 @@ export const syncRouter = createRouter({
         userId: ctx.user.id,
         action: "sync_conflict_resolved",
         entityType: input.entityType,
-        entityId: input.localUuid,
-        newValue: JSON.stringify({ resolution: input.resolution, mergedPayload: input.mergedPayload }),
+        newValues: { resolution: input.resolution, mergedPayload: input.mergedPayload },
       });
 
       return { success: true, message: `Conflict resolved: ${input.resolution}` };

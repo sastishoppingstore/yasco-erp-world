@@ -151,7 +151,9 @@ export const saasRouter = createRouter({
         if (!coupon.isActive) throw new Error("Coupon is no longer active");
         if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) throw new Error("Coupon has expired");
         if (coupon.startsAt && new Date(coupon.startsAt) > new Date()) throw new Error("Coupon is not yet valid");
-        if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) throw new Error("Coupon usage limit reached");
+        const maxUses = coupon.maxUses ?? 0;
+        const usedCount = coupon.usedCount ?? 0;
+        if (maxUses > 0 && usedCount >= maxUses) throw new Error("Coupon usage limit reached");
         if (coupon.applicablePlans) {
           const planIds = coupon.applicablePlans as number[];
           if (!planIds.includes(input.planId)) throw new Error("Coupon not applicable for this plan");

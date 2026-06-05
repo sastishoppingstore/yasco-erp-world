@@ -50,15 +50,16 @@ export default function SuperAdminDashboard() {
     totalCompanies: 156,
     activeCompanies: 128,
     trialCompanies: 22,
-    monthlyRevenue: 58200,
+    totalRevenue: 58200,
     revenueGrowth: 12.5,
   };
+  const monthlyRevenue = "monthlyRevenue" in stats ? Number(stats.monthlyRevenue) : Number(stats.totalRevenue || 0);
 
   const statCards = [
     { label: isAr ? "إجمالي الشركات" : "Total Companies", value: stats.totalCompanies, icon: Building2, color: "text-blue-600 bg-blue-50" },
     { label: isAr ? "نشطة" : "Active", value: stats.activeCompanies, icon: Activity, color: "text-green-600 bg-green-50" },
     { label: isAr ? "تجريبية" : "Trial", value: stats.trialCompanies, icon: Sparkles, color: "text-purple-600 bg-purple-50" },
-    { label: isAr ? "الإيرادات الشهرية" : "Monthly Revenue", value: `${(stats.monthlyRevenue / 1000).toFixed(1)}K`, icon: DollarSign, color: "text-orange-600 bg-orange-50", suffix: "SAR" },
+    { label: isAr ? "الإيرادات الشهرية" : "Monthly Revenue", value: `${(monthlyRevenue / 1000).toFixed(1)}K`, icon: DollarSign, color: "text-orange-600 bg-orange-50", suffix: "SAR" },
   ];
 
   const quickLinks = [

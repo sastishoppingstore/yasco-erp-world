@@ -47,6 +47,23 @@ function addSyncLog(direction: "push" | "pull", entityType: string | undefined, 
   });
 }
 
+type OfflineInvoiceItemInput = Omit<LocalInvoiceItem, "localUuid" | "syncStatus" | "invoiceLocalUuid"> &
+  Partial<Pick<LocalInvoiceItem, "localUuid" | "syncStatus" | "invoiceLocalUuid">>;
+
+type OfflineSaleItemInput = Omit<LocalSaleItem, "localUuid" | "syncStatus" | "saleLocalUuid"> &
+  Partial<Pick<LocalSaleItem, "localUuid" | "syncStatus" | "saleLocalUuid">> & {
+    taxRate?: number;
+    discount?: number;
+  };
+
+type OfflineInvoiceInput = Omit<LocalInvoice, "localUuid" | "syncStatus" | "createdAt" | "updatedAt" | "deviceId" | "items"> & {
+  items?: OfflineInvoiceItemInput[];
+};
+
+type OfflineSaleInput = Omit<LocalSale, "localUuid" | "syncStatus" | "createdAt" | "updatedAt" | "deviceId" | "items"> & {
+  items?: OfflineSaleItemInput[];
+};
+
 // Products
 export async function createProductOffline(data: Omit<LocalProduct, "localUuid" | "syncStatus" | "createdAt" | "updatedAt" | "deviceId">) {
   const localUuid = generateUuid();
@@ -130,10 +147,11 @@ export async function getLocalCustomers() {
 }
 
 // Invoices
-export async function createInvoiceOffline(data: Omit<LocalInvoice, "localUuid" | "syncStatus" | "createdAt" | "updatedAt" | "deviceId">) {
+export async function createInvoiceOffline(data: OfflineInvoiceInput) {
   const localUuid = generateUuid();
+  const { items, ...invoiceData } = data;
   const record: LocalInvoice = {
-    ...data,
+    ...invoiceData,
     localUuid,
     syncStatus: "pending",
     createdAt: now(),
@@ -142,10 +160,10 @@ export async function createInvoiceOffline(data: Omit<LocalInvoice, "localUuid" 
     version: 1,
   };
   await db.invoices.add(record);
-  addToSyncQueue("invoices", localUuid, "create", record);
+  addToSyncQueue("invoices", localUuid, "create", { ...record, items });
 
-  if (data.items?.length) {
-    for (const item of data.items) {
+  if (items?.length) {
+    for (const item of items) {
       const itemLocalUuid = generateUuid();
       await db.invoiceItems.add({
         ...item,
@@ -165,10 +183,11 @@ export async function getLocalInvoices() {
 }
 
 // Sales
-export async function createSaleOffline(data: Omit<LocalSale, "localUuid" | "syncStatus" | "createdAt" | "updatedAt" | "deviceId">) {
+export async function createSaleOffline(data: OfflineSaleInput) {
   const localUuid = generateUuid();
+  const { items, ...saleData } = data;
   const record: LocalSale = {
-    ...data,
+    ...saleData,
     localUuid,
     syncStatus: "pending",
     createdAt: now(),
@@ -177,10 +196,10 @@ export async function createSaleOffline(data: Omit<LocalSale, "localUuid" | "syn
     version: 1,
   };
   await db.sales.add(record);
-  addToSyncQueue("sales", localUuid, "create", record);
+  addToSyncQueue("sales", localUuid, "create", { ...record, items });
 
-  if (data.items?.length) {
-    for (const item of data.items) {
+  if (items?.length) {
+    for (const item of items) {
       const itemLocalUuid = generateUuid();
       await db.saleItems.add({
         ...item,

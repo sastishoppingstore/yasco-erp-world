@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.erp.system",
   "build": {
-    "frontendDist": "http://127.0.0.1:32145/",
-    "devUrl": "http://127.0.0.1:32145/",
+    "frontendDist": "http://127.0.0.1:32145/app",
+    "devUrl": "http://127.0.0.1:32145/app",
     "beforeDevCommand": "",
     "beforeBuildCommand": "npm run build"
   },

@@ -66,7 +66,6 @@ export default function SuperAdminPlans() {
   });
   const updateMutation = trpc.superAdmin.plans.update.useMutation();
   const deleteMutation = trpc.superAdmin.plans.delete.useMutation();
-  const toggleMutation = trpc.superAdmin.plans.toggleActive.useMutation();
 
   const filtered = plans.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -115,7 +114,7 @@ export default function SuperAdminPlans() {
   };
 
   const handleToggle = (plan: Plan) => {
-    toggleMutation.mutate({ id: plan.id, active: !plan.active } as any);
+    updateMutation.mutate({ id: Number(plan.id), isActive: !plan.active } as any);
     setPlans((prev) => prev.map((p) => p.id === plan.id ? { ...p, active: !p.active } : p));
   };
 

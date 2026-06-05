@@ -16,6 +16,7 @@ interface Plan {
   id: number;
   name: string;
   nameAr?: string;
+  description?: string | null;
   priceMonth: string;
   priceYear: string;
   productLimit: number;
@@ -36,7 +37,7 @@ export default function SelectPlan() {
   const isAr = language === "ar";
 
   const email = searchParams.get("email") || "";
-  const tenantId = searchParams.get("tenantId") || "";
+  searchParams.get("tenantId") || "";
 
   const [billingMode, setBillingMode] = useState<"monthly" | "yearly">("monthly");
   const [coupon, setCoupon] = useState("");
@@ -58,13 +59,13 @@ export default function SelectPlan() {
     features: p.features || [],
   }));
 
-  const validateCouponApi = trpc.saas.coupon.validate.useMutation();
+  const trpcUtils = trpc.useUtils();
 
   const handleApplyCoupon = async () => {
     if (!coupon || !selectedPlan) return;
     setCouponError("");
     try {
-      const result = await validateCouponApi.mutateAsync({ code: coupon, planId: selectedPlan.id });
+      const result = await trpcUtils.saas.coupon.validate.fetch({ code: coupon, planId: selectedPlan.id });
       if (result.valid) {
         setCouponApplied({ discountType: result.discountType, discountValue: Number(result.discountValue), code: result.code });
         setCouponError("");
@@ -95,7 +96,7 @@ export default function SelectPlan() {
     setSelectedPlan(plan);
     setError("");
     if (isTrial) {
-      startTrialMutation.mutate({ planId: plan.id, tenantId, billingMode } as any);
+      startTrialMutation.mutate();
     } else {
       setShowConfirm(true);
     }
@@ -105,10 +106,9 @@ export default function SelectPlan() {
     if (!selectedPlan) return;
     selectPlanMutation.mutate({
       planId: selectedPlan.id,
-      tenantId,
-      billingMode,
-      coupon: coupon || undefined,
-    } as any);
+      billingCycle: billingMode,
+      couponCode: coupon || undefined,
+    });
   };
 
   const planFeaturesList = (plan: Plan) => {

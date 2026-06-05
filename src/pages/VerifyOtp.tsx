@@ -23,7 +23,7 @@ export default function VerifyOtp() {
 
   const verifyMutation = trpc.registration.verifyOtp.useMutation({
     onSuccess: (data) => {
-      navigate(`/select-plan?email=${encodeURIComponent(email)}&tenantId=${data.tenantId}`);
+      navigate(`/select-plan?email=${encodeURIComponent(email)}&tenantId=${data.tenantId ?? ""}`);
     },
     onError: (err) => setError(err.message),
   });
@@ -47,14 +47,14 @@ export default function VerifyOtp() {
     setError("");
     setMessage("");
     if (otp.length !== 6) return;
-    verifyMutation.mutate({ email, otp });
+    verifyMutation.mutate({ email, otp, purpose: "registration" });
   };
 
   const handleResend = () => {
     if (cooldown > 0 || resendMutation.isPending) return;
     setError("");
     setMessage("");
-    resendMutation.mutate({ email });
+    resendMutation.mutate({ email, purpose: "registration" });
   };
 
   const isBusy = verifyMutation.isPending || resendMutation.isPending;

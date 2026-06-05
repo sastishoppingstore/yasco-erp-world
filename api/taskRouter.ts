@@ -10,7 +10,7 @@ export const taskRouter = createRouter({
       status: z.string().optional(),
       priority: z.string().optional(),
       assignedTo: z.number().optional(),
-      projectId: z.number().optional(),
+      projectId: z.number().positive(),
       search: z.string().optional(),
     }).optional())
     .query(async ({ input, ctx }) => {
@@ -41,7 +41,7 @@ export const taskRouter = createRouter({
       priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
       dueDate: z.string().optional(),
       assignedTo: z.number().optional(),
-      projectId: z.number().optional(),
+      projectId: z.number().positive(),
       relatedCustomerId: z.number().optional(),
       relatedInvoiceId: z.number().optional(),
       tags: z.string().optional(),
@@ -51,7 +51,7 @@ export const taskRouter = createRouter({
       const tenantId = ctx.user.tenantId!;
       const [{ id }] = await db.insert(schema.projectTasks).values({
         tenantId,
-        projectId: input.projectId || null,
+        projectId: input.projectId,
         name: input.title,
         description: input.description || null,
         assignedTo: input.assignedTo || null,

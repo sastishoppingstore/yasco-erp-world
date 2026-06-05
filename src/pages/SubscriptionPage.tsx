@@ -38,12 +38,24 @@ export default function SubscriptionPage() {
 
   const [showCancel, setShowCancel] = useState(false);
 
-  const subscriptionQuery = trpc.saas.subscription.current.useQuery();
+  const subscriptionQuery = trpc.saas.subscription.mySubscription.useQuery();
   const cancelMutation = trpc.saas.subscription.cancel.useMutation({
     onSuccess: () => setShowCancel(false),
   });
 
-  const sub = subscriptionQuery.data ?? {
+  const rawSub = subscriptionQuery.data;
+  const sub = rawSub ? {
+    plan: rawSub.plan?.name ?? "Unknown",
+    status: rawSub.status,
+    priceMonth: Number(rawSub.plan?.priceMonth ?? 0),
+    billingMode: rawSub.billingCycle ?? "monthly",
+    trialEnds: rawSub.trialEndAt ? new Date(rawSub.trialEndAt).toISOString().split("T")[0] : null,
+    productsUsed: 0,
+    productLimit: rawSub.productLimit ?? 30,
+    usersUsed: 0,
+    userLimit: rawSub.userLimit ?? 3,
+    nextBillingDate: rawSub.currentPeriodEndAt ? new Date(rawSub.currentPeriodEndAt).toISOString().split("T")[0] : null,
+  } : {
     plan: "Business",
     status: "active",
     priceMonth: 100,

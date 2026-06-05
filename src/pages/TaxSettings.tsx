@@ -21,7 +21,7 @@ export default function TaxSettings() {
 
   const [activeTab, setActiveTab] = useState("main");
 
-  const saveMutation = trpc.taxCompliance.saveSettings.useMutation({
+  const saveMutation = trpc.settings.companySettingsUpdate.useMutation({
     onSuccess: () => setMessage(isAr ? "تم الحفظ" : "Saved successfully"),
   });
 

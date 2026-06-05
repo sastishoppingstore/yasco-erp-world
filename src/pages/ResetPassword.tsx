@@ -58,13 +58,13 @@ export default function ResetPassword() {
       setError(isAr ? "كلمة المرور يجب أن تكون 6 أحرف على الأقل" : "Password must be at least 6 characters");
       return;
     }
-    resetMutation.mutate({ email, otp, password });
+    resetMutation.mutate({ email, otp, newPassword: password, confirmPassword });
   };
 
   const handleResend = () => {
     if (cooldown > 0 || resendMutation.isPending) return;
     setError("");
-    resendMutation.mutate({ email });
+    resendMutation.mutate({ email, purpose: "forgot_password" });
   };
 
   const isBusy = resetMutation.isPending || resendMutation.isPending;
