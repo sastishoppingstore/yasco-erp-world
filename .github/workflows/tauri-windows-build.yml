@@ -62,6 +62,18 @@ jobs:
             throw "No NSIS setup executable was generated."
           }
 
+          $installDirs = @(
+            (Join-Path $env:LOCALAPPDATA "Programs\ERP System"),
+            (Join-Path $env:LOCALAPPDATA "ERP System"),
+            (Join-Path $env:ProgramFiles "ERP System"),
+            (Join-Path ${env:ProgramFiles(x86)} "ERP System")
+          )
+          $installDirs | ForEach-Object {
+            if ($_ -and (Test-Path $_)) {
+              Remove-Item $_ -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+
           $install = Start-Process -FilePath $setup.FullName -ArgumentList "/S" -PassThru
           if (-not $install.WaitForExit(120000)) {
             Stop-Process -Id $install.Id -Force -ErrorAction SilentlyContinue
@@ -90,6 +102,7 @@ jobs:
             $candidatePaths | ForEach-Object { Write-Host "Checked: $_" }
             throw "Installed ERP System executable was not found."
           }
+          Write-Host "Using installed executable: $exe"
 
           $process = Start-Process -FilePath $exe -PassThru
           Start-Sleep -Seconds 10
