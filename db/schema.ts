@@ -1191,6 +1191,27 @@ export const drivers = mysqlTable("drivers", {
 });
 
 // =====================================================
+// DESKTOP LICENSES
+// =====================================================
+
+export const desktopLicenses = mysqlTable("desktop_licenses", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  licenseKeyHash: varchar("license_key_hash", { length: 128 }).notNull().unique(),
+  companyName: varchar("company_name", { length: 255 }).notNull(),
+  plan: varchar("plan", { length: 50 }).default("desktop").notNull(),
+  maxDevices: int("max_devices").default(1).notNull(),
+  status: mysqlEnum("status", ["active", "revoked", "expired"]).default("active").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  issuedBy: bigint("issued_by", { mode: "number", unsigned: true }),
+  lastActivatedAt: timestamp("last_activated_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("desktop_licenses_tenant_idx").on(table.tenantId),
+  index("desktop_licenses_status_idx").on(table.status),
+]);
+
+// =====================================================
 // 14. DOCUMENT MANAGEMENT
 // =====================================================
 

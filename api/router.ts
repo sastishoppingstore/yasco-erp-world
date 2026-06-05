@@ -29,6 +29,7 @@ import { taskRouter } from "./taskRouter";
 import { notificationRouter } from "./notificationRouter";
 import { emailRouter } from "./emailRouter";
 import { syncRouter } from "./syncRouter";
+import { licenseRouter } from "./licenseRouter";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -64,6 +65,7 @@ export const appRouter = createRouter({
   notifications2: notificationRouter,
   emails: emailRouter,
   sync: syncRouter,
+  license: licenseRouter,
 });
 
 export type AppRouter = typeof appRouter;

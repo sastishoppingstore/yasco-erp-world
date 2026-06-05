@@ -4,12 +4,13 @@ import { z } from "zod";
 import { Session } from "@contracts/constants";
 import { getSessionCookieOptions } from "./lib/cookies";
 import { env } from "./lib/env";
+import { createLocalAdminUser, LOCAL_ADMIN_TENANT_ID } from "./lib/localUser";
+import { requireDesktopLicense } from "./lib/license";
 import { sendEmail } from "./lib/smtp";
 import { signSessionToken } from "./kimi/session";
 import { findUserByUnionId, upsertUser } from "./queries/users";
 import { createRouter, authedQuery, publicQuery } from "./middleware";
 
-const ADMIN_TENANT_ID = 1;
 const LOCAL_CLIENT_ID = "local-auth";
 const OTP_TTL_MS = 10 * 60 * 1000;
 const otpStore = new Map<string, { hash: string; expiresAt: number; attempts: number }>();
@@ -45,19 +46,27 @@ async function ensureLocalUser(input: {
   email?: string;
   role: "super_admin" | "admin" | "user";
 }) {
-  await upsertUser({
-    tenantId: ADMIN_TENANT_ID,
-    unionId: input.unionId,
-    name: input.name,
-    email: input.email,
-    role: input.role,
-    isActive: true,
-    lastLoginAt: new Date(),
-  });
+  try {
+    await upsertUser({
+      tenantId: LOCAL_ADMIN_TENANT_ID,
+      unionId: input.unionId,
+      name: input.name,
+      email: input.email,
+      role: input.role,
+      isActive: true,
+      lastLoginAt: new Date(),
+    });
 
-  const user = await findUserByUnionId(input.unionId);
-  if (!user) throw new Error("Unable to create local user.");
-  return user;
+    const user = await findUserByUnionId(input.unionId);
+    if (!user) throw new Error("Unable to create local user.");
+    return user;
+  } catch (error) {
+    if (env.isDesktop && input.unionId === `local:${normalizeUsername(env.adminUsername)}`) {
+      console.warn("[auth] Using desktop local admin fallback because database is unavailable.", error);
+      return createLocalAdminUser();
+    }
+    throw error;
+  }
 }
 
 async function setLocalSession(ctx: { req: Request; resHeaders: Headers }, unionId: string) {
@@ -85,6 +94,7 @@ export const authRouter = createRouter({
       password: z.string().min(1),
     }))
     .mutation(async ({ input, ctx }) => {
+      requireDesktopLicense(ctx.req.headers);
       const username = normalizeUsername(input.username);
       const expectedUsername = normalizeUsername(env.adminUsername);
       const validUsername = timingSafeEqualString(username, expectedUsername);

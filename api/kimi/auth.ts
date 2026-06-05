@@ -3,6 +3,8 @@ import { setCookie } from "hono/cookie";
 import * as jose from "jose";
 import * as cookie from "cookie";
 import { env } from "../lib/env";
+import { createLocalAdminUser, localAdminUnionId } from "../lib/localUser";
+import { requireDesktopLicense } from "../lib/license";
 import { getSessionCookieOptions } from "../lib/cookies";
 import { Session } from "@contracts/constants";
 import { Errors } from "@contracts/errors";
@@ -54,6 +56,7 @@ async function verifyAccessToken(
 }
 
 export async function authenticateRequest(headers: Headers) {
+  requireDesktopLicense(headers);
   const cookies = cookie.parse(headers.get("cookie") || "");
   const token = cookies[Session.cookieName];
   if (!token) {
@@ -64,8 +67,20 @@ export async function authenticateRequest(headers: Headers) {
   if (!claim) {
     throw Errors.forbidden("Invalid authentication token.");
   }
-  const user = await findUserByUnionId(claim.unionId);
+  let user;
+  try {
+    user = await findUserByUnionId(claim.unionId);
+  } catch (error) {
+    if (env.isDesktop && claim.unionId === localAdminUnionId()) {
+      console.warn("[auth] Using desktop local admin fallback because database is unavailable.", error);
+      return createLocalAdminUser();
+    }
+    throw error;
+  }
   if (!user) {
+    if (env.isDesktop && claim.unionId === localAdminUnionId()) {
+      return createLocalAdminUser();
+    }
     throw Errors.forbidden("User not found. Please re-login.");
   }
   return user;

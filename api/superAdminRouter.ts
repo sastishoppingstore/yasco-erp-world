@@ -2,8 +2,10 @@ import { z } from "zod";
 import { createRouter, adminQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { sendEmail } from "./lib/smtp";
+import { createDesktopLicense } from "./lib/license";
 import * as schema from "@db/schema";
 import { and, eq, asc, desc, gte, lte, sql, count, like } from "drizzle-orm";
+import crypto from "node:crypto";
 
 async function createAuditLog(params: { tenantId?: number; userId?: number; action: string; entityType: string; entityId?: number; oldValues?: any; newValues?: any }) {
   const db = getDb();
@@ -273,6 +275,72 @@ export const superAdminRouter = createRouter({
         const items = await db.select().from(schema.auditLogs).orderBy(desc(schema.auditLogs.createdAt)).limit(limit).offset(offset);
         const [totalResult] = await db.select({ total: sql<number>`count(*)` }).from(schema.auditLogs);
         return { items, total: totalResult?.total || 0 };
+      }),
+  },
+  licenses: {
+    generate: adminQuery
+      .input(z.object({
+        tenantId: z.number(),
+        companyName: z.string().min(1),
+        plan: z.string().default("desktop"),
+        maxDevices: z.number().int().positive().default(1),
+        validDays: z.number().int().positive().default(365),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = getDb();
+        const expiresAt = new Date(Date.now() + input.validDays * 24 * 60 * 60 * 1000);
+        const licenseKey = createDesktopLicense({
+          tenantId: input.tenantId,
+          companyName: input.companyName,
+          plan: input.plan,
+          maxDevices: input.maxDevices,
+          expiresAt: expiresAt.toISOString(),
+        });
+        const licenseKeyHash = crypto.createHash("sha256").update(licenseKey).digest("hex");
+        const [{ id }] = await db.insert(schema.desktopLicenses).values({
+          tenantId: input.tenantId,
+          companyName: input.companyName,
+          plan: input.plan,
+          maxDevices: input.maxDevices,
+          expiresAt,
+          issuedBy: ctx.user.id,
+          licenseKeyHash,
+          status: "active",
+        }).$returningId();
+        await createAuditLog({
+          tenantId: input.tenantId,
+          userId: ctx.user.id,
+          action: "desktop_license_generate",
+          entityType: "desktop_license",
+          entityId: id,
+          newValues: { plan: input.plan, maxDevices: input.maxDevices, expiresAt },
+        });
+        return { id, licenseKey, expiresAt: expiresAt.toISOString() };
+      }),
+
+    list: adminQuery
+      .input(z.object({ tenantId: z.number().optional(), limit: z.number().default(50) }).optional())
+      .query(async ({ input }) => {
+        const db = getDb();
+        const baseQuery = db.select().from(schema.desktopLicenses);
+        if (input?.tenantId) {
+          return baseQuery
+            .where(eq(schema.desktopLicenses.tenantId, input.tenantId))
+            .orderBy(desc(schema.desktopLicenses.createdAt))
+            .limit(input?.limit || 50);
+        }
+        return baseQuery
+          .orderBy(desc(schema.desktopLicenses.createdAt))
+          .limit(input?.limit || 50);
+      }),
+
+    revoke: adminQuery
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = getDb();
+        await db.update(schema.desktopLicenses).set({ status: "revoked" }).where(eq(schema.desktopLicenses.id, input.id));
+        await createAuditLog({ userId: ctx.user.id, action: "desktop_license_revoke", entityType: "desktop_license", entityId: input.id });
+        return { success: true };
       }),
   },
   stats: {

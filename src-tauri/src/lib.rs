@@ -73,6 +73,7 @@ fn start_local_backend(app: &mut tauri::App) -> Result<(), Box<dyn std::error::E
     .arg(boot_script)
     .current_dir(&resource_dir)
     .env("NODE_ENV", "production")
+    .env("ERP_DESKTOP_MODE", "true")
     .env("HOST", "127.0.0.1")
     .env("PORT", backend_port)
     .env("ERP_BACKEND_LOG", &backend_log)

@@ -87,11 +87,11 @@ var require_dist = __commonJS({
       } while (index2 < len);
       return obj;
     }
-    function stringifyCookie(cookie3, options) {
+    function stringifyCookie(cookie5, options) {
       const enc = options?.encode || encodeURIComponent;
       const cookieStrings = [];
-      for (const name of Object.keys(cookie3)) {
-        const val = cookie3[name];
+      for (const name of Object.keys(cookie5)) {
+        const val = cookie5[name];
         if (val === void 0)
           continue;
         if (!cookieNameRegExp.test(name)) {
@@ -106,52 +106,52 @@ var require_dist = __commonJS({
       return cookieStrings.join("; ");
     }
     function stringifySetCookie(_name, _val, _opts) {
-      const cookie3 = typeof _name === "object" ? _name : { ..._opts, name: _name, value: String(_val) };
+      const cookie5 = typeof _name === "object" ? _name : { ..._opts, name: _name, value: String(_val) };
       const options = typeof _val === "object" ? _val : _opts;
       const enc = options?.encode || encodeURIComponent;
-      if (!cookieNameRegExp.test(cookie3.name)) {
-        throw new TypeError(`argument name is invalid: ${cookie3.name}`);
+      if (!cookieNameRegExp.test(cookie5.name)) {
+        throw new TypeError(`argument name is invalid: ${cookie5.name}`);
       }
-      const value = cookie3.value ? enc(cookie3.value) : "";
+      const value = cookie5.value ? enc(cookie5.value) : "";
       if (!cookieValueRegExp.test(value)) {
-        throw new TypeError(`argument val is invalid: ${cookie3.value}`);
+        throw new TypeError(`argument val is invalid: ${cookie5.value}`);
       }
-      let str = cookie3.name + "=" + value;
-      if (cookie3.maxAge !== void 0) {
-        if (!Number.isInteger(cookie3.maxAge)) {
-          throw new TypeError(`option maxAge is invalid: ${cookie3.maxAge}`);
+      let str = cookie5.name + "=" + value;
+      if (cookie5.maxAge !== void 0) {
+        if (!Number.isInteger(cookie5.maxAge)) {
+          throw new TypeError(`option maxAge is invalid: ${cookie5.maxAge}`);
         }
-        str += "; Max-Age=" + cookie3.maxAge;
+        str += "; Max-Age=" + cookie5.maxAge;
       }
-      if (cookie3.domain) {
-        if (!domainValueRegExp.test(cookie3.domain)) {
-          throw new TypeError(`option domain is invalid: ${cookie3.domain}`);
+      if (cookie5.domain) {
+        if (!domainValueRegExp.test(cookie5.domain)) {
+          throw new TypeError(`option domain is invalid: ${cookie5.domain}`);
         }
-        str += "; Domain=" + cookie3.domain;
+        str += "; Domain=" + cookie5.domain;
       }
-      if (cookie3.path) {
-        if (!pathValueRegExp.test(cookie3.path)) {
-          throw new TypeError(`option path is invalid: ${cookie3.path}`);
+      if (cookie5.path) {
+        if (!pathValueRegExp.test(cookie5.path)) {
+          throw new TypeError(`option path is invalid: ${cookie5.path}`);
         }
-        str += "; Path=" + cookie3.path;
+        str += "; Path=" + cookie5.path;
       }
-      if (cookie3.expires) {
-        if (!isDate2(cookie3.expires) || !Number.isFinite(cookie3.expires.valueOf())) {
-          throw new TypeError(`option expires is invalid: ${cookie3.expires}`);
+      if (cookie5.expires) {
+        if (!isDate2(cookie5.expires) || !Number.isFinite(cookie5.expires.valueOf())) {
+          throw new TypeError(`option expires is invalid: ${cookie5.expires}`);
         }
-        str += "; Expires=" + cookie3.expires.toUTCString();
+        str += "; Expires=" + cookie5.expires.toUTCString();
       }
-      if (cookie3.httpOnly) {
+      if (cookie5.httpOnly) {
         str += "; HttpOnly";
       }
-      if (cookie3.secure) {
+      if (cookie5.secure) {
         str += "; Secure";
       }
-      if (cookie3.partitioned) {
+      if (cookie5.partitioned) {
         str += "; Partitioned";
       }
-      if (cookie3.priority) {
-        const priority = typeof cookie3.priority === "string" ? cookie3.priority.toLowerCase() : void 0;
+      if (cookie5.priority) {
+        const priority = typeof cookie5.priority === "string" ? cookie5.priority.toLowerCase() : void 0;
         switch (priority) {
           case "low":
             str += "; Priority=Low";
@@ -163,11 +163,11 @@ var require_dist = __commonJS({
             str += "; Priority=High";
             break;
           default:
-            throw new TypeError(`option priority is invalid: ${cookie3.priority}`);
+            throw new TypeError(`option priority is invalid: ${cookie5.priority}`);
         }
       }
-      if (cookie3.sameSite) {
-        const sameSite = typeof cookie3.sameSite === "string" ? cookie3.sameSite.toLowerCase() : cookie3.sameSite;
+      if (cookie5.sameSite) {
+        const sameSite = typeof cookie5.sameSite === "string" ? cookie5.sameSite.toLowerCase() : cookie5.sameSite;
         switch (sameSite) {
           case true:
           case "strict":
@@ -180,7 +180,7 @@ var require_dist = __commonJS({
             str += "; SameSite=None";
             break;
           default:
-            throw new TypeError(`option sameSite is invalid: ${cookie3.sameSite}`);
+            throw new TypeError(`option sameSite is invalid: ${cookie5.sameSite}`);
         }
       }
       return str;
@@ -293,7 +293,7 @@ var require_main = __commonJS({
     var fs2 = __require("fs");
     var path2 = __require("path");
     var os = __require("os");
-    var crypto5 = __require("crypto");
+    var crypto7 = __require("crypto");
     var TIPS = [
       "\u25C8 encrypted .env [www.dotenvx.com]",
       "\u25C8 secrets for agents [www.dotenvx.com]",
@@ -320,7 +320,7 @@ var require_main = __commonJS({
       return supportsAnsi() ? `\x1B[2m${text2}\x1B[0m` : text2;
     }
     var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
-    function parse6(src) {
+    function parse8(src) {
       const obj = {};
       let lines = src.toString();
       lines = lines.replace(/\r\n?/mg, "\n");
@@ -537,7 +537,7 @@ var require_main = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto5.createDecipheriv("aes-256-gcm", key2, nonce);
+        const aesgcm = crypto7.createDecipheriv("aes-256-gcm", key2, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error48) {
@@ -592,7 +592,7 @@ var require_main = __commonJS({
       _parseVault,
       config: config2,
       decrypt,
-      parse: parse6,
+      parse: parse8,
       populate
     };
     module.exports.configDotenv = DotenvModule.configDotenv;
@@ -7724,6 +7724,7 @@ __export(schema_exports, {
   departments: () => departments,
   depreciationEntries: () => depreciationEntries,
   designations: () => designations,
+  desktopLicenses: () => desktopLicenses,
   deviceRegistrations: () => deviceRegistrations,
   documentCategories: () => documentCategories,
   documents: () => documents,
@@ -7827,7 +7828,7 @@ __export(schema_exports, {
   zatcaQrCodes: () => zatcaQrCodes,
   zatcaXmlDocuments: () => zatcaXmlDocuments
 });
-var tenants, companies, users, roles, userRoles, fiscalYears, chartOfAccounts, costCenters, journalEntries, journalEntryLines, budgets, productCategories, brands, units, warehouses, products, inventoryBalances, inventoryMovements, stockTransfers, stockTransferItems, stockAdjustments, stockAdjustmentItems, customers, salesQuotations, salesQuotationItems, salesOrders, salesOrderItems, invoices, invoiceItems, creditNotes, customerPayments, suppliers, purchaseOrders, purchaseOrderItems, goodsReceivedNotes, grnItems, supplierPayments, leads, opportunities, crmActivities, departments, designations, employees, attendance, leaveTypes, leaveRequests, payrollPeriods, salarySlips, employeeLoans, advances, performanceReviews, billOfMaterials, bomItems, workOrders, productionOrders, productionItems, projects, projectTasks, projectMilestones, timesheets, supportTickets, ticketComments, assets, assetMaintenance, depreciationEntries, vehicles, fuelRecords, vehicleMaintenance, drivers, documentCategories, documents, companySettings, companyLegalDetails, taxRates, currencies, auditLogs, notifications, posSessions, posHolds, cashboxTransactions, installments, installmentPayments, printTemplates, countries, regions, localizationProfiles, taxProfiles, taxRules, taxIdentifiers, taxIntegrations, taxCredentials, taxSubmissions, taxSubmissionLogs, eInvoiceDocuments, zatcaCredentials, zatcaCertificates, zatcaApiLogs, zatcaInvoiceStatus, zatcaQrCodes, zatcaXmlDocuments, zatcaActivityLogs, complianceProfiles, moduleRegistry, websiteModuleCards, websiteSections, websiteHeroSlides, aiChatLogs, approvalWorkflows, approvalRequests, apiWebhooks, partnerAccounts, securityLogs, tenantUsageLogs, plans, planFeatures, subscriptions, subscriptionInvoices, subscriptionPayments, otpCodes, smtpSettings, emailTemplates, emailLogs, notificationTemplates, coupons, offers, meetings, meetingAttendees, meetingNotes, taskComments, taskAttachments, deviceRegistrations, syncLogs, deletedRecordsTombstone;
+var tenants, companies, users, roles, userRoles, fiscalYears, chartOfAccounts, costCenters, journalEntries, journalEntryLines, budgets, productCategories, brands, units, warehouses, products, inventoryBalances, inventoryMovements, stockTransfers, stockTransferItems, stockAdjustments, stockAdjustmentItems, customers, salesQuotations, salesQuotationItems, salesOrders, salesOrderItems, invoices, invoiceItems, creditNotes, customerPayments, suppliers, purchaseOrders, purchaseOrderItems, goodsReceivedNotes, grnItems, supplierPayments, leads, opportunities, crmActivities, departments, designations, employees, attendance, leaveTypes, leaveRequests, payrollPeriods, salarySlips, employeeLoans, advances, performanceReviews, billOfMaterials, bomItems, workOrders, productionOrders, productionItems, projects, projectTasks, projectMilestones, timesheets, supportTickets, ticketComments, assets, assetMaintenance, depreciationEntries, vehicles, fuelRecords, vehicleMaintenance, drivers, desktopLicenses, documentCategories, documents, companySettings, companyLegalDetails, taxRates, currencies, auditLogs, notifications, posSessions, posHolds, cashboxTransactions, installments, installmentPayments, printTemplates, countries, regions, localizationProfiles, taxProfiles, taxRules, taxIdentifiers, taxIntegrations, taxCredentials, taxSubmissions, taxSubmissionLogs, eInvoiceDocuments, zatcaCredentials, zatcaCertificates, zatcaApiLogs, zatcaInvoiceStatus, zatcaQrCodes, zatcaXmlDocuments, zatcaActivityLogs, complianceProfiles, moduleRegistry, websiteModuleCards, websiteSections, websiteHeroSlides, aiChatLogs, approvalWorkflows, approvalRequests, apiWebhooks, partnerAccounts, securityLogs, tenantUsageLogs, plans, planFeatures, subscriptions, subscriptionInvoices, subscriptionPayments, otpCodes, smtpSettings, emailTemplates, emailLogs, notificationTemplates, coupons, offers, meetings, meetingAttendees, meetingNotes, taskComments, taskAttachments, deviceRegistrations, syncLogs, deletedRecordsTombstone;
 var init_schema2 = __esm({
   "db/schema.ts"() {
     init_mysql_core();
@@ -8896,6 +8897,22 @@ var init_schema2 = __esm({
       notes: text("notes"),
       createdAt: timestamp("created_at").defaultNow().notNull()
     });
+    desktopLicenses = mysqlTable("desktop_licenses", {
+      id: serial("id").primaryKey(),
+      tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }).notNull(),
+      licenseKeyHash: varchar("license_key_hash", { length: 128 }).notNull().unique(),
+      companyName: varchar("company_name", { length: 255 }).notNull(),
+      plan: varchar("plan", { length: 50 }).default("desktop").notNull(),
+      maxDevices: int2("max_devices").default(1).notNull(),
+      status: mysqlEnum("status", ["active", "revoked", "expired"]).default("active").notNull(),
+      expiresAt: timestamp("expires_at").notNull(),
+      issuedBy: bigint4("issued_by", { mode: "number", unsigned: true }),
+      lastActivatedAt: timestamp("last_activated_at"),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    }, (table) => [
+      index("desktop_licenses_tenant_idx").on(table.tenantId),
+      index("desktop_licenses_status_idx").on(table.status)
+    ]);
     documentCategories = mysqlTable("document_categories", {
       id: serial("id").primaryKey(),
       tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }).notNull(),
@@ -21872,9 +21889,9 @@ var require_binlog_dump = __commonJS({
 var require_auth_41 = __commonJS({
   "node_modules/mysql2/lib/auth_41.js"(exports) {
     "use strict";
-    var crypto5 = __require("crypto");
+    var crypto7 = __require("crypto");
     function sha1(msg, msg1, msg2) {
-      const hash2 = crypto5.createHash("sha1");
+      const hash2 = crypto7.createHash("sha1");
       hash2.update(msg);
       if (msg1) {
         hash2.update(msg1);
@@ -23750,7 +23767,7 @@ var require_sha256_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/sha256_password.js"(exports, module) {
     "use strict";
     var PLUGIN_NAME = "sha256_password";
-    var crypto5 = __require("crypto");
+    var crypto7 = __require("crypto");
     var { xorRotating } = require_auth_41();
     var Tls = __require("tls");
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([1]);
@@ -23759,7 +23776,7 @@ var require_sha256_password = __commonJS({
     var STATE_FINAL = -1;
     function encrypt(password, scramble, key2) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-      return crypto5.publicEncrypt(
+      return crypto7.publicEncrypt(
         {
           key: key2,
           oaepHash: "sha1"
@@ -23811,7 +23828,7 @@ var require_caching_sha2_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/caching_sha2_password.js"(exports, module) {
     "use strict";
     var PLUGIN_NAME = "caching_sha2_password";
-    var crypto5 = __require("crypto");
+    var crypto7 = __require("crypto");
     var { xor: xor2, xorRotating } = require_auth_41();
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([2]);
     var FAST_AUTH_SUCCESS_PACKET = Buffer.from([3]);
@@ -23821,7 +23838,7 @@ var require_caching_sha2_password = __commonJS({
     var STATE_WAIT_SERVER_KEY = 2;
     var STATE_FINAL = -1;
     function sha256(msg) {
-      const hash2 = crypto5.createHash("sha256");
+      const hash2 = crypto7.createHash("sha256");
       hash2.update(msg);
       return hash2.digest();
     }
@@ -23836,11 +23853,11 @@ var require_caching_sha2_password = __commonJS({
     }
     function encrypt(password, scramble, key2) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-      return crypto5.publicEncrypt(
+      return crypto7.publicEncrypt(
         {
           key: key2,
           oaepHash: "sha1",
-          padding: crypto5.constants.RSA_PKCS1_OAEP_PADDING
+          padding: crypto7.constants.RSA_PKCS1_OAEP_PADDING
         },
         stage1
       );
@@ -26583,7 +26600,7 @@ var require_named_placeholders = __commonJS({
     var DQUOTE = 34;
     var SQUOTE = 39;
     var BSLASH = 92;
-    function parse6(query) {
+    function parse8(query) {
       let ppos = RE_PARAM.exec(query);
       let curpos = 0;
       let start = 0;
@@ -26698,17 +26715,17 @@ var require_named_placeholders = __commonJS({
         if (cache2 && (tree = cache2.get(query))) {
           return toArrayParams(tree, paramsObj);
         }
-        tree = join2(parse6(query));
+        tree = join2(parse8(query));
         if (cache2) {
           cache2.set(query, tree);
         }
         return toArrayParams(tree, paramsObj);
       }
-      compile.parse = parse6;
+      compile.parse = parse8;
       return compile;
     }
     function toNumbered(q, params) {
-      const tree = parse6(q);
+      const tree = parse8(q);
       const paramsArr = [];
       if (tree.length === 1) {
         return [tree[0], paramsArr];
@@ -33004,10 +33021,10 @@ var require_packer_sync = __commonJS({
 var require_png_sync = __commonJS({
   "node_modules/pngjs/lib/png-sync.js"(exports) {
     "use strict";
-    var parse6 = require_parser_sync();
+    var parse8 = require_parser_sync();
     var pack = require_packer_sync();
     exports.read = function(buffer, options) {
-      return parse6(buffer, options || {});
+      return parse8(buffer, options || {});
     };
     exports.write = function(png, options) {
       return pack(png, options);
@@ -33800,7 +33817,7 @@ import { createServer as createServerHTTP } from "http";
 import { Http2ServerRequest as Http2ServerRequest2, constants as h2constants } from "http2";
 import { Http2ServerRequest } from "http2";
 import { Readable } from "stream";
-import crypto4 from "crypto";
+import crypto6 from "crypto";
 async function readWithoutBlocking(readPromise) {
   return Promise.race([readPromise, Promise.resolve().then(() => Promise.resolve(void 0))]);
 }
@@ -34142,7 +34159,7 @@ var init_dist = __esm({
     };
     X_ALREADY_SENT = "x-hono-already-sent";
     if (typeof global.crypto === "undefined") {
-      global.crypto = crypto4;
+      global.crypto = crypto6;
     }
     outgoingEnded = /* @__PURE__ */ Symbol("outgoingEnded");
     incomingDraining = /* @__PURE__ */ Symbol("incomingDraining");
@@ -35503,8 +35520,8 @@ var Context = class {
         if (k === "set-cookie") {
           const cookies = this.#res.headers.getSetCookie();
           _res.headers.delete("set-cookie");
-          for (const cookie3 of cookies) {
-            _res.headers.append("set-cookie", cookie3);
+          for (const cookie5 of cookies) {
+            _res.headers.append("set-cookie", cookie5);
           }
         } else {
           _res.headers.set(k, v);
@@ -38547,10 +38564,10 @@ function _createBatchStreamProducer() {
 }
 function jsonlStreamProducer(opts) {
   let stream = readableStreamFrom(createBatchStreamProducer(opts));
-  const { serialize: serialize4 } = opts;
-  if (serialize4) stream = stream.pipeThrough(new TransformStream({ transform(chunk, controller) {
+  const { serialize: serialize5 } = opts;
+  if (serialize5) stream = stream.pipeThrough(new TransformStream({ transform(chunk, controller) {
     if (chunk === PING_SYM) controller.enqueue(PING_SYM);
-    else controller.enqueue(serialize4(chunk));
+    else controller.enqueue(serialize5(chunk));
   } }));
   return stream.pipeThrough(new TransformStream({ transform(chunk, controller) {
     if (chunk === PING_SYM) controller.enqueue(" ");
@@ -38593,7 +38610,7 @@ var CONNECTED_EVENT = "connected";
 var RETURN_EVENT = "return";
 function sseStreamProducer(opts) {
   var _opts$ping$enabled, _opts$ping, _opts$ping$intervalMs, _opts$ping2, _opts$client;
-  const { serialize: serialize4 = identity } = opts;
+  const { serialize: serialize5 = identity } = opts;
   const ping = {
     enabled: (_opts$ping$enabled = (_opts$ping = opts.ping) === null || _opts$ping === void 0 ? void 0 : _opts$ping.enabled) !== null && _opts$ping$enabled !== void 0 ? _opts$ping$enabled : false,
     intervalMs: (_opts$ping$intervalMs = (_opts$ping2 = opts.ping) === null || _opts$ping2 === void 0 ? void 0 : _opts$ping2.intervalMs) !== null && _opts$ping$intervalMs !== void 0 ? _opts$ping$intervalMs : 1e3
@@ -38635,7 +38652,7 @@ function sseStreamProducer(opts) {
               id: value[0],
               data: value[1]
             } : { data: value };
-            chunk.data = JSON.stringify(serialize4(chunk.data));
+            chunk.data = JSON.stringify(serialize5(chunk.data));
             yield chunk;
             value = null;
             chunk = null;
@@ -38672,7 +38689,7 @@ function sseStreamProducer(opts) {
         const data = (_opts$formatError = (_opts$formatError2 = opts.formatError) === null || _opts$formatError2 === void 0 ? void 0 : _opts$formatError2.call(opts, { error: error48 })) !== null && _opts$formatError !== void 0 ? _opts$formatError : null;
         yield {
           event: SERIALIZED_ERROR_EVENT,
-          data: JSON.stringify(serialize4(data))
+          data: JSON.stringify(serialize5(data))
         };
       }
     });
@@ -39185,8 +39202,8 @@ async function fetchRequestHandler(opts) {
 }
 
 // api/auth-router.ts
-var cookie = __toESM(require_dist(), 1);
-import crypto2 from "node:crypto";
+var cookie2 = __toESM(require_dist(), 1);
+import crypto3 from "node:crypto";
 
 // node_modules/zod/v4/classic/external.js
 var external_exports = {};
@@ -53013,6 +53030,7 @@ var env = {
   appId: required2("APP_ID"),
   appSecret: required2("APP_SECRET"),
   isProduction: process.env.NODE_ENV === "production",
+  isDesktop: process.env.ERP_DESKTOP_MODE === "true",
   databaseUrl: required2("DATABASE_URL"),
   kimiAuthUrl: required2("KIMI_AUTH_URL"),
   kimiOpenUrl: required2("KIMI_OPEN_URL"),
@@ -53028,6 +53046,81 @@ var env = {
   smtpSecure: process.env.SMTP_SECURE === "true",
   geminiApiKey: process.env.GEMINI_API_KEY ?? ""
 };
+
+// api/lib/localUser.ts
+var LOCAL_ADMIN_TENANT_ID = 1;
+function localAdminUnionId() {
+  return `local:${env.adminUsername.trim().toLowerCase()}`;
+}
+function createLocalAdminUser() {
+  const now = /* @__PURE__ */ new Date();
+  return {
+    id: 1,
+    tenantId: LOCAL_ADMIN_TENANT_ID,
+    unionId: localAdminUnionId(),
+    name: "YASCO Admin",
+    email: env.adminEmail || null,
+    avatar: null,
+    role: "admin",
+    phone: null,
+    isActive: true,
+    lastLoginAt: now,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+// api/lib/license.ts
+var cookie = __toESM(require_dist(), 1);
+import crypto2 from "node:crypto";
+var DESKTOP_LICENSE_COOKIE = "erp_desktop_license";
+function base64Url(input) {
+  return Buffer.from(input).toString("base64url");
+}
+function signPayload(payloadPart) {
+  return crypto2.createHmac("sha256", env.appSecret || "desktop_local_secret").update(payloadPart).digest("base64url");
+}
+function createDesktopLicense(input) {
+  const payload = {
+    ...input,
+    issuedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    nonce: crypto2.randomBytes(12).toString("hex")
+  };
+  const payloadPart = base64Url(JSON.stringify(payload));
+  return `YASCO-${payloadPart}.${signPayload(payloadPart)}`;
+}
+function verifyDesktopLicense(key2) {
+  const raw2 = key2.trim();
+  if (!raw2.startsWith("YASCO-")) throw new Error("Invalid license key format.");
+  const [payloadPart, signature] = raw2.slice("YASCO-".length).split(".");
+  if (!payloadPart || !signature) throw new Error("Invalid license key format.");
+  const expected = signPayload(payloadPart);
+  const left = Buffer.from(signature);
+  const right = Buffer.from(expected);
+  if (left.length !== right.length || !crypto2.timingSafeEqual(left, right)) {
+    throw new Error("Invalid license signature.");
+  }
+  const payload = JSON.parse(Buffer.from(payloadPart, "base64url").toString("utf8"));
+  if (Number.isNaN(Date.parse(payload.expiresAt)) || new Date(payload.expiresAt).getTime() < Date.now()) {
+    throw new Error("License key has expired.");
+  }
+  if (!payload.tenantId || !payload.companyName || !payload.plan) {
+    throw new Error("License key payload is incomplete.");
+  }
+  return payload;
+}
+function getLicenseFromHeaders(headers) {
+  const cookies = cookie.parse(headers.get("cookie") || "");
+  const key2 = cookies[DESKTOP_LICENSE_COOKIE];
+  if (!key2) return null;
+  return verifyDesktopLicense(key2);
+}
+function requireDesktopLicense(headers) {
+  if (!env.isDesktop) return null;
+  const license = getLicenseFromHeaders(headers);
+  if (!license) throw new Error("Desktop license activation is required.");
+  return license;
+}
 
 // api/lib/smtp.ts
 import net from "node:net";
@@ -55837,12 +55930,12 @@ function createMiddlewareFactory() {
   }
   return createMiddleware;
 }
-function createInputMiddleware(parse6) {
+function createInputMiddleware(parse8) {
   const inputMiddleware = async function inputValidatorMiddleware(opts) {
     let parsedInput;
     const rawInput = await opts.getRawInput();
     try {
-      parsedInput = await parse6(rawInput);
+      parsedInput = await parse8(rawInput);
     } catch (cause) {
       throw new TRPCError({
         code: "BAD_REQUEST",
@@ -55855,12 +55948,12 @@ function createInputMiddleware(parse6) {
   inputMiddleware._type = "input";
   return inputMiddleware;
 }
-function createOutputMiddleware(parse6) {
+function createOutputMiddleware(parse8) {
   const outputMiddleware = async function outputValidatorMiddleware({ next }) {
     const result = await next();
     if (!result.ok) return result;
     try {
-      const data = await parse6(result.data);
+      const data = await parse8(result.data);
       return (0, import_objectSpread2$2.default)((0, import_objectSpread2$2.default)({}, result), {}, { data });
     } catch (cause) {
       throw new TRPCError({
@@ -56922,7 +57015,7 @@ var dist_default = SuperJSON;
 var serialize = SuperJSON.serialize;
 var deserialize = SuperJSON.deserialize;
 var stringify = SuperJSON.stringify;
-var parse3 = SuperJSON.parse;
+var parse4 = SuperJSON.parse;
 var registerClass = SuperJSON.registerClass;
 var registerCustom = SuperJSON.registerCustom;
 var registerSymbol = SuperJSON.registerSymbol;
@@ -56961,7 +57054,6 @@ var authedQuery = t.procedure.use(requireAuth);
 var adminQuery = authedQuery.use(requireRole("admin"));
 
 // api/auth-router.ts
-var ADMIN_TENANT_ID = 1;
 var LOCAL_CLIENT_ID = "local-auth";
 var OTP_TTL_MS = 10 * 60 * 1e3;
 var otpStore = /* @__PURE__ */ new Map();
@@ -56972,29 +57064,37 @@ function normalizeEmail(value) {
   return value.trim().toLowerCase();
 }
 function hashOtp(email3, otp) {
-  return crypto2.createHmac("sha256", env.appSecret || "development-secret").update(`${email3}:${otp}`).digest("hex");
+  return crypto3.createHmac("sha256", env.appSecret || "development-secret").update(`${email3}:${otp}`).digest("hex");
 }
 function timingSafeEqualString(a, b) {
   const left = Buffer.from(a);
   const right = Buffer.from(b);
-  return left.length === right.length && crypto2.timingSafeEqual(left, right);
+  return left.length === right.length && crypto3.timingSafeEqual(left, right);
 }
 function generateOtp() {
-  return crypto2.randomInt(1e5, 1e6).toString();
+  return crypto3.randomInt(1e5, 1e6).toString();
 }
 async function ensureLocalUser(input) {
-  await upsertUser({
-    tenantId: ADMIN_TENANT_ID,
-    unionId: input.unionId,
-    name: input.name,
-    email: input.email,
-    role: input.role,
-    isActive: true,
-    lastLoginAt: /* @__PURE__ */ new Date()
-  });
-  const user = await findUserByUnionId(input.unionId);
-  if (!user) throw new Error("Unable to create local user.");
-  return user;
+  try {
+    await upsertUser({
+      tenantId: LOCAL_ADMIN_TENANT_ID,
+      unionId: input.unionId,
+      name: input.name,
+      email: input.email,
+      role: input.role,
+      isActive: true,
+      lastLoginAt: /* @__PURE__ */ new Date()
+    });
+    const user = await findUserByUnionId(input.unionId);
+    if (!user) throw new Error("Unable to create local user.");
+    return user;
+  } catch (error48) {
+    if (env.isDesktop && input.unionId === `local:${normalizeUsername(env.adminUsername)}`) {
+      console.warn("[auth] Using desktop local admin fallback because database is unavailable.", error48);
+      return createLocalAdminUser();
+    }
+    throw error48;
+  }
 }
 async function setLocalSession(ctx, unionId) {
   const token = await signSessionToken({
@@ -57004,7 +57104,7 @@ async function setLocalSession(ctx, unionId) {
   const opts = getSessionCookieOptions(ctx.req.headers);
   ctx.resHeaders.append(
     "set-cookie",
-    cookie.serialize(Session.cookieName, token, {
+    cookie2.serialize(Session.cookieName, token, {
       httpOnly: opts.httpOnly,
       path: opts.path,
       sameSite: opts.sameSite?.toLowerCase(),
@@ -57018,6 +57118,7 @@ var authRouter = createRouter({
     username: external_exports.string().min(1),
     password: external_exports.string().min(1)
   })).mutation(async ({ input, ctx }) => {
+    requireDesktopLicense(ctx.req.headers);
     const username = normalizeUsername(input.username);
     const expectedUsername = normalizeUsername(env.adminUsername);
     const validUsername = timingSafeEqualString(username, expectedUsername);
@@ -57093,7 +57194,7 @@ This code expires in 10 minutes. If you did not request it, ignore this email.`
     const opts = getSessionCookieOptions(ctx.req.headers);
     ctx.resHeaders.append(
       "set-cookie",
-      cookie.serialize(Session.cookieName, "", {
+      cookie2.serialize(Session.cookieName, "", {
         httpOnly: opts.httpOnly,
         path: opts.path,
         sameSite: opts.sameSite?.toLowerCase(),
@@ -64748,19 +64849,19 @@ var saasRouter = createRouter({
 });
 
 // api/registrationRouter.ts
-import crypto3 from "node:crypto";
+import crypto4 from "node:crypto";
 init_schema2();
 init_drizzle_orm();
 function hashPassword(password) {
-  const salt = crypto3.randomBytes(16).toString("hex");
-  const hash2 = crypto3.pbkdf2Sync(password, salt, 1e3, 64, "sha512").toString("hex");
+  const salt = crypto4.randomBytes(16).toString("hex");
+  const hash2 = crypto4.pbkdf2Sync(password, salt, 1e3, 64, "sha512").toString("hex");
   return `${salt}:${hash2}`;
 }
 function generateOtp2() {
-  return crypto3.randomInt(1e5, 1e6).toString();
+  return crypto4.randomInt(1e5, 1e6).toString();
 }
 function hashOtp2(email3, otp) {
-  return crypto3.createHmac("sha256", "saas-secret-key").update(`${email3}:${otp}`).digest("hex");
+  return crypto4.createHmac("sha256", "saas-secret-key").update(`${email3}:${otp}`).digest("hex");
 }
 function normalizeEmail2(value) {
   return value.trim().toLowerCase();
@@ -64956,6 +65057,7 @@ This code expires in 10 minutes.`);
 // api/superAdminRouter.ts
 init_schema2();
 init_drizzle_orm();
+import crypto5 from "node:crypto";
 async function createAuditLog(params) {
   const db = getDb();
   await db.insert(auditLogs).values({
@@ -65220,6 +65322,59 @@ var superAdminRouter = createRouter({
       const items = await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit).offset(offset);
       const [totalResult] = await db.select({ total: sql`count(*)` }).from(auditLogs);
       return { items, total: totalResult?.total || 0 };
+    })
+  },
+  licenses: {
+    generate: adminQuery.input(external_exports.object({
+      tenantId: external_exports.number(),
+      companyName: external_exports.string().min(1),
+      plan: external_exports.string().default("desktop"),
+      maxDevices: external_exports.number().int().positive().default(1),
+      validDays: external_exports.number().int().positive().default(365)
+    })).mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const expiresAt = new Date(Date.now() + input.validDays * 24 * 60 * 60 * 1e3);
+      const licenseKey = createDesktopLicense({
+        tenantId: input.tenantId,
+        companyName: input.companyName,
+        plan: input.plan,
+        maxDevices: input.maxDevices,
+        expiresAt: expiresAt.toISOString()
+      });
+      const licenseKeyHash = crypto5.createHash("sha256").update(licenseKey).digest("hex");
+      const [{ id }] = await db.insert(desktopLicenses).values({
+        tenantId: input.tenantId,
+        companyName: input.companyName,
+        plan: input.plan,
+        maxDevices: input.maxDevices,
+        expiresAt,
+        issuedBy: ctx.user.id,
+        licenseKeyHash,
+        status: "active"
+      }).$returningId();
+      await createAuditLog({
+        tenantId: input.tenantId,
+        userId: ctx.user.id,
+        action: "desktop_license_generate",
+        entityType: "desktop_license",
+        entityId: id,
+        newValues: { plan: input.plan, maxDevices: input.maxDevices, expiresAt }
+      });
+      return { id, licenseKey, expiresAt: expiresAt.toISOString() };
+    }),
+    list: adminQuery.input(external_exports.object({ tenantId: external_exports.number().optional(), limit: external_exports.number().default(50) }).optional()).query(async ({ input }) => {
+      const db = getDb();
+      const baseQuery = db.select().from(desktopLicenses);
+      if (input?.tenantId) {
+        return baseQuery.where(eq(desktopLicenses.tenantId, input.tenantId)).orderBy(desc(desktopLicenses.createdAt)).limit(input?.limit || 50);
+      }
+      return baseQuery.orderBy(desc(desktopLicenses.createdAt)).limit(input?.limit || 50);
+    }),
+    revoke: adminQuery.input(external_exports.object({ id: external_exports.number() })).mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      await db.update(desktopLicenses).set({ status: "revoked" }).where(eq(desktopLicenses.id, input.id));
+      await createAuditLog({ userId: ctx.user.id, action: "desktop_license_revoke", entityType: "desktop_license", entityId: input.id });
+      return { success: true };
     })
   },
   stats: {
@@ -66106,6 +66261,37 @@ var syncRouter = createRouter({
   })
 });
 
+// api/licenseRouter.ts
+var cookie3 = __toESM(require_dist(), 1);
+var licenseRouter = createRouter({
+  status: publicQuery.query(({ ctx }) => {
+    try {
+      const cookies = cookie3.parse(ctx.req.headers.get("cookie") || "");
+      const key2 = cookies[DESKTOP_LICENSE_COOKIE];
+      if (!key2) return { desktopMode: env.isDesktop, activated: false };
+      const license = verifyDesktopLicense(key2);
+      return { desktopMode: env.isDesktop, activated: true, license };
+    } catch (error48) {
+      return { desktopMode: env.isDesktop, activated: false, error: error48.message };
+    }
+  }),
+  activate: publicQuery.input(external_exports.object({ key: external_exports.string().min(20) })).mutation(({ input, ctx }) => {
+    const license = verifyDesktopLicense(input.key);
+    const opts = getSessionCookieOptions(ctx.req.headers);
+    ctx.resHeaders.append(
+      "set-cookie",
+      cookie3.serialize(DESKTOP_LICENSE_COOKIE, input.key.trim(), {
+        httpOnly: true,
+        path: "/",
+        sameSite: opts.sameSite?.toLowerCase(),
+        secure: opts.secure,
+        maxAge: Math.max(60, Math.floor((new Date(license.expiresAt).getTime() - Date.now()) / 1e3))
+      })
+    );
+    return { activated: true, license };
+  })
+});
+
 // api/router.ts
 var appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -66139,7 +66325,8 @@ var appRouter = createRouter({
   tasks: taskRouter,
   notifications2: notificationRouter,
   emails: emailRouter,
-  sync: syncRouter
+  sync: syncRouter,
+  license: licenseRouter
 });
 
 // node_modules/hono/dist/utils/cookie.js
@@ -66148,7 +66335,7 @@ var _serialize = (name, value, opt = {}) => {
   if (!validCookieNameRegEx.test(name)) {
     throw new Error("Invalid cookie name");
   }
-  let cookie3 = `${name}=${value}`;
+  let cookie5 = `${name}=${value}`;
   if (name.startsWith("__Secure-") && !opt.secure) {
     throw new Error("__Secure- Cookie must have Secure attributes");
   }
@@ -66174,13 +66361,13 @@ var _serialize = (name, value, opt = {}) => {
         "Cookies Max-Age SHOULD NOT be greater than 400 days (34560000 seconds) in duration."
       );
     }
-    cookie3 += `; Max-Age=${opt.maxAge | 0}`;
+    cookie5 += `; Max-Age=${opt.maxAge | 0}`;
   }
   if (opt.domain && opt.prefix !== "host") {
-    cookie3 += `; Domain=${opt.domain}`;
+    cookie5 += `; Domain=${opt.domain}`;
   }
   if (opt.path) {
-    cookie3 += `; Path=${opt.path}`;
+    cookie5 += `; Path=${opt.path}`;
   }
   if (opt.expires) {
     if (opt.expires.getTime() - Date.now() > 3456e7) {
@@ -66188,57 +66375,57 @@ var _serialize = (name, value, opt = {}) => {
         "Cookies Expires SHOULD NOT be greater than 400 days (34560000 seconds) in the future."
       );
     }
-    cookie3 += `; Expires=${opt.expires.toUTCString()}`;
+    cookie5 += `; Expires=${opt.expires.toUTCString()}`;
   }
   if (opt.httpOnly) {
-    cookie3 += "; HttpOnly";
+    cookie5 += "; HttpOnly";
   }
   if (opt.secure) {
-    cookie3 += "; Secure";
+    cookie5 += "; Secure";
   }
   if (opt.sameSite) {
-    cookie3 += `; SameSite=${opt.sameSite.charAt(0).toUpperCase() + opt.sameSite.slice(1)}`;
+    cookie5 += `; SameSite=${opt.sameSite.charAt(0).toUpperCase() + opt.sameSite.slice(1)}`;
   }
   if (opt.priority) {
-    cookie3 += `; Priority=${opt.priority.charAt(0).toUpperCase() + opt.priority.slice(1)}`;
+    cookie5 += `; Priority=${opt.priority.charAt(0).toUpperCase() + opt.priority.slice(1)}`;
   }
   if (opt.partitioned) {
     if (!opt.secure) {
       throw new Error("Partitioned Cookie must have Secure attributes");
     }
-    cookie3 += "; Partitioned";
+    cookie5 += "; Partitioned";
   }
-  return cookie3;
+  return cookie5;
 };
-var serialize3 = (name, value, opt) => {
+var serialize4 = (name, value, opt) => {
   value = encodeURIComponent(value);
   return _serialize(name, value, opt);
 };
 
 // node_modules/hono/dist/helper/cookie/index.js
 var generateCookie = (name, value, opt) => {
-  let cookie3;
+  let cookie5;
   if (opt?.prefix === "secure") {
-    cookie3 = serialize3("__Secure-" + name, value, { path: "/", ...opt, secure: true });
+    cookie5 = serialize4("__Secure-" + name, value, { path: "/", ...opt, secure: true });
   } else if (opt?.prefix === "host") {
-    cookie3 = serialize3("__Host-" + name, value, {
+    cookie5 = serialize4("__Host-" + name, value, {
       ...opt,
       path: "/",
       secure: true,
       domain: void 0
     });
   } else {
-    cookie3 = serialize3(name, value, { path: "/", ...opt });
+    cookie5 = serialize4(name, value, { path: "/", ...opt });
   }
-  return cookie3;
+  return cookie5;
 };
 var setCookie = (c, name, value, opt) => {
-  const cookie3 = generateCookie(name, value, opt);
-  c.header("Set-Cookie", cookie3, { append: true });
+  const cookie5 = generateCookie(name, value, opt);
+  c.header("Set-Cookie", cookie5, { append: true });
 };
 
 // api/kimi/auth.ts
-var cookie2 = __toESM(require_dist(), 1);
+var cookie4 = __toESM(require_dist(), 1);
 
 // contracts/errors.ts
 function appError(status, message2) {
@@ -66308,7 +66495,8 @@ async function verifyAccessToken(accessToken) {
   return { userId, clientId };
 }
 async function authenticateRequest(headers) {
-  const cookies = cookie2.parse(headers.get("cookie") || "");
+  requireDesktopLicense(headers);
+  const cookies = cookie4.parse(headers.get("cookie") || "");
   const token = cookies[Session.cookieName];
   if (!token) {
     console.warn("[auth] No session cookie found in request.");
@@ -66318,8 +66506,20 @@ async function authenticateRequest(headers) {
   if (!claim) {
     throw Errors.forbidden("Invalid authentication token.");
   }
-  const user = await findUserByUnionId(claim.unionId);
+  let user;
+  try {
+    user = await findUserByUnionId(claim.unionId);
+  } catch (error48) {
+    if (env.isDesktop && claim.unionId === localAdminUnionId()) {
+      console.warn("[auth] Using desktop local admin fallback because database is unavailable.", error48);
+      return createLocalAdminUser();
+    }
+    throw error48;
+  }
   if (!user) {
+    if (env.isDesktop && claim.unionId === localAdminUnionId()) {
+      return createLocalAdminUser();
+    }
     throw Errors.forbidden("User not found. Please re-login.");
   }
   return user;
