@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.erp.system",
   "build": {
-    "frontendDist": "http://127.0.0.1:32145/app",
+    "frontendDist": "../dist/public",
     "devUrl": "http://127.0.0.1:32145/app",
     "beforeDevCommand": "",
     "beforeBuildCommand": "npm run build"
@@ -13,6 +13,7 @@
     "windows": [
       {
         "title": "ERP System",
+        "url": "http://127.0.0.1:32145/app",
         "width": 1280,
         "height": 800,
         "minWidth": 900,
