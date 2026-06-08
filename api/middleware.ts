@@ -27,7 +27,15 @@ function requireRole(role: string) {
   return t.middleware(async (opts) => {
     const { ctx, next } = opts;
 
-    const isAllowed = ctx.user?.role === role || (role === "admin" && ctx.user?.role === "super_admin");
+    const roleHierarchy: Record<string, string[]> = {
+      super_admin: ["super_admin"],
+      admin: ["admin", "super_admin"],
+      reseller: ["reseller", "admin", "super_admin"],
+      user_admin: ["user_admin", "admin", "super_admin"],
+      user: ["user", "user_admin", "admin", "super_admin"],
+    };
+    const allowed = roleHierarchy[role] || [role];
+    const isAllowed = ctx.user && allowed.includes(ctx.user.role);
     if (!ctx.user || !isAllowed) {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -41,3 +49,6 @@ function requireRole(role: string) {
 
 export const authedQuery = t.procedure.use(requireAuth);
 export const adminQuery = authedQuery.use(requireRole("admin"));
+export const resellerQuery = authedQuery.use(requireRole("reseller"));
+export const userAdminQuery = authedQuery.use(requireRole("user_admin"));
+export const superAdminQuery = authedQuery.use(requireRole("super_admin"));

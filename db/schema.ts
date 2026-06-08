@@ -79,7 +79,7 @@ export const users = mysqlTable("users", {
   name: varchar("name", { length: 255 }),
   email: varchar("email", { length: 320 }),
   avatar: text("avatar"),
-  role: mysqlEnum("role", ["super_admin", "admin", "manager", "accountant", "salesman", "cashier", "hr", "store_keeper", "user"]).default("user").notNull(),
+  role: mysqlEnum("role", ["super_admin", "admin", "reseller", "user_admin", "manager", "accountant", "salesman", "cashier", "hr", "store_keeper", "user"]).default("user").notNull(),
   phone: varchar("phone", { length: 50 }),
   isActive: boolean("is_active").default(true),
   lastLoginAt: timestamp("last_login_at"),
@@ -2348,4 +2348,117 @@ export const deletedRecordsTombstone = mysqlTable("deleted_records_tombstone", {
   tenantId: bigint("tenant_id", { mode: "number", unsigned: true }),
   deletedAt: timestamp("deleted_at").defaultNow().notNull(),
   synced: boolean("synced").default(false),
+});
+
+// =====================================================
+// 36. RESELLER LICENSE KEY SYSTEM
+// =====================================================
+
+export const resellerKeyLimits = mysqlTable("reseller_key_limits", {
+  id: serial("id").primaryKey(),
+  resellerUserId: bigint("reseller_user_id", { mode: "number", unsigned: true }).notNull(),
+  maxKeys: int("max_keys").default(0).notNull(),
+  keysUsed: int("keys_used").default(0).notNull(),
+  setBy: bigint("set_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const resellerLicenseKeys = mysqlTable("reseller_license_keys", {
+  id: serial("id").primaryKey(),
+  resellerUserId: bigint("reseller_user_id", { mode: "number", unsigned: true }).notNull(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }),
+  licenseKey: varchar("license_key", { length: 255 }).notNull().unique(),
+  licenseKeyHash: varchar("license_key_hash", { length: 128 }).notNull().unique(),
+  companyName: varchar("company_name", { length: 255 }).notNull(),
+  plan: varchar("plan", { length: 50 }).default("standard").notNull(),
+  maxUsers: int("max_users").default(5).notNull(),
+  maxDevices: int("max_devices").default(1).notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "active", "expired", "revoked"]).default("pending").notNull(),
+  approvedBy: bigint("approved_by", { mode: "number", unsigned: true }),
+  approvedAt: timestamp("approved_at"),
+  rejectedReason: text("rejected_reason"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("reseller_license_reseller_idx").on(table.resellerUserId),
+  index("reseller_license_status_idx").on(table.status),
+  index("reseller_license_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 37. INVOICE THEMES
+// =====================================================
+
+export const invoiceThemes = mysqlTable("invoice_themes", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  nameAr: varchar("name_ar", { length: 100 }),
+  themeKey: varchar("theme_key", { length: 50 }).notNull(),
+  config: json("config").notNull(),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("invoice_theme_tenant_idx").on(table.tenantId),
+]);
+
+export const companyStamps = mysqlTable("company_stamps", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  type: mysqlEnum("type", ["logo", "stamp"]).notNull(),
+  imageData: text("image_data").notNull(),
+  mimeType: varchar("mime_type", { length: 50 }).default("image/png"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("company_stamp_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 38. COUNTRY TAX CONFIG
+// =====================================================
+
+export const countryTaxConfigs = mysqlTable("country_tax_configs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  countryCode: varchar("country_code", { length: 2 }).default("SA").notNull(),
+  taxName: varchar("tax_name", { length: 100 }).notNull(),
+  taxNameAr: varchar("tax_name_ar", { length: 100 }),
+  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("15").notNull(),
+  taxNumberLabel: varchar("tax_number_label", { length: 100 }),
+  taxNumberLabelAr: varchar("tax_number_label_ar", { length: 100 }),
+  taxAuthority: varchar("tax_authority", { length: 100 }),
+  taxAuthorityAr: varchar("tax_authority_ar", { length: 100 }),
+  requiresZatca: boolean("requires_zatca").default(false),
+  requiresFbr: boolean("requires_fbr").default(false),
+  invoiceNote: text("invoice_note"),
+  invoiceNoteAr: text("invoice_note_ar"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("country_tax_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 39. INVOICE CUSTOM TAX SETTINGS (per company)
+// =====================================================
+
+export const invoiceTaxSettings = mysqlTable("invoice_tax_settings", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull().unique(),
+  showTax: boolean("show_tax").default(true),
+  taxLabel: varchar("tax_label", { length: 100 }).default("VAT"),
+  taxLabelAr: varchar("tax_label_ar", { length: 100 }).default("ضريبة القيمة المضافة"),
+  taxPercent: decimal("tax_percent", { precision: 5, scale: 2 }).default("15"),
+  taxInclusive: boolean("tax_inclusive").default(false),
+  showTaxNumber: boolean("show_tax_number").default(true),
+  showStamp: boolean("show_stamp").default(true),
+  showLogo: boolean("show_logo").default(true),
+  showFooter: boolean("show_footer").default(true),
+  footerText: text("footer_text"),
+  footerTextAr: text("footer_text_ar"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
 });

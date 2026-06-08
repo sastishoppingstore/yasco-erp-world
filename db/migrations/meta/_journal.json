@@ -29,6 +29,13 @@
       "when": 1780440000000,
       "tag": "0003_zatca_phase2_module",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1780774522891,
+      "tag": "0004_perfect_harrier",
+      "breakpoints": true
     }
   ]
 }

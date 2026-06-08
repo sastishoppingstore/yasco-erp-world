@@ -142,6 +142,10 @@ const InstallmentsPage = lazy(() => import("./pages/installments"));
 // Admin Pages
 const WebsiteAdminPage = lazy(() => import("./pages/admin/website"));
 const MasterControlPage = lazy(() => import("./pages/admin/master-control"));
+const ResellerKeysPage = lazy(() => import("./pages/admin/reseller-keys"));
+const LicenseApprovalPage = lazy(() => import("./pages/admin/license-approval"));
+const SuperResellersPage = lazy(() => import("./pages/admin/super-resellers"));
+const InvoiceSettingsPage = lazy(() => import("./pages/admin/invoice-settings"));
 
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
   return <AppLayout>{children}</AppLayout>;
@@ -253,6 +257,10 @@ export default function App() {
       <Route path="/app/admin/super-companies" element={<LayoutWrapper><SuperAdminCompanies /></LayoutWrapper>} />
       <Route path="/app/admin/super-smtp" element={<LayoutWrapper><SuperAdminSmtp /></LayoutWrapper>} />
       <Route path="/app/admin/super-email-templates" element={<LayoutWrapper><SuperAdminEmailTemplates /></LayoutWrapper>} />
+      <Route path="/app/admin/super-resellers" element={<LayoutWrapper><SuperResellersPage /></LayoutWrapper>} />
+      <Route path="/app/admin/reseller-keys" element={<LayoutWrapper><ResellerKeysPage /></LayoutWrapper>} />
+      <Route path="/app/admin/license-approval" element={<LayoutWrapper><LicenseApprovalPage /></LayoutWrapper>} />
+      <Route path="/app/admin/invoice-settings" element={<LayoutWrapper><InvoiceSettingsPage /></LayoutWrapper>} />
 
       {/* New Modules */}
       <Route path="/app/pos" element={<POSPage />} />

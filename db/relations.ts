@@ -605,3 +605,30 @@ export const notificationsRelations = relations(schema.notifications, ({ one }) 
   tenant: one(schema.tenants, { fields: [schema.notifications.tenantId], references: [schema.tenants.id] }),
   user: one(schema.users, { fields: [schema.notifications.userId], references: [schema.users.id] }),
 }));
+
+export const resellerKeyLimitsRelations = relations(schema.resellerKeyLimits, ({ one }) => ({
+  reseller: one(schema.users, { fields: [schema.resellerKeyLimits.resellerUserId], references: [schema.users.id] }),
+  setter: one(schema.users, { fields: [schema.resellerKeyLimits.setBy], references: [schema.users.id] }),
+}));
+
+export const resellerLicenseKeysRelations = relations(schema.resellerLicenseKeys, ({ one }) => ({
+  reseller: one(schema.users, { fields: [schema.resellerLicenseKeys.resellerUserId], references: [schema.users.id] }),
+  approver: one(schema.users, { fields: [schema.resellerLicenseKeys.approvedBy], references: [schema.users.id] }),
+  tenant: one(schema.tenants, { fields: [schema.resellerLicenseKeys.tenantId], references: [schema.tenants.id] }),
+}));
+
+export const invoiceThemesRelations = relations(schema.invoiceThemes, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.invoiceThemes.tenantId], references: [schema.tenants.id] }),
+}));
+
+export const companyStampsRelations = relations(schema.companyStamps, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.companyStamps.tenantId], references: [schema.tenants.id] }),
+}));
+
+export const countryTaxConfigsRelations = relations(schema.countryTaxConfigs, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.countryTaxConfigs.tenantId], references: [schema.tenants.id] }),
+}));
+
+export const invoiceTaxSettingsRelations = relations(schema.invoiceTaxSettings, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.invoiceTaxSettings.tenantId], references: [schema.tenants.id] }),
+}));

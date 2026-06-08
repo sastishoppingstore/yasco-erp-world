@@ -30,6 +30,8 @@ import { notificationRouter } from "./notificationRouter";
 import { emailRouter } from "./emailRouter";
 import { syncRouter } from "./syncRouter";
 import { licenseRouter } from "./licenseRouter";
+import { licenseKeyRouter } from "./licenseKeyRouter";
+import { invoiceThemeRouter } from "./invoiceThemeRouter";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -66,6 +68,8 @@ export const appRouter = createRouter({
   emails: emailRouter,
   sync: syncRouter,
   license: licenseRouter,
+  licenseKey: licenseKeyRouter,
+  invoiceTheme: invoiceThemeRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -293,7 +293,7 @@ var require_main = __commonJS({
     var fs2 = __require("fs");
     var path2 = __require("path");
     var os = __require("os");
-    var crypto7 = __require("crypto");
+    var crypto8 = __require("crypto");
     var TIPS = [
       "\u25C8 encrypted .env [www.dotenvx.com]",
       "\u25C8 secrets for agents [www.dotenvx.com]",
@@ -537,7 +537,7 @@ var require_main = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto7.createDecipheriv("aes-256-gcm", key2, nonce);
+        const aesgcm = crypto8.createDecipheriv("aes-256-gcm", key2, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error48) {
@@ -7711,9 +7711,11 @@ __export(schema_exports, {
   companies: () => companies,
   companyLegalDetails: () => companyLegalDetails,
   companySettings: () => companySettings,
+  companyStamps: () => companyStamps,
   complianceProfiles: () => complianceProfiles,
   costCenters: () => costCenters,
   countries: () => countries,
+  countryTaxConfigs: () => countryTaxConfigs,
   coupons: () => coupons,
   creditNotes: () => creditNotes,
   crmActivities: () => crmActivities,
@@ -7743,6 +7745,8 @@ __export(schema_exports, {
   inventoryBalances: () => inventoryBalances,
   inventoryMovements: () => inventoryMovements,
   invoiceItems: () => invoiceItems,
+  invoiceTaxSettings: () => invoiceTaxSettings,
+  invoiceThemes: () => invoiceThemes,
   invoices: () => invoices,
   journalEntries: () => journalEntries,
   journalEntryLines: () => journalEntryLines,
@@ -7777,6 +7781,8 @@ __export(schema_exports, {
   purchaseOrderItems: () => purchaseOrderItems,
   purchaseOrders: () => purchaseOrders,
   regions: () => regions,
+  resellerKeyLimits: () => resellerKeyLimits,
+  resellerLicenseKeys: () => resellerLicenseKeys,
   roles: () => roles,
   salarySlips: () => salarySlips,
   salesOrderItems: () => salesOrderItems,
@@ -7828,7 +7834,7 @@ __export(schema_exports, {
   zatcaQrCodes: () => zatcaQrCodes,
   zatcaXmlDocuments: () => zatcaXmlDocuments
 });
-var tenants, companies, users, roles, userRoles, fiscalYears, chartOfAccounts, costCenters, journalEntries, journalEntryLines, budgets, productCategories, brands, units, warehouses, products, inventoryBalances, inventoryMovements, stockTransfers, stockTransferItems, stockAdjustments, stockAdjustmentItems, customers, salesQuotations, salesQuotationItems, salesOrders, salesOrderItems, invoices, invoiceItems, creditNotes, customerPayments, suppliers, purchaseOrders, purchaseOrderItems, goodsReceivedNotes, grnItems, supplierPayments, leads, opportunities, crmActivities, departments, designations, employees, attendance, leaveTypes, leaveRequests, payrollPeriods, salarySlips, employeeLoans, advances, performanceReviews, billOfMaterials, bomItems, workOrders, productionOrders, productionItems, projects, projectTasks, projectMilestones, timesheets, supportTickets, ticketComments, assets, assetMaintenance, depreciationEntries, vehicles, fuelRecords, vehicleMaintenance, drivers, desktopLicenses, documentCategories, documents, companySettings, companyLegalDetails, taxRates, currencies, auditLogs, notifications, posSessions, posHolds, cashboxTransactions, installments, installmentPayments, printTemplates, countries, regions, localizationProfiles, taxProfiles, taxRules, taxIdentifiers, taxIntegrations, taxCredentials, taxSubmissions, taxSubmissionLogs, eInvoiceDocuments, zatcaCredentials, zatcaCertificates, zatcaApiLogs, zatcaInvoiceStatus, zatcaQrCodes, zatcaXmlDocuments, zatcaActivityLogs, complianceProfiles, moduleRegistry, websiteModuleCards, websiteSections, websiteHeroSlides, aiChatLogs, approvalWorkflows, approvalRequests, apiWebhooks, partnerAccounts, securityLogs, tenantUsageLogs, plans, planFeatures, subscriptions, subscriptionInvoices, subscriptionPayments, otpCodes, smtpSettings, emailTemplates, emailLogs, notificationTemplates, coupons, offers, meetings, meetingAttendees, meetingNotes, taskComments, taskAttachments, deviceRegistrations, syncLogs, deletedRecordsTombstone;
+var tenants, companies, users, roles, userRoles, fiscalYears, chartOfAccounts, costCenters, journalEntries, journalEntryLines, budgets, productCategories, brands, units, warehouses, products, inventoryBalances, inventoryMovements, stockTransfers, stockTransferItems, stockAdjustments, stockAdjustmentItems, customers, salesQuotations, salesQuotationItems, salesOrders, salesOrderItems, invoices, invoiceItems, creditNotes, customerPayments, suppliers, purchaseOrders, purchaseOrderItems, goodsReceivedNotes, grnItems, supplierPayments, leads, opportunities, crmActivities, departments, designations, employees, attendance, leaveTypes, leaveRequests, payrollPeriods, salarySlips, employeeLoans, advances, performanceReviews, billOfMaterials, bomItems, workOrders, productionOrders, productionItems, projects, projectTasks, projectMilestones, timesheets, supportTickets, ticketComments, assets, assetMaintenance, depreciationEntries, vehicles, fuelRecords, vehicleMaintenance, drivers, desktopLicenses, documentCategories, documents, companySettings, companyLegalDetails, taxRates, currencies, auditLogs, notifications, posSessions, posHolds, cashboxTransactions, installments, installmentPayments, printTemplates, countries, regions, localizationProfiles, taxProfiles, taxRules, taxIdentifiers, taxIntegrations, taxCredentials, taxSubmissions, taxSubmissionLogs, eInvoiceDocuments, zatcaCredentials, zatcaCertificates, zatcaApiLogs, zatcaInvoiceStatus, zatcaQrCodes, zatcaXmlDocuments, zatcaActivityLogs, complianceProfiles, moduleRegistry, websiteModuleCards, websiteSections, websiteHeroSlides, aiChatLogs, approvalWorkflows, approvalRequests, apiWebhooks, partnerAccounts, securityLogs, tenantUsageLogs, plans, planFeatures, subscriptions, subscriptionInvoices, subscriptionPayments, otpCodes, smtpSettings, emailTemplates, emailLogs, notificationTemplates, coupons, offers, meetings, meetingAttendees, meetingNotes, taskComments, taskAttachments, deviceRegistrations, syncLogs, deletedRecordsTombstone, resellerKeyLimits, resellerLicenseKeys, invoiceThemes, companyStamps, countryTaxConfigs, invoiceTaxSettings;
 var init_schema2 = __esm({
   "db/schema.ts"() {
     init_mysql_core();
@@ -7883,7 +7889,7 @@ var init_schema2 = __esm({
       name: varchar("name", { length: 255 }),
       email: varchar("email", { length: 320 }),
       avatar: text("avatar"),
-      role: mysqlEnum("role", ["super_admin", "admin", "manager", "accountant", "salesman", "cashier", "hr", "store_keeper", "user"]).default("user").notNull(),
+      role: mysqlEnum("role", ["super_admin", "admin", "reseller", "user_admin", "manager", "accountant", "salesman", "cashier", "hr", "store_keeper", "user"]).default("user").notNull(),
       phone: varchar("phone", { length: 50 }),
       isActive: boolean4("is_active").default(true),
       lastLoginAt: timestamp("last_login_at"),
@@ -9894,6 +9900,97 @@ var init_schema2 = __esm({
       tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }),
       deletedAt: timestamp("deleted_at").defaultNow().notNull(),
       synced: boolean4("synced").default(false)
+    });
+    resellerKeyLimits = mysqlTable("reseller_key_limits", {
+      id: serial("id").primaryKey(),
+      resellerUserId: bigint4("reseller_user_id", { mode: "number", unsigned: true }).notNull(),
+      maxKeys: int2("max_keys").default(0).notNull(),
+      keysUsed: int2("keys_used").default(0).notNull(),
+      setBy: bigint4("set_by", { mode: "number", unsigned: true }),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => /* @__PURE__ */ new Date())
+    });
+    resellerLicenseKeys = mysqlTable("reseller_license_keys", {
+      id: serial("id").primaryKey(),
+      resellerUserId: bigint4("reseller_user_id", { mode: "number", unsigned: true }).notNull(),
+      tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }),
+      licenseKey: varchar("license_key", { length: 255 }).notNull().unique(),
+      licenseKeyHash: varchar("license_key_hash", { length: 128 }).notNull().unique(),
+      companyName: varchar("company_name", { length: 255 }).notNull(),
+      plan: varchar("plan", { length: 50 }).default("standard").notNull(),
+      maxUsers: int2("max_users").default(5).notNull(),
+      maxDevices: int2("max_devices").default(1).notNull(),
+      status: mysqlEnum("status", ["pending", "approved", "rejected", "active", "expired", "revoked"]).default("pending").notNull(),
+      approvedBy: bigint4("approved_by", { mode: "number", unsigned: true }),
+      approvedAt: timestamp("approved_at"),
+      rejectedReason: text("rejected_reason"),
+      expiresAt: timestamp("expires_at").notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    }, (table) => [
+      index("reseller_license_reseller_idx").on(table.resellerUserId),
+      index("reseller_license_status_idx").on(table.status),
+      index("reseller_license_tenant_idx").on(table.tenantId)
+    ]);
+    invoiceThemes = mysqlTable("invoice_themes", {
+      id: serial("id").primaryKey(),
+      tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }).notNull(),
+      name: varchar("name", { length: 100 }).notNull(),
+      nameAr: varchar("name_ar", { length: 100 }),
+      themeKey: varchar("theme_key", { length: 50 }).notNull(),
+      config: json2("config").notNull(),
+      isDefault: boolean4("is_default").default(false),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    }, (table) => [
+      index("invoice_theme_tenant_idx").on(table.tenantId)
+    ]);
+    companyStamps = mysqlTable("company_stamps", {
+      id: serial("id").primaryKey(),
+      tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }).notNull(),
+      type: mysqlEnum("type", ["logo", "stamp"]).notNull(),
+      imageData: text("image_data").notNull(),
+      mimeType: varchar("mime_type", { length: 50 }).default("image/png"),
+      isActive: boolean4("is_active").default(true),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    }, (table) => [
+      index("company_stamp_tenant_idx").on(table.tenantId)
+    ]);
+    countryTaxConfigs = mysqlTable("country_tax_configs", {
+      id: serial("id").primaryKey(),
+      tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }).notNull(),
+      countryCode: varchar("country_code", { length: 2 }).default("SA").notNull(),
+      taxName: varchar("tax_name", { length: 100 }).notNull(),
+      taxNameAr: varchar("tax_name_ar", { length: 100 }),
+      taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("15").notNull(),
+      taxNumberLabel: varchar("tax_number_label", { length: 100 }),
+      taxNumberLabelAr: varchar("tax_number_label_ar", { length: 100 }),
+      taxAuthority: varchar("tax_authority", { length: 100 }),
+      taxAuthorityAr: varchar("tax_authority_ar", { length: 100 }),
+      requiresZatca: boolean4("requires_zatca").default(false),
+      requiresFbr: boolean4("requires_fbr").default(false),
+      invoiceNote: text("invoice_note"),
+      invoiceNoteAr: text("invoice_note_ar"),
+      isDefault: boolean4("is_default").default(false),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => /* @__PURE__ */ new Date())
+    }, (table) => [
+      index("country_tax_tenant_idx").on(table.tenantId)
+    ]);
+    invoiceTaxSettings = mysqlTable("invoice_tax_settings", {
+      id: serial("id").primaryKey(),
+      tenantId: bigint4("tenant_id", { mode: "number", unsigned: true }).notNull().unique(),
+      showTax: boolean4("show_tax").default(true),
+      taxLabel: varchar("tax_label", { length: 100 }).default("VAT"),
+      taxLabelAr: varchar("tax_label_ar", { length: 100 }).default("\u0636\u0631\u064A\u0628\u0629 \u0627\u0644\u0642\u064A\u0645\u0629 \u0627\u0644\u0645\u0636\u0627\u0641\u0629"),
+      taxPercent: decimal("tax_percent", { precision: 5, scale: 2 }).default("15"),
+      taxInclusive: boolean4("tax_inclusive").default(false),
+      showTaxNumber: boolean4("show_tax_number").default(true),
+      showStamp: boolean4("show_stamp").default(true),
+      showLogo: boolean4("show_logo").default(true),
+      showFooter: boolean4("show_footer").default(true),
+      footerText: text("footer_text"),
+      footerTextAr: text("footer_text_ar"),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => /* @__PURE__ */ new Date())
     });
   }
 });
@@ -21889,9 +21986,9 @@ var require_binlog_dump = __commonJS({
 var require_auth_41 = __commonJS({
   "node_modules/mysql2/lib/auth_41.js"(exports) {
     "use strict";
-    var crypto7 = __require("crypto");
+    var crypto8 = __require("crypto");
     function sha1(msg, msg1, msg2) {
-      const hash2 = crypto7.createHash("sha1");
+      const hash2 = crypto8.createHash("sha1");
       hash2.update(msg);
       if (msg1) {
         hash2.update(msg1);
@@ -23767,7 +23864,7 @@ var require_sha256_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/sha256_password.js"(exports, module) {
     "use strict";
     var PLUGIN_NAME = "sha256_password";
-    var crypto7 = __require("crypto");
+    var crypto8 = __require("crypto");
     var { xorRotating } = require_auth_41();
     var Tls = __require("tls");
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([1]);
@@ -23776,7 +23873,7 @@ var require_sha256_password = __commonJS({
     var STATE_FINAL = -1;
     function encrypt(password, scramble, key2) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-      return crypto7.publicEncrypt(
+      return crypto8.publicEncrypt(
         {
           key: key2,
           oaepHash: "sha1"
@@ -23828,7 +23925,7 @@ var require_caching_sha2_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/caching_sha2_password.js"(exports, module) {
     "use strict";
     var PLUGIN_NAME = "caching_sha2_password";
-    var crypto7 = __require("crypto");
+    var crypto8 = __require("crypto");
     var { xor: xor2, xorRotating } = require_auth_41();
     var REQUEST_SERVER_KEY_PACKET = Buffer.from([2]);
     var FAST_AUTH_SUCCESS_PACKET = Buffer.from([3]);
@@ -23838,7 +23935,7 @@ var require_caching_sha2_password = __commonJS({
     var STATE_WAIT_SERVER_KEY = 2;
     var STATE_FINAL = -1;
     function sha256(msg) {
-      const hash2 = crypto7.createHash("sha256");
+      const hash2 = crypto8.createHash("sha256");
       hash2.update(msg);
       return hash2.digest();
     }
@@ -23853,11 +23950,11 @@ var require_caching_sha2_password = __commonJS({
     }
     function encrypt(password, scramble, key2) {
       const stage1 = xorRotating(Buffer.from(`${password}\0`, "utf8"), scramble);
-      return crypto7.publicEncrypt(
+      return crypto8.publicEncrypt(
         {
           key: key2,
           oaepHash: "sha1",
-          padding: crypto7.constants.RSA_PKCS1_OAEP_PADDING
+          padding: crypto8.constants.RSA_PKCS1_OAEP_PADDING
         },
         stage1
       );
@@ -33817,7 +33914,7 @@ import { createServer as createServerHTTP } from "http";
 import { Http2ServerRequest as Http2ServerRequest2, constants as h2constants } from "http2";
 import { Http2ServerRequest } from "http2";
 import { Readable } from "stream";
-import crypto6 from "crypto";
+import crypto7 from "crypto";
 async function readWithoutBlocking(readPromise) {
   return Promise.race([readPromise, Promise.resolve().then(() => Promise.resolve(void 0))]);
 }
@@ -34159,7 +34256,7 @@ var init_dist = __esm({
     };
     X_ALREADY_SENT = "x-hono-already-sent";
     if (typeof global.crypto === "undefined") {
-      global.crypto = crypto6;
+      global.crypto = crypto7;
     }
     outgoingEnded = /* @__PURE__ */ Symbol("outgoingEnded");
     incomingDraining = /* @__PURE__ */ Symbol("incomingDraining");
@@ -55283,7 +55380,9 @@ __export(relations_exports, {
   budgetsRelations: () => budgetsRelations,
   chartOfAccountsRelations: () => chartOfAccountsRelations,
   companySettingsRelations: () => companySettingsRelations,
+  companyStampsRelations: () => companyStampsRelations,
   costCentersRelations: () => costCentersRelations,
+  countryTaxConfigsRelations: () => countryTaxConfigsRelations,
   creditNotesRelations: () => creditNotesRelations,
   crmActivitiesRelations: () => crmActivitiesRelations,
   currenciesRelations: () => currenciesRelations,
@@ -55304,6 +55403,8 @@ __export(relations_exports, {
   inventoryBalancesRelations: () => inventoryBalancesRelations,
   inventoryMovementsRelations: () => inventoryMovementsRelations,
   invoiceItemsRelations: () => invoiceItemsRelations,
+  invoiceTaxSettingsRelations: () => invoiceTaxSettingsRelations,
+  invoiceThemesRelations: () => invoiceThemesRelations,
   invoicesRelations: () => invoicesRelations,
   journalEntriesRelations: () => journalEntriesRelations,
   journalEntryLinesRelations: () => journalEntryLinesRelations,
@@ -55323,6 +55424,8 @@ __export(relations_exports, {
   projectsRelations: () => projectsRelations,
   purchaseOrderItemsRelations: () => purchaseOrderItemsRelations,
   purchaseOrdersRelations: () => purchaseOrdersRelations,
+  resellerKeyLimitsRelations: () => resellerKeyLimitsRelations,
+  resellerLicenseKeysRelations: () => resellerLicenseKeysRelations,
   rolesRelations: () => rolesRelations,
   salarySlipsRelations: () => salarySlipsRelations,
   salesOrderItemsRelations: () => salesOrderItemsRelations,
@@ -55879,6 +55982,27 @@ var auditLogsRelations = relations(auditLogs, ({ one }) => ({
 var notificationsRelations = relations(notifications, ({ one }) => ({
   tenant: one(tenants, { fields: [notifications.tenantId], references: [tenants.id] }),
   user: one(users, { fields: [notifications.userId], references: [users.id] })
+}));
+var resellerKeyLimitsRelations = relations(resellerKeyLimits, ({ one }) => ({
+  reseller: one(users, { fields: [resellerKeyLimits.resellerUserId], references: [users.id] }),
+  setter: one(users, { fields: [resellerKeyLimits.setBy], references: [users.id] })
+}));
+var resellerLicenseKeysRelations = relations(resellerLicenseKeys, ({ one }) => ({
+  reseller: one(users, { fields: [resellerLicenseKeys.resellerUserId], references: [users.id] }),
+  approver: one(users, { fields: [resellerLicenseKeys.approvedBy], references: [users.id] }),
+  tenant: one(tenants, { fields: [resellerLicenseKeys.tenantId], references: [tenants.id] })
+}));
+var invoiceThemesRelations = relations(invoiceThemes, ({ one }) => ({
+  tenant: one(tenants, { fields: [invoiceThemes.tenantId], references: [tenants.id] })
+}));
+var companyStampsRelations = relations(companyStamps, ({ one }) => ({
+  tenant: one(tenants, { fields: [companyStamps.tenantId], references: [tenants.id] })
+}));
+var countryTaxConfigsRelations = relations(countryTaxConfigs, ({ one }) => ({
+  tenant: one(tenants, { fields: [countryTaxConfigs.tenantId], references: [tenants.id] })
+}));
+var invoiceTaxSettingsRelations = relations(invoiceTaxSettings, ({ one }) => ({
+  tenant: one(tenants, { fields: [invoiceTaxSettings.tenantId], references: [tenants.id] })
 }));
 
 // api/queries/connection.ts
@@ -57040,7 +57164,15 @@ var requireAuth = t.middleware(async (opts) => {
 function requireRole(role) {
   return t.middleware(async (opts) => {
     const { ctx, next } = opts;
-    const isAllowed = ctx.user?.role === role || role === "admin" && ctx.user?.role === "super_admin";
+    const roleHierarchy = {
+      super_admin: ["super_admin"],
+      admin: ["admin", "super_admin"],
+      reseller: ["reseller", "admin", "super_admin"],
+      user_admin: ["user_admin", "admin", "super_admin"],
+      user: ["user", "user_admin", "admin", "super_admin"]
+    };
+    const allowed = roleHierarchy[role] || [role];
+    const isAllowed = ctx.user && allowed.includes(ctx.user.role);
     if (!ctx.user || !isAllowed) {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -57052,6 +57184,9 @@ function requireRole(role) {
 }
 var authedQuery = t.procedure.use(requireAuth);
 var adminQuery = authedQuery.use(requireRole("admin"));
+var resellerQuery = authedQuery.use(requireRole("reseller"));
+var userAdminQuery = authedQuery.use(requireRole("user_admin"));
+var superAdminQuery = authedQuery.use(requireRole("super_admin"));
 
 // api/auth-router.ts
 var LOCAL_CLIENT_ID = "local-auth";
@@ -66292,6 +66427,437 @@ var licenseRouter = createRouter({
   })
 });
 
+// api/licenseKeyRouter.ts
+init_drizzle_orm();
+import crypto6 from "node:crypto";
+init_schema2();
+function generateLicenseKey(prefix = "ERP") {
+  const seg1 = crypto6.randomBytes(4).toString("hex").toUpperCase();
+  const seg2 = crypto6.randomBytes(4).toString("hex").toUpperCase();
+  const seg3 = crypto6.randomBytes(4).toString("hex").toUpperCase();
+  return `${prefix}-${seg1}-${seg2}-${seg3}`;
+}
+var licenseKeyRouter = createRouter({
+  // ================================================
+  // SUPER ADMIN: Manage reseller key limits
+  // ================================================
+  resellerLimits: {
+    list: superAdminQuery.query(async () => {
+      const db = getDb();
+      const limits = await db.select().from(resellerKeyLimits).orderBy(desc(resellerKeyLimits.createdAt));
+      const userIds = limits.map((l) => l.resellerUserId);
+      const users3 = userIds.length > 0 ? await db.select().from(users).where(sql`${users.id} IN (${userIds.join(",")})`) : [];
+      const userMap = new Map(users3.map((u) => [u.id, u]));
+      return limits.map((l) => ({
+        ...l,
+        reseller: userMap.get(l.resellerUserId) || null
+      }));
+    }),
+    setLimit: superAdminQuery.input(external_exports.object({
+      resellerUserId: external_exports.number(),
+      maxKeys: external_exports.number().int().min(0)
+    })).mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const existing = await db.query.resellerKeyLimits.findFirst({
+        where: eq(resellerKeyLimits.resellerUserId, input.resellerUserId)
+      });
+      if (existing) {
+        await db.update(resellerKeyLimits).set({ maxKeys: input.maxKeys, setBy: ctx.user.id }).where(eq(resellerKeyLimits.id, existing.id));
+      } else {
+        await db.insert(resellerKeyLimits).values({
+          resellerUserId: input.resellerUserId,
+          maxKeys: input.maxKeys,
+          setBy: ctx.user.id
+        });
+      }
+      return { success: true };
+    })
+  },
+  // ================================================
+  // RESELLER: Generate license keys
+  // ================================================
+  reseller: {
+    myQuota: resellerQuery.query(async ({ ctx }) => {
+      const db = getDb();
+      const limit = await db.query.resellerKeyLimits.findFirst({
+        where: eq(resellerKeyLimits.resellerUserId, ctx.user.id)
+      });
+      const pendingCount = await db.select({ count: sql`count(*)` }).from(resellerLicenseKeys).where(and(
+        eq(resellerLicenseKeys.resellerUserId, ctx.user.id),
+        eq(resellerLicenseKeys.status, "pending")
+      )).then((r) => Number(r[0]?.count || 0));
+      return {
+        maxKeys: limit?.maxKeys || 0,
+        keysUsed: limit?.keysUsed || 0,
+        pendingCount,
+        remaining: (limit?.maxKeys || 0) - (limit?.keysUsed || 0)
+      };
+    }),
+    myKeys: resellerQuery.query(async ({ ctx }) => {
+      const db = getDb();
+      return db.select().from(resellerLicenseKeys).where(eq(resellerLicenseKeys.resellerUserId, ctx.user.id)).orderBy(desc(resellerLicenseKeys.createdAt));
+    }),
+    generate: resellerQuery.input(external_exports.object({
+      companyName: external_exports.string().min(1),
+      plan: external_exports.string().default("standard"),
+      maxUsers: external_exports.number().int().positive().default(5),
+      maxDevices: external_exports.number().int().positive().default(1),
+      validDays: external_exports.number().int().positive().default(365)
+    })).mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const limit = await db.query.resellerKeyLimits.findFirst({
+        where: eq(resellerKeyLimits.resellerUserId, ctx.user.id)
+      });
+      if (!limit || limit.keysUsed >= limit.maxKeys) {
+        throw new Error("Key generation quota exhausted. Contact Super Admin.");
+      }
+      const licenseKey = generateLicenseKey();
+      const licenseKeyHash = crypto6.createHash("sha256").update(licenseKey).digest("hex");
+      const expiresAt = new Date(Date.now() + input.validDays * 24 * 60 * 60 * 1e3);
+      const [{ id }] = await db.insert(resellerLicenseKeys).values({
+        resellerUserId: ctx.user.id,
+        licenseKey,
+        licenseKeyHash,
+        companyName: input.companyName,
+        plan: input.plan,
+        maxUsers: input.maxUsers,
+        maxDevices: input.maxDevices,
+        status: "pending",
+        expiresAt
+      }).$returningId();
+      await db.update(resellerKeyLimits).set({ keysUsed: sql`${resellerKeyLimits.keysUsed} + 1` }).where(eq(resellerKeyLimits.id, limit.id));
+      return { id, licenseKey, expiresAt: expiresAt.toISOString() };
+    })
+  },
+  // ================================================
+  // ADMIN + SUPER ADMIN: Approve/Reject keys
+  // ================================================
+  approval: {
+    pendingKeys: adminQuery.query(async () => {
+      const db = getDb();
+      const keys = await db.select().from(resellerLicenseKeys).where(eq(resellerLicenseKeys.status, "pending")).orderBy(desc(resellerLicenseKeys.createdAt));
+      const resellerIds = [...new Set(keys.map((k) => k.resellerUserId))];
+      const resellers = resellerIds.length > 0 ? await db.select().from(users).where(sql`${users.id} IN (${resellerIds.join(",")})`) : [];
+      const resellerMap = new Map(resellers.map((u) => [u.id, u]));
+      return keys.map((k) => ({
+        ...k,
+        reseller: resellerMap.get(k.resellerUserId) || null
+      }));
+    }),
+    allKeys: adminQuery.input(external_exports.object({ status: external_exports.string().optional() }).optional()).query(async ({ input }) => {
+      const db = getDb();
+      const condition = input?.status ? eq(resellerLicenseKeys.status, input.status) : void 0;
+      const query = db.select().from(resellerLicenseKeys);
+      if (condition) query.where(condition);
+      return query.orderBy(desc(resellerLicenseKeys.createdAt));
+    }),
+    approve: adminQuery.input(external_exports.object({ id: external_exports.number() })).mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const key2 = await db.query.resellerLicenseKeys.findFirst({ where: eq(resellerLicenseKeys.id, input.id) });
+      if (!key2) throw new Error("License key not found");
+      if (key2.status !== "pending") throw new Error("Only pending keys can be approved");
+      await db.update(resellerLicenseKeys).set({ status: "approved", approvedBy: ctx.user.id, approvedAt: /* @__PURE__ */ new Date() }).where(eq(resellerLicenseKeys.id, input.id));
+      return { success: true };
+    }),
+    reject: adminQuery.input(external_exports.object({ id: external_exports.number(), reason: external_exports.string().optional() })).mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const key2 = await db.query.resellerLicenseKeys.findFirst({ where: eq(resellerLicenseKeys.id, input.id) });
+      if (!key2) throw new Error("License key not found");
+      if (key2.status !== "pending") throw new Error("Only pending keys can be rejected");
+      await db.update(resellerLicenseKeys).set({ status: "rejected", approvedBy: ctx.user.id, rejectedReason: input.reason }).where(eq(resellerLicenseKeys.id, input.id));
+      const limit = await db.query.resellerKeyLimits.findFirst({
+        where: eq(resellerKeyLimits.resellerUserId, key2.resellerUserId)
+      });
+      if (limit) {
+        await db.update(resellerKeyLimits).set({ keysUsed: sql`GREATEST(${resellerKeyLimits.keysUsed} - 1, 0)` }).where(eq(resellerKeyLimits.id, limit.id));
+      }
+      return { success: true };
+    }),
+    revoke: adminQuery.input(external_exports.object({ id: external_exports.number() })).mutation(async ({ input }) => {
+      const db = getDb();
+      await db.update(resellerLicenseKeys).set({ status: "revoked" }).where(eq(resellerLicenseKeys.id, input.id));
+      return { success: true };
+    })
+  },
+  // ================================================
+  // PUBLIC: Verify a license key
+  // ================================================
+  verify: authedQuery.input(external_exports.object({ key: external_exports.string().min(1) })).query(async ({ input }) => {
+    const db = getDb();
+    const hash2 = crypto6.createHash("sha256").update(input.key).digest("hex");
+    const record2 = await db.query.resellerLicenseKeys.findFirst({
+      where: eq(resellerLicenseKeys.licenseKeyHash, hash2)
+    });
+    if (!record2) return { valid: false, reason: "Key not found" };
+    if (record2.status === "revoked") return { valid: false, reason: "Key has been revoked" };
+    if (record2.status === "rejected") return { valid: false, reason: "Key was rejected" };
+    if (record2.status === "pending") return { valid: false, reason: "Key is pending approval" };
+    if (record2.expiresAt < /* @__PURE__ */ new Date()) return { valid: false, reason: "Key has expired" };
+    return { valid: true, key: { ...record2, licenseKey: void 0, licenseKeyHash: void 0 } };
+  })
+});
+
+// api/invoiceThemeRouter.ts
+init_drizzle_orm();
+init_schema2();
+var DEFAULT_THEMES = [
+  {
+    name: "Classic Box",
+    nameAr: "\u0635\u0646\u062F\u0648\u0642 \u0643\u0644\u0627\u0633\u064A\u0643\u064A",
+    themeKey: "classic-box",
+    config: {
+      borderStyle: "boxed",
+      colorScheme: "professional-blue",
+      headerBg: "#1e40af",
+      headerText: "#ffffff",
+      accentColor: "#2563eb",
+      fontFamily: "Inter",
+      showBorders: true,
+      borderRadius: "8px",
+      tableStyle: "striped"
+    }
+  },
+  {
+    name: "Modern Clean",
+    nameAr: "\u0646\u0638\u064A\u0641 \u062D\u062F\u064A\u062B",
+    themeKey: "modern-clean",
+    config: {
+      borderStyle: "minimal",
+      colorScheme: "slate",
+      headerBg: "#0f172a",
+      headerText: "#ffffff",
+      accentColor: "#64748b",
+      fontFamily: "Inter",
+      showBorders: false,
+      borderRadius: "0px",
+      tableStyle: "clean"
+    }
+  },
+  {
+    name: "3D Color",
+    nameAr: "\u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0623\u0628\u0639\u0627\u062F",
+    themeKey: "3d-color",
+    config: {
+      borderStyle: "gradient",
+      colorScheme: "gradient-vibrant",
+      headerBg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      headerText: "#ffffff",
+      accentColor: "#667eea",
+      fontFamily: "Inter",
+      showBorders: true,
+      borderRadius: "12px",
+      tableStyle: "colorful",
+      shadowEnabled: true
+    }
+  },
+  {
+    name: "Elegant Gold",
+    nameAr: "\u0630\u0647\u0628\u064A \u0623\u0646\u064A\u0642",
+    themeKey: "elegant-gold",
+    config: {
+      borderStyle: "elegant",
+      colorScheme: "gold-black",
+      headerBg: "#1a1a2e",
+      headerText: "#d4a843",
+      accentColor: "#d4a843",
+      fontFamily: "Playfair Display",
+      showBorders: true,
+      borderRadius: "4px",
+      tableStyle: "elegant"
+    }
+  },
+  {
+    name: "Minimal Light",
+    nameAr: "\u062E\u0641\u064A\u0641 \u0628\u0633\u064A\u0637",
+    themeKey: "minimal-light",
+    config: {
+      borderStyle: "borderless",
+      colorScheme: "light-gray",
+      headerBg: "#f8fafc",
+      headerText: "#1e293b",
+      accentColor: "#3b82f6",
+      fontFamily: "Inter",
+      showBorders: false,
+      borderRadius: "0px",
+      tableStyle: "minimal"
+    }
+  }
+];
+var invoiceThemeRouter = createRouter({
+  // ================================================
+  // Get available themes
+  // ================================================
+  list: authedQuery.query(async ({ ctx }) => {
+    const db = getDb();
+    const tenantThemes = await db.select().from(invoiceThemes).where(eq(invoiceThemes.tenantId, ctx.user.tenantId)).orderBy(desc(invoiceThemes.createdAt));
+    return tenantThemes.length > 0 ? tenantThemes : DEFAULT_THEMES;
+  }),
+  getDefaults: authedQuery.query(() => DEFAULT_THEMES),
+  // ================================================
+  // Save a theme for a tenant
+  // ================================================
+  save: userAdminQuery.input(external_exports.object({
+    name: external_exports.string().min(1),
+    nameAr: external_exports.string().optional(),
+    themeKey: external_exports.string().min(1),
+    config: external_exports.any(),
+    isDefault: external_exports.boolean().default(false)
+  })).mutation(async ({ input, ctx }) => {
+    const db = getDb();
+    const tenantId = ctx.user.tenantId;
+    if (input.isDefault) {
+      await db.update(invoiceThemes).set({ isDefault: false }).where(eq(invoiceThemes.tenantId, tenantId));
+    }
+    const existing = await db.query.invoiceThemes.findFirst({
+      where: and(
+        eq(invoiceThemes.tenantId, tenantId),
+        eq(invoiceThemes.themeKey, input.themeKey)
+      )
+    });
+    if (existing) {
+      await db.update(invoiceThemes).set({ ...input, config: input.config }).where(eq(invoiceThemes.id, existing.id));
+      return { id: existing.id, success: true };
+    }
+    const [{ id }] = await db.insert(invoiceThemes).values({
+      tenantId,
+      ...input,
+      config: input.config
+    }).$returningId();
+    return { id, success: true };
+  }),
+  setDefault: userAdminQuery.input(external_exports.object({ themeId: external_exports.number() })).mutation(async ({ input, ctx }) => {
+    const db = getDb();
+    const tenantId = ctx.user.tenantId;
+    await db.update(invoiceThemes).set({ isDefault: false }).where(eq(invoiceThemes.tenantId, tenantId));
+    await db.update(invoiceThemes).set({ isDefault: true }).where(eq(invoiceThemes.id, input.themeId));
+    return { success: true };
+  }),
+  // ================================================
+  // Company Stamps / Logo
+  // ================================================
+  stamps: {
+    list: authedQuery.query(async ({ ctx }) => {
+      const db = getDb();
+      return db.select().from(companyStamps).where(eq(companyStamps.tenantId, ctx.user.tenantId));
+    }),
+    upload: userAdminQuery.input(external_exports.object({
+      type: external_exports.enum(["logo", "stamp"]),
+      imageData: external_exports.string().min(1),
+      mimeType: external_exports.string().default("image/png")
+    })).mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const tenantId = ctx.user.tenantId;
+      await db.update(companyStamps).set({ isActive: false }).where(and(eq(companyStamps.tenantId, tenantId), eq(companyStamps.type, input.type)));
+      const [{ id }] = await db.insert(companyStamps).values({
+        tenantId,
+        ...input,
+        isActive: true
+      }).$returningId();
+      return { id, success: true };
+    }),
+    getActive: authedQuery.query(async ({ ctx }) => {
+      const db = getDb();
+      const [logo, stamp] = await Promise.all([
+        db.query.companyStamps.findFirst({
+          where: and(eq(companyStamps.tenantId, ctx.user.tenantId), eq(companyStamps.type, "logo"), eq(companyStamps.isActive, true))
+        }),
+        db.query.companyStamps.findFirst({
+          where: and(eq(companyStamps.tenantId, ctx.user.tenantId), eq(companyStamps.type, "stamp"), eq(companyStamps.isActive, true))
+        })
+      ]);
+      return { logo, stamp };
+    })
+  },
+  // ================================================
+  // Invoice Tax Settings
+  // ================================================
+  taxSettings: {
+    get: authedQuery.query(async ({ ctx }) => {
+      const db = getDb();
+      const existing = await db.query.invoiceTaxSettings.findFirst({
+        where: eq(invoiceTaxSettings.tenantId, ctx.user.tenantId)
+      });
+      return existing || {
+        showTax: true,
+        taxLabel: "VAT",
+        taxLabelAr: "\u0636\u0631\u064A\u0628\u0629 \u0627\u0644\u0642\u064A\u0645\u0629 \u0627\u0644\u0645\u0636\u0627\u0641\u0629",
+        taxPercent: "15",
+        taxInclusive: false,
+        showTaxNumber: true,
+        showStamp: true,
+        showLogo: true,
+        showFooter: true,
+        footerText: "",
+        footerTextAr: ""
+      };
+    }),
+    save: userAdminQuery.input(external_exports.object({
+      showTax: external_exports.boolean().default(true),
+      taxLabel: external_exports.string().default("VAT"),
+      taxLabelAr: external_exports.string().default("\u0636\u0631\u064A\u0628\u0629 \u0627\u0644\u0642\u064A\u0645\u0629 \u0627\u0644\u0645\u0636\u0627\u0641\u0629"),
+      taxPercent: external_exports.string().default("15"),
+      taxInclusive: external_exports.boolean().default(false),
+      showTaxNumber: external_exports.boolean().default(true),
+      showStamp: external_exports.boolean().default(true),
+      showLogo: external_exports.boolean().default(true),
+      showFooter: external_exports.boolean().default(true),
+      footerText: external_exports.string().optional(),
+      footerTextAr: external_exports.string().optional()
+    })).mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const tenantId = ctx.user.tenantId;
+      const existing = await db.query.invoiceTaxSettings.findFirst({
+        where: eq(invoiceTaxSettings.tenantId, tenantId)
+      });
+      if (existing) {
+        await db.update(invoiceTaxSettings).set(input).where(eq(invoiceTaxSettings.id, existing.id));
+      } else {
+        await db.insert(invoiceTaxSettings).values({ tenantId, ...input });
+      }
+      return { success: true };
+    })
+  },
+  // ================================================
+  // Country Tax Configs
+  // ================================================
+  countryTaxConfigs: {
+    list: authedQuery.query(async ({ ctx }) => {
+      const db = getDb();
+      return db.select().from(countryTaxConfigs).where(eq(countryTaxConfigs.tenantId, ctx.user.tenantId));
+    }),
+    save: userAdminQuery.input(external_exports.object({
+      countryCode: external_exports.string().length(2),
+      taxName: external_exports.string().min(1),
+      taxNameAr: external_exports.string().optional(),
+      taxRate: external_exports.string().default("15"),
+      taxNumberLabel: external_exports.string().optional(),
+      taxNumberLabelAr: external_exports.string().optional(),
+      taxAuthority: external_exports.string().optional(),
+      taxAuthorityAr: external_exports.string().optional(),
+      requiresZatca: external_exports.boolean().default(false),
+      requiresFbr: external_exports.boolean().default(false),
+      invoiceNote: external_exports.string().optional(),
+      invoiceNoteAr: external_exports.string().optional(),
+      isDefault: external_exports.boolean().default(false)
+    })).mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const tenantId = ctx.user.tenantId;
+      if (input.isDefault) {
+        await db.update(countryTaxConfigs).set({ isDefault: false }).where(eq(countryTaxConfigs.tenantId, tenantId));
+      }
+      const existing = await db.query.countryTaxConfigs.findFirst({
+        where: and(eq(countryTaxConfigs.tenantId, tenantId), eq(countryTaxConfigs.countryCode, input.countryCode))
+      });
+      if (existing) {
+        await db.update(countryTaxConfigs).set(input).where(eq(countryTaxConfigs.id, existing.id));
+      } else {
+        await db.insert(countryTaxConfigs).values({ tenantId, ...input });
+      }
+      return { success: true };
+    })
+  }
+});
+
 // api/router.ts
 var appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -66326,7 +66892,9 @@ var appRouter = createRouter({
   notifications2: notificationRouter,
   emails: emailRouter,
   sync: syncRouter,
-  license: licenseRouter
+  license: licenseRouter,
+  licenseKey: licenseKeyRouter,
+  invoiceTheme: invoiceThemeRouter
 });
 
 // node_modules/hono/dist/utils/cookie.js

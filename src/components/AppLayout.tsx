@@ -46,6 +46,9 @@ import {
   HelpCircle,
   Newspaper,
   Sparkles,
+  Key,
+  Palette,
+  FileText,
 } from "lucide-react";
 
 import { AiAssistantPanel } from "./AiAssistantPanel";
@@ -175,6 +178,18 @@ const menuGroups = [
   },
 ];
 
+const adminMenuItems = [
+  { label: "Super Admin Dashboard", labelAr: "لوحة المشرف العام", icon: ShieldCheck, path: "/app/admin/super-dashboard", roles: ["super_admin"] },
+  { label: "Companies", labelAr: "الشركات", icon: Building2, path: "/app/admin/super-companies", roles: ["super_admin"] },
+  { label: "Plans", labelAr: "الخطط", icon: CreditCard, path: "/app/admin/super-plans", roles: ["super_admin"] },
+  { label: "Reseller Management", labelAr: "إدارة الموزعين", icon: Users, path: "/app/admin/super-resellers", roles: ["super_admin"] },
+  { label: "SMTP Settings", labelAr: "إعدادات البريد", icon: Settings, path: "/app/admin/super-smtp", roles: ["super_admin"] },
+  { label: "Email Templates", labelAr: "قوالب البريد", icon: FileText, path: "/app/admin/super-email-templates", roles: ["super_admin"] },
+  { label: "License Approval", labelAr: "الموافقة على الترخيص", icon: ShieldCheck, path: "/app/admin/license-approval", roles: ["admin", "super_admin"] },
+  { label: "My License Keys", labelAr: "مفاتيح الترخيص", icon: Key, path: "/app/admin/reseller-keys", roles: ["reseller"] },
+  { label: "Invoice Settings", labelAr: "إعدادات الفاتورة", icon: Palette, path: "/app/admin/invoice-settings", roles: ["user_admin", "admin", "super_admin"] },
+];
+
 const countryThemes: Record<string, { shell: string; badge: string; tax: string; product: string }> = {
   SA: { shell: "from-emerald-950 via-green-900 to-emerald-900", badge: "border-emerald-300/40 bg-emerald-400/15 text-emerald-50", tax: "Saudi VAT / ZATCA", product: "نسخة السعودية" },
   PK: { shell: "from-green-950 via-emerald-900 to-lime-900", badge: "border-lime-300/40 bg-lime-400/15 text-lime-50", tax: "Pakistan Sales Tax / FBR", product: "Pakistan Edition" },
@@ -185,7 +200,10 @@ const countryThemes: Record<string, { shell: string; badge: string; tax: string;
 const SidebarContent = memo(function SidebarContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const location = useLocation();
   const { language, setLang, dir } = useLanguage();
+  const { user } = useAuth();
   const rtl = language === "ar";
+
+  const userAdminItems = adminMenuItems.filter(item => item.roles.includes(user?.role || ""));
 
   return (
     <div dir={dir} className="flex h-full min-h-0 flex-col bg-slate-900 text-white">
@@ -231,6 +249,35 @@ const SidebarContent = memo(function SidebarContent({ collapsed, onNavigate }: {
             })}
           </div>
         ))}
+        {userAdminItems.length > 0 && (
+          <div className="mb-3">
+            {!collapsed && (
+              <div className="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                {rtl ? "الإدارة" : "ADMIN"}
+              </div>
+            )}
+            {userAdminItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-2 text-sm transition-colors hover:bg-slate-800",
+                    isActive && "bg-emerald-600/20 text-emerald-400",
+                    isActive && (rtl ? "border-l-2 border-emerald-500" : "border-r-2 border-emerald-500"),
+                    !isActive && "text-slate-300",
+                    collapsed && "justify-center px-3"
+                  )}
+                >
+                  <item.icon className={cn("shrink-0", collapsed ? "w-5 h-5" : "w-4 h-4")} />
+                  {!collapsed && <span className="truncate">{rtl ? item.labelAr : item.label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </nav>
       <div className={cn("border-t border-slate-700 p-3", collapsed && "p-2")}>
         <Button
