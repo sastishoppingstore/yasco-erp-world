@@ -1,9 +1,10 @@
+use escpos::driver::FileDriver;
 use escpos::printer::Printer;
 use escpos::utils::*;
 use serialport::available_ports;
-use std::time::Duration;
+use std::path::Path;
 
-fn open_printer(printer_name: Option<&str>) -> Result<Printer, String> {
+fn open_printer(printer_name: Option<&str>) -> Result<Printer<FileDriver>, String> {
   let port_name = printer_name.unwrap_or("usb");
   let ports = available_ports().map_err(|e| format!("Failed to enumerate ports: {e}"))?;
 
@@ -23,10 +24,10 @@ fn open_printer(printer_name: Option<&str>) -> Result<Printer, String> {
     }
   };
 
-  let connection = escpos::connection::SerialConnection::new(&path, 9600)
-    .map_err(|e| format!("Failed to open serial connection: {e}"))?;
+  let driver = FileDriver::open(Path::new(&path))
+    .map_err(|e| format!("Failed to open printer port: {e}"))?;
 
-  Printer::new(Box::new(connection), Protocol::default(), Some(Duration::from_secs(5)))
+  Printer::new(driver, Protocol::default())
     .map_err(|e| format!("Failed to create printer instance: {e}"))
 }
 
@@ -45,7 +46,7 @@ pub fn print_receipt(text: String, printer_name: Option<String>) -> Result<(), S
   }
 
   printer
-    .feed(3)
+    .feeds(3)
     .map_err(|e| format!("Feed failed: {e}"))?;
 
   printer
@@ -64,11 +65,11 @@ pub fn print_barcode(data: String, printer_name: Option<String>) -> Result<(), S
     .map_err(|e| format!("Printer init failed: {e}"))?;
 
   printer
-    .barcode(&data, BarcodeType::CODE128, 2, 100, Some(BarcodeHriPosition::Below))
+    .code39(&data)
     .map_err(|e| format!("Barcode print failed: {e}"))?;
 
   printer
-    .feed(3)
+    .feeds(3)
     .map_err(|e| format!("Feed failed: {e}"))?;
 
   printer
@@ -87,7 +88,7 @@ pub fn open_cash_drawer(printer_name: Option<String>) -> Result<(), String> {
     .map_err(|e| format!("Printer init failed: {e}"))?;
 
   printer
-    .cash_drawer(DrawerPin::Pin2)
+    .cash_drawer(CashDrawer::Pin2)
     .map_err(|e| format!("Cash drawer open failed: {e}"))?;
 
   Ok(())

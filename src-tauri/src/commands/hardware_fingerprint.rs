@@ -1,6 +1,5 @@
 use sha2::{Digest, Sha256};
-use std::net::NetworkInterface;
-use sysinfo::{Disks, Networks, System};
+use sysinfo::{Disks, MacAddr, Networks, System};
 
 #[tauri::command]
 pub fn get_hardware_id() -> Result<String, String> {
@@ -110,7 +109,7 @@ pub fn get_mac_address() -> Result<String, String> {
       && !name.starts_with("br-")
     {
       let mac = data.mac_address();
-      if mac != [0u8; 6] {
+      if mac != MacAddr([0u8; 6]) {
         let hex: Vec<String> = mac.iter().map(|b| format!("{b:02x}")).collect();
         return Ok(hex.join(":"));
       }
