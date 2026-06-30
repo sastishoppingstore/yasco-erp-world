@@ -1,1 +1,0 @@
-import"./vendor-Dj4APJbq.js";import{$ as r}from"./index-nVnsUgJU.js";function t(){const{data:e}=r.ws.getOnlineUsers.useQuery(void 0,{refetchInterval:15e3});return e||[]}function o(){const{data:e}=r.ws.getPresence.useQuery(void 0,{refetchInterval:1e4});return e||[]}export{o as a,t as u};
