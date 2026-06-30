@@ -1,6 +1,6 @@
 node_modules
 src-tauri/binaries/
-logs
+/logs
 *.log
 *.tsbuildinfo
 .nyc_output/
@@ -19,3 +19,4 @@ yarn-error.log*
 .idea
 .vscode/*
 !.vscode/extensions.json
+windows-build/
