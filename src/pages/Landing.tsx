@@ -768,7 +768,7 @@ export default function Landing() {
                 className="flex flex-col sm:flex-row items-center gap-3 justify-center lg:justify-start"
               >
                 <Button asChild variant="default" size="lg" className="gap-2 text-base px-8 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border-0 shadow-lg shadow-blue-500/25">
-                  <a href="/downloads/yasco-erp-setup.exe">
+                  <a href="/downloads/yasco-erp-setup.exe" target="_blank">
                     <Download className="h-5 w-5" />{t("Download for Windows", "\u062a\u062d\u0645\u064a\u0644 \u0644\u0648\u0646\u062f\u0648\u0632")}
                   </a>
                 </Button>
