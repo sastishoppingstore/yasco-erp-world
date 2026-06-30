@@ -1,8 +1,8 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import './i18n';
 import { Routes, Route, Navigate, useLocation } from "react-router";
 import AppLayout from "./components/AppLayout";
-import { Spinner } from "./components/ui/spinner";
+import SplashScreen from "./components/SplashScreen";
 
 const oldPrefixes = [
   "accounting", "inventory", "sales", "purchase", "crm", "hrm",
@@ -449,8 +449,38 @@ function LayoutWrapper({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const [splashDone, setSplashDone] = useState(() => {
+    return sessionStorage.getItem("yasco-splash-shown") === "true";
+  });
+
+  const handleSplashFinish = () => {
+    setSplashDone(true);
+    sessionStorage.setItem("yasco-splash-shown", "true");
+  };
+
+  if (!splashDone) {
+    return <SplashScreen onFinish={handleSplashFinish} />;
+  }
+
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Spinner className="size-8" /></div>}>
+    <Suspense fallback={
+      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950">
+        <div className="flex items-center gap-1">
+          {["Y","A","S","C","O"].map((l, i) => (
+            <span key={i} className="text-4xl font-black text-blue-400 animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}>
+              {l}
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-0.5 mt-1">
+          {["T","E","C","H"].map((l, i) => (
+            <span key={i} className="text-lg font-bold text-blue-300/60 animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
+              {l}
+            </span>
+          ))}
+        </div>
+      </div>
+    }>
     <Routes>
       {/* Public landing page */}
       <Route path="/" element={<Landing />} />

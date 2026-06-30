@@ -9,6 +9,7 @@ import { trpc } from "@/providers/trpc";
 import { Building2, Receipt, Palette, Shield, Bot, Eye, EyeOff } from "lucide-react";
 
 import { TaxComplianceSettings } from "./TaxComplianceSettings";
+import ThemeSelector from "@/components/ThemeSelector";
 
 export default function SettingsPage() {
   const { data: settings, refetch } = trpc.settings.companySettingsGet.useQuery();
@@ -149,20 +150,26 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="appearance" className="space-y-4">
-          <Card>
-            <CardHeader><CardTitle>Theme Settings</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div><Label>Primary Color</Label><div className="flex items-center gap-2"><Input type="color" value={form.primaryColor} onChange={e => setForm({...form, primaryColor: e.target.value})} className="w-16 h-10 p-1" /><span className="text-sm text-slate-500">{form.primaryColor}</span></div></div>
-                <div><Label>Secondary Color</Label><div className="flex items-center gap-2"><Input type="color" value={form.secondaryColor} onChange={e => setForm({...form, secondaryColor: e.target.value})} className="w-16 h-10 p-1" /><span className="text-sm text-slate-500">{form.secondaryColor}</span></div></div>
-              </div>
-              <div><Label>Invoice Prefix</Label><Input defaultValue="INV-" /></div>
-              <div><Label>PO Prefix</Label><Input defaultValue="PO-" /></div>
-              <div><Label>Date Format</Label><Input defaultValue="DD/MM/YYYY" /></div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+         <TabsContent value="appearance" className="space-y-4">
+           <Card>
+             <CardHeader><CardTitle>Theme Presets</CardTitle></CardHeader>
+             <CardContent>
+               <ThemeSelector />
+             </CardContent>
+           </Card>
+           <Card>
+             <CardHeader><CardTitle>Custom Colors</CardTitle></CardHeader>
+             <CardContent className="space-y-4">
+               <div className="grid grid-cols-2 gap-4">
+                 <div><Label>Primary Color</Label><div className="flex items-center gap-2"><Input type="color" value={form.primaryColor} onChange={e => setForm({...form, primaryColor: e.target.value})} className="w-16 h-10 p-1" /><span className="text-sm text-slate-500">{form.primaryColor}</span></div></div>
+                 <div><Label>Secondary Color</Label><div className="flex items-center gap-2"><Input type="color" value={form.secondaryColor} onChange={e => setForm({...form, secondaryColor: e.target.value})} className="w-16 h-10 p-1" /><span className="text-sm text-slate-500">{form.secondaryColor}</span></div></div>
+               </div>
+               <div><Label>Invoice Prefix</Label><Input defaultValue="INV-" /></div>
+               <div><Label>PO Prefix</Label><Input defaultValue="PO-" /></div>
+               <div><Label>Date Format</Label><Input defaultValue="DD/MM/YYYY" /></div>
+             </CardContent>
+           </Card>
+         </TabsContent>
 
         <TabsContent value="ai" className="space-y-4">
           <AiSettingsTab />

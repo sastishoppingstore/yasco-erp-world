@@ -8,6 +8,7 @@ import { CountryDetectionProvider, useCountryDetection } from "@/providers/count
 import { useLanguage } from "@/providers/language"
 import { SyncProvider } from "@/providers/sync"
 import { LicenseGate } from "@/providers/license-gate"
+import { ThemeProvider } from "@/providers/theme"
 import App from './App.tsx'
 
 function CountryLanguageBridge() {
@@ -37,7 +38,9 @@ createRoot(document.getElementById('root')!).render(
           <TRPCProvider>
             <LicenseGate>
               <SyncProvider>
-                <App />
+                <ThemeProvider>
+                  <App />
+                </ThemeProvider>
               </SyncProvider>
             </LicenseGate>
           </TRPCProvider>

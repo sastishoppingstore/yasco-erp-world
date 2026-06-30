@@ -2,7 +2,7 @@ module.exports = {
   apps: [{
     name: 'erp-backend',
     script: './dist/boot.js',
-    cwd: '/home/ubuntu/erp',
+    cwd: '/root/erp',
     node_args: '--experimental-transform-types',
     env: {
       NODE_ENV: 'production',

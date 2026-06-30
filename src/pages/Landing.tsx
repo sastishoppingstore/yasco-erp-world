@@ -24,6 +24,7 @@ import ThreeBackground from "@/components/ThreeBackground";
 import { ScrollReveal } from "@/components/ScrollReveal";
 import { Link } from "react-router";
 import { cn } from "@/lib/utils";
+import { motion, useInView } from "framer-motion";
 import { trpc } from "@/providers/trpc";
 import {
   ArrowRight, ChevronDown, X, Menu, Languages, Store, ShoppingCart,
@@ -340,6 +341,63 @@ const PLANS = [
     ],
   },
 ];
+
+function AnimatedSection({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 60 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 60 }}
+      transition={{ duration: 0.7, delay, ease: "easeOut" }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function StatsCounter({ value, suffix = "", label, labelAr }: { value: number; suffix?: string; label: string; labelAr: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true });
+  const [count, setCount] = useState(0);
+  const { language } = useLanguage();
+
+  useEffect(() => {
+    if (!isInView) return;
+    let start = 0;
+    const duration = 2000;
+    const step = Math.ceil(value / (duration / 16));
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= value) {
+        setCount(value);
+        clearInterval(timer);
+      } else {
+        setCount(start);
+      }
+    }, 16);
+    return () => clearInterval(timer);
+  }, [isInView, value]);
+
+  return (
+    <div ref={ref} className="text-center">
+      <div className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-500 bg-clip-text text-transparent">
+        {count}{suffix}
+      </div>
+      <div className="text-sm text-gray-400 mt-1">{language === "ar" ? labelAr : label}</div>
+    </div>
+  );
+}
+
+const stats = [
+  { value: 100, suffix: "+", label: "ERP Modules", labelAr: "وحدة ERP" },
+  { value: 50, suffix: "+", label: "Countries Supported", labelAr: "دولة مدعومة" },
+  { value: 99.9, suffix: "%", label: "Uptime", labelAr: "وقت التشغيل" },
+  { value: 24, suffix: "/7", label: "Support", labelAr: "دعم فني" },
+];
+
 function FloatingShapes() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -547,14 +605,14 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-green-950 to-slate-950 relative" dir={dir}>
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-blue-950/30 to-slate-950 relative" dir={dir}>
       <ThreeBackground />
       {/* Announcement Bar */}
       {!announcementDismissed && (
-        <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-emerald-700 via-green-600 to-emerald-700 text-white text-xs sm:text-sm">
+        <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-700 text-white text-xs sm:text-sm">
           <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-3">
             <p className="flex-1 text-center truncate">
-              🚀 YASCO Global Smart ERP — POS, Accounting, Inventory, CRM, HR, Manufacturing, Ecommerce, AI & Tax Compliance
+              <Sparkles className="h-3.5 w-3.5 inline mr-1" /> YASCO Global Smart ERP — POS, Accounting, Inventory, CRM, HR, Manufacturing, Ecommerce, AI & Tax Compliance
             </p>
             <button onClick={dismissAnnouncement} className="shrink-0 text-white/70 hover:text-white transition-colors">
               <X className="size-4" />
@@ -572,12 +630,12 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3 shrink-0">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center font-bold text-white text-sm shadow-lg shadow-emerald-500/20">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center font-bold text-white text-sm shadow-lg shadow-blue-500/20">
                 YA
               </div>
               <div className="hidden sm:block">
                 <span className="font-bold text-lg text-white">YASCO</span>
-                <span className="block text-[10px] text-emerald-400/70 -mt-0.5">{t("Global Smart ERP", "\u0646\u0638\u0627\u0645 ERP \u0639\u0627\u0644\u0645\u064a \u0630\u0643\u064a")}</span>
+                <span className="block text-[10px] text-blue-400/70 -mt-0.5">{t("Global Smart ERP", "\u0646\u0638\u0627\u0645 ERP \u0639\u0627\u0644\u0645\u064a \u0630\u0643\u064a")}</span>
               </div>
             </Link>
 
@@ -657,66 +715,129 @@ export default function Landing() {
       </div>
       {/* HERO SECTION */}
       <section className="relative min-h-screen flex items-center overflow-hidden pt-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-green-950 via-emerald-950 to-slate-950" />
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-green-500/5 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-indigo-950 to-slate-950" />
+        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "2s" }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-400/5 rounded-full blur-3xl" />
         <FloatingShapes />
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-0">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className={cn("text-center lg:text-left", rtl && "lg:text-right")}>
-              <Badge className="mb-6 bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-4 py-1.5 text-sm gap-2">
-                <Sparkles className="h-3.5 w-3.5" />
-                {t("Global Smart ERP for Every Business", "\u0646\u0638\u0627\u0645 ERP \u0639\u0627\u0644\u0645\u064a \u0630\u0643\u064a \u0644\u0643\u0644 \u0634\u0631\u0643\u0629")}
-              </Badge>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-6 leading-tight">
+            <motion.div
+              initial={{ opacity: 0, x: -60 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className={cn("text-center lg:text-left", rtl && "lg:text-right")}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.6 }}
+              >
+                <Badge className="mb-6 bg-blue-500/10 text-blue-300 border-blue-500/20 px-4 py-1.5 text-sm gap-2">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {t("Global Smart ERP for Every Business", "\u0646\u0638\u0627\u0645 ERP \u0639\u0627\u0644\u0645\u064a \u0630\u0643\u064a \u0644\u0643\u0644 \u0634\u0631\u0643\u0629")}
+                </Badge>
+              </motion.div>
+              <motion.h1
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.7 }}
+                className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-white mb-6 leading-tight"
+              >
                 {t("Global Smart ERP for", "\u0646\u0638\u0627\u0645 ERP \u0639\u0627\u0644\u0645\u064a \u0630\u0643\u064a")}
                 <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-green-400">
+                <span className="bg-gradient-to-r from-blue-300 via-cyan-300 to-indigo-400 bg-clip-text text-transparent animate-gradient">
                   {t("Every Country, Every Tax System, Every Business.", "\u0644\u0643\u0644 \u0628\u0644\u062f\u060c \u0644\u0643\u0644 \u0646\u0638\u0627\u0645 \u0636\u0631\u064a\u0628\u064a\u060c \u0644\u0643\u0644 \u0634\u0631\u0643\u0629.")}
                 </span>
-              </h1>
-              <p className="text-lg sm:text-xl text-slate-300 mb-10 max-w-2xl leading-relaxed">
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.7 }}
+                className="text-lg sm:text-xl text-slate-300 mb-10 max-w-2xl leading-relaxed"
+              >
                 {t(
                   "POS, Accounting, Inventory, CRM, HR, Manufacturing, Ecommerce, AI and Government Tax Compliance in one platform.",
                   "\u0646\u0642\u0627\u0637 \u0627\u0644\u0628\u064a\u0639\u060c \u0627\u0644\u0645\u062d\u0627\u0633\u0628\u0629\u060c \u0627\u0644\u0645\u062e\u0632\u0648\u0646\u060c \u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0639\u0645\u0644\u0627\u0621\u060c \u0627\u0644\u0645\u0648\u0627\u0631\u062f \u0627\u0644\u0628\u0634\u0631\u064a\u0629\u060c \u0627\u0644\u062a\u0635\u0646\u064a\u0639\u060c \u0627\u0644\u062a\u062c\u0627\u0631\u0629 \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a\u0629\u060c \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a \u0648\u0627\u0644\u0627\u0645\u062a\u062b\u0627\u0644 \u0627\u0644\u0636\u0631\u064a\u0628\u064a \u0627\u0644\u062d\u0643\u0648\u0645\u064a \u0641\u064a \u0645\u0646\u0635\u0629 \u0648\u0627\u062d\u062f\u0629."
                 )}
-              </p>
-              <div className="flex flex-col sm:flex-row items-center gap-3 justify-center lg:justify-start">
-                <Button variant="outline" size="lg" className="gap-2 text-base px-8 py-6 border-white/20 text-white hover:bg-white/5 hover:text-white">
+              </motion.p>
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.7 }}
+                className="flex flex-col sm:flex-row items-center gap-3 justify-center lg:justify-start"
+              >
+                <Button variant="outline" size="lg" className="gap-2 text-base px-8 py-6 border-blue-400/30 text-blue-200 hover:bg-blue-500/10 hover:text-blue-100 hover:border-blue-400/50 transition-all duration-300">
                   <Play className="h-5 w-5" />{t("Watch Demo", "\u0634\u0627\u0647\u062f \u0639\u0631\u0636")}
                 </Button>
-                <Button variant="ghost" size="lg" onClick={() => scrollTo("modules")} className="gap-2 text-base px-6 py-6 text-slate-300 hover:text-white">
-                  {t("Explore Modules", "\u0627\u0633\u0639\u0631\u0636 \u0627\u0644\u0648\u062d\u062f\u0627\u062a")}<ChevronDown className="h-4 w-4" />
+                <Button variant="ghost" size="lg" onClick={() => scrollTo("modules")} className="gap-2 text-base px-6 py-6 text-slate-300 hover:text-white group">
+                  {t("Explore Modules", "\u0627\u0633\u0639\u0631\u0636 \u0627\u0644\u0648\u062d\u062f\u0627\u062a")}<ChevronDown className="h-4 w-4 group-hover:translate-y-1 transition-transform" />
                 </Button>
-              </div>
-            </div>
-            <div className="hidden lg:block">
+              </motion.div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 60 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4, duration: 0.8 }}
+              className="hidden lg:block"
+            >
               <DashboardMockup />
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Trust Bar */}
-      <section className="relative py-8 border-y border-white/5 bg-white/[0.02]">
+      {/* Stats Counter Section */}
+      <section className="relative py-16 border-y border-white/5 bg-gradient-to-r from-blue-950/30 via-indigo-950/20 to-blue-950/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-xs text-slate-500 mb-4 tracking-widest uppercase">
-            {t("Trusted by businesses in 20+ countries", "\u0645\u0648\u062b\u0648\u0642 \u0645\u0646 \u0642\u0628\u0644 \u0634\u0631\u0643\u0627\u062a \u0641\u064a \u0623\u0643\u062b\u0631 \u0645\u0646 20 \u062f\u0648\u0644\u0629")}
-          </p>
-          <div className="flex items-center justify-center gap-8 sm:gap-12 flex-wrap">
-            {["\uD83C\uDDF8\uD83C\uDDE6", "\uD83C\uDDF5\uD83C\uDDF0", "\uD83C\uDDE6\uD83C\uDDEA", "\uD83C\uDDF6\uD83C\uDDE6", "\uD83C\uDDF4\uD83C\uDDF2", "\uD83C\uDDE7\uD83C\uDDED", "\uD83C\uDDF0\uD83C\uDDFC", "\uD83C\uDDEE\uD83C\uDDF3", "\uD83C\uDDEC\uD83C\uDDE7", "\uD83C\uDDFA\uD83C\uDDF8", "\uD83C\uDDE9\uD83C\uDDEA", "\uD83C\uDDEA\uD83C\uDDEC", "\uD83C\uDDF9\uD83C\uDDF7", "\uD83C\uDDF2\uD83C\uDDFE"].map((flag, i) => (
-              <span key={i} className="text-2xl opacity-50 hover:opacity-100 transition-opacity cursor-default">{flag}</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {stats.map((stat, i) => (
+              <StatsCounter key={i} {...stat} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* FEATURES SECTION */}
-      <section id="features" className="py-20 sm:py-28">
+      {/* Trust Bar */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        className="relative py-8 border-y border-white/5 bg-gradient-to-r from-blue-950/20 via-transparent to-indigo-950/20"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <ScrollReveal>
+          <p className="text-center text-xs text-slate-500 mb-4 tracking-widest uppercase">
+            {t("Trusted by businesses in 20+ countries", "\u0645\u0648\u062b\u0648\u0642 \u0645\u0646 \u0642\u0628\u0644 \u0634\u0631\u0643\u0627\u062a \u0641\u064a \u0623\u0643\u062b\u0631 \u0645\u0646 20 \u062f\u0648\u0644\u0629")}
+          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ staggerChildren: 0.05 }}
+            className="flex items-center justify-center gap-8 sm:gap-12 flex-wrap"
+          >
+            {["\uD83C\uDDF8\uD83C\uDDE6", "\uD83C\uDDF5\uD83C\uDDF0", "\uD83C\uDDE6\uD83C\uDDEA", "\uD83C\uDDF6\uD83C\uDDE6", "\uD83C\uDDF4\uD83C\uDDF2", "\uD83C\uDDE7\uD83C\uDDED", "\uD83C\uDDF0\uD83C\uDDFC", "\uD83C\uDDEE\uD83C\uDDF3", "\uD83C\uDDEC\uD83C\uDDE7", "\uD83C\uDDFA\uD83C\uDDF8", "\uD83C\uDDE9\uD83C\uDDEA", "\uD83C\uDDEA\uD83C\uDDEC", "\uD83C\uDDF9\uD83C\uDDF7", "\uD83C\uDDF2\uD83C\uDDFE"].map((flag, i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 0, scale: 0.5 }}
+                whileInView={{ opacity: 0.5, scale: 1 }}
+                whileHover={{ opacity: 1, scale: 1.2 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.03 }}
+                className="text-2xl cursor-default"
+              >{flag}</motion.span>
+            ))}
+          </motion.div>
+        </div>
+      </motion.section>
+
+      {/* FEATURES SECTION */}
+      <section id="features" className="py-20 sm:py-28 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-950/10 via-transparent to-indigo-950/10 pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <AnimatedSection>
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-3 py-1">
+            <Badge className="mb-4 bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1">
               <Sparkles className="h-3.5 w-3.5 mr-1" />{t("Core Features", "\u0627\u0644\u0645\u064a\u0632\u0627\u062a \u0627\u0644\u0623\u0633\u0627\u0633\u064a\u0629")}
             </Badge>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t("Everything your business needs", "\u0643\u0644 \u0645\u0627 \u062a\u062d\u062a\u0627\u062c\u0647 \u0623\u0639\u0645\u0627\u0644\u0643")}</h2>
@@ -724,26 +845,37 @@ export default function Landing() {
               {t("From accounting to manufacturing — manage all operations in one place.", "\u0645\u0646 \u0627\u0644\u0645\u062d\u0627\u0633\u0628\u0629 \u0625\u0644\u0649 \u0627\u0644\u062a\u0635\u0646\u064a\u0639 — \u0623\u062f\u0631 \u062c\u0645\u064a\u0639 \u0627\u0644\u0639\u0645\u0644\u064a\u0627\u062a \u0641\u064a \u0645\u0643\u0627\u0646 \u0648\u0627\u062d\u062f.")}
             </p>
           </div>
-          </ScrollReveal>
+          </AnimatedSection>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((f, idx) => {
               const content = featureContent[f.key];
               return (
-                <ScrollReveal key={f.key} delay={idx * 100} direction="up">
-                <Card className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300 group">
-                  <CardHeader>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-2 ${f.color} bg-opacity-20`}>
-                      <f.icon className="h-6 w-6" />
-                    </div>
-                    <CardTitle className="text-lg text-white">{content ? content[language === "ar" ? "titleAr" : "title"] : f.key}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-sm text-slate-400 leading-relaxed">
-                      {content ? content[language === "ar" ? "descAr" : "desc"] : ""}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-                </ScrollReveal>
+                <motion.div
+                  key={f.key}
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1, duration: 0.5 }}
+                >
+                  <Card className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 hover:border-blue-400/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 group h-full">
+                    <CardHeader>
+                      <motion.div
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center mb-2 ${f.color} bg-opacity-20`}
+                      >
+                        <f.icon className="h-6 w-6" />
+                      </motion.div>
+                      <CardTitle className="text-lg text-white group-hover:text-blue-300 transition-colors">
+                        {content ? content[language === "ar" ? "titleAr" : "title"] : f.key}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-sm text-slate-400 leading-relaxed">
+                        {content ? content[language === "ar" ? "descAr" : "desc"] : ""}
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               );
             })}
           </div>
@@ -751,12 +883,22 @@ export default function Landing() {
       </section>
 
       {/* POS SECTION */}
-      <ScrollReveal direction="none">
-      <section className="py-20 sm:py-28 bg-gradient-to-br from-emerald-950/50 to-green-950/50 border-y border-white/5">
+      <motion.section
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        className="py-20 sm:py-28 bg-gradient-to-br from-blue-950/30 to-indigo-950/30 border-y border-white/5"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className={cn(rtl && "lg:order-2")}>
-              <Badge className="mb-4 bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-3 py-1">
+            <motion.div
+              initial={{ opacity: 0, x: -40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className={cn(rtl && "lg:order-2")}
+            >
+              <Badge className="mb-4 bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1">
                 <Store className="h-3.5 w-3.5 mr-1" />{t("POS System", "\u0646\u0638\u0627\u0645 \u0646\u0642\u0627\u0637 \u0627\u0644\u0628\u064a\u0639")}
               </Badge>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
@@ -765,7 +907,13 @@ export default function Landing() {
               <p className="text-lg text-slate-400 mb-8 leading-relaxed">
                 {t("Lightning-fast POS with offline mode, barcode scanning, touchscreen support, and tax-compliant invoicing.", "\u0646\u0642\u0637\u0629 \u0628\u064a\u0639 \u0641\u0627\u0626\u0642\u0629 \u0627\u0644\u0633\u0631\u0639\u0629 \u0645\u0639 \u0648\u0636\u0639 \u0639\u062f\u0645 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0648\u0645\u0633\u062d \u0627\u0644\u0628\u0627\u0631\u0643\u0648\u062f \u0648\u062f\u0639\u0645 \u0634\u0627\u0634\u0629 \u0627\u0644\u0644\u0645\u0633 \u0648\u0627\u0644\u0641\u0648\u0627\u062a\u064a\u0631 \u0627\u0644\u0645\u062a\u0648\u0627\u0641\u0642\u0629 \u0636\u0631\u064a\u0628\u064a\u0627\u064b.")}
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ staggerChildren: 0.05, delayChildren: 0.2 }}
+                className="grid grid-cols-2 gap-3"
+              >
                 {[
                   { en: "Fast Billing", ar: "\u0641\u0648\u062a\u0631\u0629 \u0633\u0631\u064a\u0639\u0629" },
                   { en: "Barcode Scanning", ar: "\u0645\u0633\u062d \u0627\u0644\u0628\u0627\u0631\u0643\u0648\u062f" },
@@ -778,27 +926,39 @@ export default function Landing() {
                   { en: "QR Tax Invoice", ar: "\u0641\u0627\u062a\u0648\u0631\u0629 \u0636\u0631\u064a\u0628\u064a\u0629 QR" },
                   { en: "Thermal & A4 Print", ar: "\u0637\u0628\u0627\u0639\u0629 \u062d\u0631\u0627\u0631\u064a\u0629 \u0648 A4" },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-slate-300">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex items-center gap-2 text-sm text-slate-300"
+                  >
+                    <Check className="h-4 w-4 text-blue-400 shrink-0" />
                     <span>{item[language]}</span>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
-            </div>
-            <div className={cn(rtl && "lg:order-1")}>
+              </motion.div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className={cn(rtl && "lg:order-1")}
+            >
               <PosMockup />
-            </div>
+            </motion.div>
           </div>
         </div>
-      </section>
-      </ScrollReveal>
+      </motion.section>
       {/* 3D MODULE GRID */}
-      <ScrollReveal direction="none">
-      <section id="modules" className="py-20 sm:py-28 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <ScrollReveal>
+      <section id="modules" className="py-20 sm:py-28 overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-950/10 via-transparent to-indigo-950/10 pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <AnimatedSection>
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-3 py-1">
+            <Badge className="mb-4 bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1">
               <Layers className="h-3.5 w-3.5 mr-1" />{t("100+ Modules", "100+ \u0648\u062d\u062f\u0629")}
             </Badge>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
@@ -808,7 +968,7 @@ export default function Landing() {
               {t("Everything you need to run your business in one platform", "\u0643\u0644 \u0645\u0627 \u062a\u062d\u062a\u0627\u062c\u0647 \u0644\u0625\u062f\u0627\u0631\u0629 \u0623\u0639\u0645\u0627\u0644\u0643 \u0641\u064a \u0645\u0646\u0635\u0629 \u0648\u0627\u062d\u062f\u0629")}
             </p>
           </div>
-          </ScrollReveal>
+          </AnimatedSection>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {modules.map((mod) => (
               <ModuleCard3D
@@ -828,13 +988,13 @@ export default function Landing() {
           </div>
         </div>
       </section>
-      </ScrollReveal>
 
       {/* COMPETITOR COMPARISON */}
-      <section id="comparison" className="py-20 sm:py-28 bg-white/[0.02] border-y border-white/5">
+      <section id="comparison" className="py-20 sm:py-28 bg-gradient-to-b from-blue-950/20 to-indigo-950/20 border-y border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection>
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-amber-500/10 text-amber-300 border-amber-500/20 px-3 py-1">
+            <Badge className="mb-4 bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1">
               <BarChart3 className="h-3.5 w-3.5 mr-1" />{t("Comparison", "\u0627\u0644\u0645\u0642\u0627\u0631\u0646\u0629")}
             </Badge>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t("Why YASCO?", "\u0644\u0645\u0627\u0630\u0627 \u064a\u0627\u0633\u0643\u0648\u061f")}</h2>
@@ -842,24 +1002,38 @@ export default function Landing() {
               {t("Comprehensive comparison with leading ERP platforms", "\u0645\u0642\u0627\u0631\u0646\u0629 \u0634\u0627\u0645\u0644\u0629 \u0645\u0639 \u0645\u0646\u0635\u0627\u062a ERP \u0627\u0644\u0631\u0627\u0626\u062f\u0629")}
             </p>
           </div>
+          </AnimatedSection>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex flex-wrap items-center justify-center gap-2 mb-8"
+          >
             {competitors.map((comp) => (
               <button
                 key={comp.key}
                 onClick={() => document.getElementById(`table-${comp.key}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
-                className="px-4 py-2 rounded-full text-sm font-medium border border-white/10 text-slate-300 hover:bg-white/5 hover:text-white transition-all"
+                className="px-4 py-2 rounded-full text-sm font-medium border border-white/10 text-slate-300 hover:bg-white/5 hover:text-white hover:border-blue-400/30 transition-all"
               >
                 {comp.name}
               </button>
             ))}
-          </div>
+          </motion.div>
 
           <div className="space-y-8">
             {competitors.map((comp) => {
               const dataKey = comp.key as keyof typeof comparisonRows[0];
               return (
-                <div key={comp.key} id={`table-${comp.key}`} className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02]">
+                <motion.div
+                  key={comp.key}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5 }}
+                  id={`table-${comp.key}`}
+                  className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02] hover:border-blue-400/20 transition-colors"
+                >
                   <div className="p-4 border-b border-white/5">
                     <h3 className="text-xl font-bold text-white">YASCO vs {comp.name}</h3>
                   </div>
@@ -867,7 +1041,7 @@ export default function Landing() {
                     <thead>
                       <tr className="border-b border-white/5 bg-white/[0.02]">
                         <th className="text-left py-3 px-4 font-semibold text-slate-300">{t("Feature", "\u0627\u0644\u0645\u064a\u0632\u0629")}</th>
-                        <th className="text-center py-3 px-4 font-semibold text-emerald-400">YASCO</th>
+                        <th className="text-center py-3 px-4 font-semibold text-blue-400">YASCO</th>
                         <th className={cn("text-center py-3 px-4 font-semibold", comp.color)}>{comp.name}</th>
                       </tr>
                     </thead>
@@ -876,7 +1050,7 @@ export default function Landing() {
                         <tr key={i} className="border-b border-white/5 hover:bg-white/[0.02]">
                           <td className="py-2.5 px-4 font-medium text-white/80">{rtl ? row.featureAr : row.feature}</td>
                           <td className="text-center py-2.5 px-4">
-                            <span className={cn("text-sm font-bold", row.yasco === "\u2713" ? "text-emerald-400" : "text-slate-400")}>
+                            <span className={cn("text-sm font-bold", row.yasco === "\u2713" ? "text-blue-400" : "text-slate-400")}>
                               {row.yasco}
                             </span>
                           </td>
@@ -889,7 +1063,7 @@ export default function Landing() {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -897,10 +1071,12 @@ export default function Landing() {
       </section>
 
       {/* WHY CHOOSE SECTION */}
-      <section className="py-20 sm:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-20 sm:py-28 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/10 via-transparent to-blue-950/10 pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <AnimatedSection>
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-3 py-1">
+            <Badge className="mb-4 bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1">
               <Award className="h-3.5 w-3.5 mr-1" />{t("Why Us", "\u0644\u0645\u0627\u0630\u0627 \u0646\u062d\u0646")}
             </Badge>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">{t("Why Choose Our ERP", "\u0644\u0645\u0627\u0630\u0627 \u062a\u062e\u062a\u0627\u0631 \u0646\u0638\u0627\u0645 ERP \u0627\u0644\u062e\u0627\u0635 \u0628\u0646\u0627")}</h2>
@@ -908,54 +1084,73 @@ export default function Landing() {
               {t("The best of all worlds, plus unique advantages", "\u0623\u0641\u0636\u0644 \u0645\u0627 \u0641\u064a \u0627\u0644\u062c\u0645\u064a\u0639\u060c \u0628\u0627\u0644\u0625\u0636\u0627\u0641\u0629 \u0625\u0644\u0649 \u0645\u0632\u0627\u064a\u0627 \u0641\u0631\u064a\u062f\u0629")}
             </p>
           </div>
+          </AnimatedSection>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             {WHY_CHOOSE.map((item, i) => (
-              <Card key={i} className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300 group">
-                <CardHeader>
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-green-600/20 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                    <item.icon className="h-6 w-6 text-emerald-400" />
-                  </div>
-                  <CardTitle className="text-lg text-white">{item.title[language]}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-sm text-slate-400 leading-relaxed">{item.desc[language]}</CardDescription>
-                </CardContent>
-              </Card>
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <Card className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 hover:border-blue-400/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 group h-full">
+                  <CardHeader>
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-600/20 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <item.icon className="h-6 w-6 text-blue-400" />
+                    </div>
+                    <CardTitle className="text-lg text-white">{item.title[language]}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-sm text-slate-400 leading-relaxed">{item.desc[language]}</CardDescription>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
           </div>
 
+          <AnimatedSection delay={0.2}>
           <h3 className="text-2xl font-bold text-white text-center mb-8">
             {t("Unique YASCO Advantages", "\u0645\u0632\u0627\u064a\u0627 \u064a\u0627\u0633\u0643\u0648 \u0627\u0644\u0641\u0631\u064a\u062f\u0629")}
           </h3>
+          </AnimatedSection>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {UNIQUE_ADVANTAGES.map((item, i) => (
-              <Card key={i} className="bg-gradient-to-br from-emerald-500/5 to-green-600/5 border-emerald-500/10 hover:border-emerald-500/20 transition-all duration-300 group">
-                <CardHeader>
-                  <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                    <item.icon className="h-5 w-5 text-emerald-400" />
-                  </div>
-                  <CardTitle className="text-sm font-semibold text-white">{item.title[language]}</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-xs text-slate-400 leading-relaxed">{item.desc[language]}</p>
-                </CardContent>
-              </Card>
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+              >
+                <Card className="bg-gradient-to-br from-blue-500/5 to-indigo-600/5 border-blue-500/10 hover:border-blue-400/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 group">
+                  <CardHeader>
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <item.icon className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <CardTitle className="text-sm font-semibold text-white">{item.title[language]}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-xs text-slate-400 leading-relaxed">{item.desc[language]}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
       {/* GLOBAL TAX COMPLIANCE */}
-      <ScrollReveal direction="none">
-      <section id="tax" className="py-20 sm:py-28 bg-gradient-to-br from-green-950 via-emerald-950 to-slate-950 border-y border-white/5 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-10 left-10 w-40 h-40 border border-emerald-400/20 rounded-full" />
-          <div className="absolute bottom-10 right-10 w-60 h-60 border border-green-400/10 rounded-full" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-3xl" />
+      <section id="tax" className="py-20 sm:py-28 bg-gradient-to-br from-blue-950 via-indigo-950 to-slate-950 border-y border-white/5 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-40 h-40 border border-blue-400/20 rounded-full" />
+          <div className="absolute bottom-10 right-10 w-60 h-60 border border-indigo-400/10 rounded-full" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: "4s" }} />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection>
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-amber-500/10 text-amber-300 border-amber-500/20 px-3 py-1">
+            <Badge className="mb-4 bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1">
               <Globe2 className="h-3.5 w-3.5 mr-1" />{t("Global Tax Compliance", "\u0627\u0644\u0627\u0645\u062a\u062b\u0627\u0644 \u0627\u0644\u0636\u0631\u064a\u0628\u064a \u0627\u0644\u0639\u0627\u0644\u0645\u064a")}
             </Badge>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
@@ -965,10 +1160,12 @@ export default function Landing() {
               {t("Compliant with ZATCA, FBR, UAE VAT, India GST, EU VAT, USA Sales Tax, and more", "\u0645\u062a\u0648\u0627\u0641\u0642 \u0645\u0639 \u0632\u0627\u062a\u0643\u0627\u060c FBR\u060c \u0636\u0631\u064a\u0628\u0629 \u0627\u0644\u0642\u064a\u0645\u0629 \u0627\u0644\u0645\u0636\u0627\u0641\u0629\u060c \u0636\u0631\u064a\u0628\u0629 \u0627\u0644\u0633\u0644\u0639 \u0627\u0644\u0647\u0646\u062f\u064a\u0629\u060c \u0636\u0631\u064a\u0628\u0629 EU\u060c \u0636\u0631\u064a\u0628\u0629 \u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a \u0627\u0644\u0623\u0645\u0631\u064a\u0643\u064a\u0629")}
             </p>
           </div>
+          </AnimatedSection>
 
+          <AnimatedSection delay={0.2}>
           <div className="flex items-center justify-center mb-10">
             <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2">
-              <Globe2 className="h-4 w-4 text-emerald-400" />
+              <Globe2 className="h-4 w-4 text-blue-400" />
               <select
                 value={selectedCountry}
                 onChange={(e) => setSelectedCountry(e.target.value)}
@@ -985,21 +1182,22 @@ export default function Landing() {
               </select>
             </div>
           </div>
+          </AnimatedSection>
 
           <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <Card className="bg-white/5 backdrop-blur-sm border-emerald-500/20 hover:border-emerald-500/40 transition-all">
+            <Card className="bg-white/5 backdrop-blur-sm border-green-500/20 hover:border-green-500/40 transition-all">
               <CardHeader>
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-2">
-                  <Sigma className="h-6 w-6 text-emerald-400" />
+                <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center mb-2">
+                  <Sigma className="h-6 w-6 text-green-400" />
                 </div>
-                <CardTitle className="text-white">ZATCA &mdash; {t("Saudi Arabia", "\u0627\u0644\u0633\u0639\u0648\u062f\u064a\u0629")}</CardTitle>
+                <CardTitle>ZATCA &mdash; {t("Saudi Arabia", "\u0627\u0644\u0633\u0639\u0648\u062f\u064a\u0629")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-slate-400">
-                  <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />{t("ZATCA E-Invoicing Phase 1 & 2", "\u0627\u0644\u0641\u0648\u062a\u0631\u0629 \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a\u0629 \u0632\u0627\u062a\u0643\u0627 \u0627\u0644\u0645\u0631\u062d\u0644\u062a\u0627\u0646 1 \u0648 2")}</li>
-                  <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />{t("QR Code Generation", "\u0625\u0646\u0634\u0627\u0621 \u0631\u0645\u0632 QR")}</li>
-                  <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />{t("Simplified & Standard Tax Invoices", "\u0641\u0648\u0627\u062a\u064a\u0631 \u0636\u0631\u064a\u0628\u064a\u0629 \u0645\u0628\u0633\u0637\u0629 \u0648\u0642\u064a\u0627\u0633\u064a\u0629")}</li>
-                  <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />{t("ZATCA Clearance/Reporting", "\u0627\u0644\u062a\u062e\u0644\u064a\u0635/\u0627\u0644\u0625\u0628\u0644\u0627\u063a \u0632\u0627\u062a\u0643\u0627")}</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-400 mt-0.5 shrink-0" />{t("ZATCA E-Invoicing Phase 1 & 2", "\u0627\u0644\u0641\u0648\u062a\u0631\u0629 \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a\u0629 \u0632\u0627\u062a\u0643\u0627 \u0627\u0644\u0645\u0631\u062d\u0644\u062a\u0627\u0646 1 \u0648 2")}</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-400 mt-0.5 shrink-0" />{t("QR Code Generation", "\u0625\u0646\u0634\u0627\u0621 \u0631\u0645\u0632 QR")}</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-400 mt-0.5 shrink-0" />{t("Simplified & Standard Tax Invoices", "\u0641\u0648\u0627\u062a\u064a\u0631 \u0636\u0631\u064a\u0628\u064a\u0629 \u0645\u0628\u0633\u0637\u0629 \u0648\u0642\u064a\u0627\u0633\u064a\u0629")}</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-green-400 mt-0.5 shrink-0" />{t("ZATCA Clearance/Reporting", "\u0627\u0644\u062a\u062e\u0644\u064a\u0635/\u0627\u0644\u0625\u0628\u0644\u0627\u063a \u0632\u0627\u062a\u0643\u0627")}</li>
                 </ul>
               </CardContent>
             </Card>
@@ -1060,7 +1258,6 @@ export default function Landing() {
           </p>
         </div>
       </section>
-      </ScrollReveal>
 
       {/* MULTI-COUNTRY FEATURES */}
       <section className="py-20 sm:py-28">
@@ -1309,7 +1506,7 @@ export default function Landing() {
                     className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 min-h-[120px]"
                   />
                 <Button
-                    className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-0"
+                    className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white border-0"
                     onClick={async () => {
                       if (!contactName || !contactEmail || !contactMessage) return;
                       try {
@@ -1335,8 +1532,8 @@ export default function Landing() {
                 { icon: Clock, title: { en: "Support Hours", ar: "\u0633\u0627\u0639\u0627\u062a \u0627\u0644\u062f\u0639\u0645" }, value: "Sun-Thu, 9:00 AM - 6:00 PM (GMT+3)" },
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-colors">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                    <item.icon className="h-5 w-5 text-emerald-400" />
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                    <item.icon className="h-5 w-5 text-blue-400" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-white">{item.title[language]}</p>
@@ -1355,10 +1552,10 @@ export default function Landing() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center font-bold text-white text-sm">YA</div>
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center font-bold text-white text-sm">YA</div>
                 <div>
                   <span className="font-bold text-lg text-white">YASCO</span>
-                  <span className="block text-[10px] text-emerald-400/70">{t("Enterprise Operating System", "\u0646\u0638\u0627\u0645 \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0645\u0624\u0633\u0633\u0627\u062a")}</span>
+                  <span className="block text-[10px] text-blue-400/70">{t("Enterprise Operating System", "\u0646\u0638\u0627\u0645 \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0645\u0624\u0633\u0633\u0627\u0627\u062a")}</span>
                 </div>
               </div>
               <p className="text-sm text-slate-400 leading-relaxed mb-4">
@@ -1457,6 +1654,22 @@ export default function Landing() {
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient {
+          background-size: 200% 200%;
+          animation: gradient 4s ease infinite;
+        }
+        @keyframes pulse-glow {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 0.8; }
+        }
+        .animate-pulse-glow {
+          animation: pulse-glow 3s ease-in-out infinite;
         }
       `}</style>
     </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, Link } from "react-router";
-import { Building2, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, Info } from "lucide-react";
+import { Building2, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -108,17 +108,7 @@ export default function Login() {
               ))}
             </div>
 
-            {/* Demo credentials hint */}
-            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 flex gap-3">
-              <Info className="size-4 text-blue-300 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-blue-200">Default Admin Credentials</p>
-                <p className="text-xs text-blue-300 mt-1">
-                  Username: <code className="font-mono bg-blue-900/50 px-1 rounded">wafaweb</code>
-                  {" "}· Password set in <code className="font-mono bg-blue-900/50 px-1 rounded">.env</code> as <code className="font-mono bg-blue-900/50 px-1 rounded">ADMIN_PASSWORD</code>
-                </p>
-              </div>
-            </div>
+
           </div>
         </section>
 
