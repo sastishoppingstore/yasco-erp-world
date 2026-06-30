@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "ERP System",
-  "version": "0.1.1",
-  "identifier": "com.erp.system",
+  "productName": "YASCO ERP",
+  "version": "1.0.0",
+  "identifier": "com.yasco.erp",
   "build": {
     "frontendDist": "../dist/public",
     "devUrl": "http://127.0.0.1:32145/app",
@@ -12,15 +12,17 @@
   "app": {
     "windows": [
       {
-        "title": "ERP System",
+        "title": "YASCO ERP",
         "url": "http://127.0.0.1:32145/app",
-        "width": 1280,
-        "height": 800,
-        "minWidth": 900,
-        "minHeight": 600,
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 680,
         "resizable": true,
         "fullscreen": false,
-        "center": true
+        "center": true,
+        "decorations": true,
+        "shadow": true
       }
     ],
     "security": {
@@ -44,6 +46,11 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "shortDescription": "YASCO Enterprise Resource Planning System",
+    "longDescription": "World-class ERP with Saudi ZATCA compliance, multi-country support, and full offline desktop capabilities.",
+    "category": "Business",
+    "copyright": "© 2025 YASCO. All rights reserved.",
+    "publisher": "YASCO Technologies"
   }
 }

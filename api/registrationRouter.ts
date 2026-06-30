@@ -5,6 +5,7 @@ import { getDb } from "./queries/connection";
 import { sendEmail } from "./lib/smtp";
 import * as schema from "@db/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
+import { templateEngine } from "./lib/notifications/templates";
 
 function hashPassword(password: string) {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -157,7 +158,12 @@ export const registrationRouter = createRouter({
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
         ipAddress: ctx.clientIp || null,
       });
-      const result = await sendEmail(email, "Your OTP Code", `Your OTP code is: ${otp}\n\nThis code expires in 10 minutes.`);
+      const tpl = await templateEngine.getTemplate(null, "account_otp");
+      const subject = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").subject : "Your OTP Code";
+      const bodyEn = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").body : `Your OTP code is: ${otp}\n\nThis code expires in 10 minutes.`;
+      const bodyAr = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "ar").body : "";
+      const fullBody = bodyAr ? `${bodyEn}\n\n---\n${bodyAr}` : bodyEn;
+      const result = await sendEmail(email, subject, fullBody);
       return { success: true, message: "OTP sent successfully." };
     }),
   forgotPassword: publicQuery
@@ -177,7 +183,12 @@ export const registrationRouter = createRouter({
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
         ipAddress: ctx.clientIp || null,
       });
-      const result = await sendEmail(email, "Password Reset OTP", `Your OTP for password reset is: ${otp}\n\nThis code expires in 10 minutes.`);
+      const tpl = await templateEngine.getTemplate(null, "password_reset_otp");
+      const subject = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").subject : "Password Reset OTP";
+      const bodyEn = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").body : `Your OTP for password reset is: ${otp}\n\nThis code expires in 10 minutes.`;
+      const bodyAr = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "ar").body : "";
+      const fullBody = bodyAr ? `${bodyEn}\n\n---\n${bodyAr}` : bodyEn;
+      const result = await sendEmail(email, subject, fullBody);
       return { success: true, message: "OTP sent to your email." };
     }),
   resetPassword: publicQuery

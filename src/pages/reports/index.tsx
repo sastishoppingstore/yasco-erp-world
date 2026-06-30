@@ -35,8 +35,10 @@ const REPORT_TYPES = [
   { value: "sales", label: "Sales Report", icon: BarChart3, color: "bg-blue-100 text-blue-600" },
   { value: "purchase", label: "Purchase Report", icon: TrendingUp, color: "bg-emerald-100 text-emerald-600" },
   { value: "inventory", label: "Inventory Report", icon: BarChart3, color: "bg-amber-100 text-amber-600" },
-  { value: "financial", label: "Financial Report", icon: PieChartIcon, color: "bg-purple-100 text-purple-600" },
-  { value: "tax", label: "Tax Report", icon: FileText, color: "bg-red-100 text-red-600" },
+  { value: "financial", label: "Profit & Loss", icon: PieChartIcon, color: "bg-purple-100 text-purple-600" },
+  { value: "balanceSheet", label: "Balance Sheet", icon: FileText, color: "bg-indigo-100 text-indigo-600" },
+  { value: "cashFlow", label: "Cash Flow Statement", icon: TrendingUp, color: "bg-cyan-100 text-cyan-600" },
+  { value: "tax", label: "Tax / VAT Report", icon: FileText, color: "bg-red-100 text-red-600" },
   { value: "aging", label: "Aging Report", icon: FileSpreadsheet, color: "bg-cyan-100 text-cyan-600" },
 ];
 
@@ -104,6 +106,14 @@ export default function ReportsPage() {
     { enabled: reportType === "tax" },
   );
   const agingQuery = trpc.reports.agingReport.useQuery(undefined, { enabled: reportType === "aging" });
+  const balanceSheetQuery = trpc.reports.balanceSheet.useQuery(
+    { asOf: toDate || undefined },
+    { enabled: reportType === "balanceSheet" },
+  );
+  const cashFlowQuery = trpc.reports.cashFlowReport.useQuery(
+    { from: fromDate || undefined, to: toDate || undefined },
+    { enabled: reportType === "cashFlow" },
+  );
 
   const monthlyData = useMemo(() =>
     (revenueData || []).map((r) => ({
@@ -183,9 +193,29 @@ export default function ReportsPage() {
         data.summary = q?.summary ? `Outstanding: ${formatCurrency(q.summary.totalOutstanding)} | Customers: ${q.summary.customerCount}` : "";
         break;
       }
+      case "balanceSheet": {
+        const q = balanceSheetQuery.data;
+        data.headers = ["Code", "Account", "Type", "Debit", "Credit", "Balance"];
+        data.rows = (q?.rows || []).map(r => [
+          r.code, r.name, r.accountType, formatCurrency(r.debit), formatCurrency(r.credit), formatCurrency(r.balance),
+        ]);
+        const s = q?.summary;
+        data.summary = s ? `Total Assets: ${formatCurrency(s.totalAssets)} | Total Liabilities: ${formatCurrency(s.totalLiabilities)} | Total Equity: ${formatCurrency(s.totalEquity)}` : "";
+        break;
+      }
+      case "cashFlow": {
+        const q = cashFlowQuery.data;
+        data.headers = ["Category", "Amount", "Subcategory"];
+        data.rows = (q?.rows || []).map(r => [
+          r.category, formatCurrency(r.amount), r.subcategory || "",
+        ]);
+        const s = q?.summary;
+        data.summary = s ? `Operating: ${formatCurrency(s.operatingCash)} | Investing: ${formatCurrency(s.investingCash)} | Financing: ${formatCurrency(s.financingCash)} | Net Change: ${formatCurrency(s.netChange)}` : "";
+        break;
+      }
     }
     return data;
-  }, [reportType, salesQuery.data, purchaseQuery.data, inventoryQuery.data, financialQuery.data, taxQuery.data, agingQuery.data]);
+  }, [reportType, salesQuery.data, purchaseQuery.data, inventoryQuery.data, financialQuery.data, taxQuery.data, agingQuery.data, balanceSheetQuery.data, cashFlowQuery.data]);
 
   const exportPDF = useCallback(() => {
     const doc = new jsPDF({ orientation: "landscape" });
@@ -256,7 +286,7 @@ export default function ReportsPage() {
   }, [reportType, fromDate, toDate, getTableData]);
 
   const isLoading = salesQuery.isLoading || purchaseQuery.isLoading || inventoryQuery.isLoading
-    || financialQuery.isLoading || taxQuery.isLoading || agingQuery.isLoading;
+    || financialQuery.isLoading || taxQuery.isLoading || agingQuery.isLoading || balanceSheetQuery.isLoading || cashFlowQuery.isLoading;
   const tableData = getTableData();
 
   return (
@@ -376,6 +406,37 @@ export default function ReportsPage() {
           </Card>
           <Card className="bg-gradient-to-br from-cyan-50 to-sky-50 border-sky-200">
             <CardContent className="p-4"><p className="text-xs text-slate-500">Purchase Orders</p><p className="text-xl font-bold text-sky-700">{purchaseQuery.data.summary.poCount}</p></CardContent>
+          </Card>
+        </div>
+      )}
+
+      {reportType === "balanceSheet" && balanceSheetQuery.data?.summary && (
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-indigo-200">
+            <CardContent className="p-4"><p className="text-xs text-slate-500">Total Assets</p><p className="text-xl font-bold text-blue-700">{formatCurrency(balanceSheetQuery.data.summary.totalAssets)}</p></CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-red-50 to-rose-50 border-rose-200">
+            <CardContent className="p-4"><p className="text-xs text-slate-500">Total Liabilities</p><p className="text-xl font-bold text-rose-700">{formatCurrency(balanceSheetQuery.data.summary.totalLiabilities)}</p></CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-green-200">
+            <CardContent className="p-4"><p className="text-xs text-slate-500">Total Equity</p><p className="text-xl font-bold text-emerald-700">{formatCurrency(balanceSheetQuery.data.summary.totalEquity)}</p></CardContent>
+          </Card>
+        </div>
+      )}
+
+      {reportType === "cashFlow" && cashFlowQuery.data?.summary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-emerald-200">
+            <CardContent className="p-4"><p className="text-xs text-slate-500">Operating Cash</p><p className="text-xl font-bold text-emerald-700">{formatCurrency(cashFlowQuery.data.summary.operatingCash)}</p></CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-indigo-200">
+            <CardContent className="p-4"><p className="text-xs text-slate-500">Investing Cash</p><p className="text-xl font-bold text-blue-700">{formatCurrency(cashFlowQuery.data.summary.investingCash)}</p></CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-violet-200">
+            <CardContent className="p-4"><p className="text-xs text-slate-500">Financing Cash</p><p className="text-xl font-bold text-purple-700">{formatCurrency(cashFlowQuery.data.summary.financingCash)}</p></CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 border-yellow-200">
+            <CardContent className="p-4"><p className="text-xs text-slate-500">Net Change</p><p className="text-xl font-bold text-amber-700">{formatCurrency(cashFlowQuery.data.summary.netChange)}</p></CardContent>
           </Card>
         </div>
       )}

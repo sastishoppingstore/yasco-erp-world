@@ -8,6 +8,7 @@ import {
 } from "@db/schema";
 import { eq, sql, and, like, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { onInvoiceCreated, onPaymentReceived } from "./lib/notifications/events";
 
 function encodeZatcaTlv(tag: number, value: string): Uint8Array {
   const encoder = new TextEncoder();
@@ -342,6 +343,11 @@ export const salesRouter = createRouter({
         },
         createdAt: new Date(),
       });
+
+      onInvoiceCreated(tenantId, id).catch((err) =>
+        console.error("[notify] onInvoiceCreated error:", err)
+      );
+
       return { id, success: true };
     }),
 
@@ -407,6 +413,11 @@ export const salesRouter = createRouter({
     .mutation(async ({ input, ctx }) => {
       const db = getDb();
       const [{ id }] = await db.insert(customerPayments).values({ ...input, tenantId: ctx.user.tenantId! }).$returningId();
+      if (input.invoiceId) {
+        onPaymentReceived(ctx.user.tenantId!, input.customerId, input.invoiceId, input.amount).catch((err) =>
+          console.error("[notify] onPaymentReceived error:", err)
+        );
+      }
       return { id, success: true };
     }),
 });

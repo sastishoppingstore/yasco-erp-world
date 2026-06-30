@@ -10,6 +10,7 @@ import { sendEmail } from "./lib/smtp";
 import { signSessionToken } from "./kimi/session";
 import { findUserByUnionId, upsertUser } from "./queries/users";
 import { createRouter, authedQuery, publicQuery } from "./middleware";
+import { templateEngine } from "./lib/notifications/templates";
 
 const LOCAL_CLIENT_ID = "local-auth";
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -126,11 +127,12 @@ export const authRouter = createRouter({
         attempts: 0,
       });
 
-      const result = await sendEmail(
-        email,
-        "Your YASCO login OTP",
-        `Your YASCO login OTP is ${otp}.\n\nThis code expires in 10 minutes. If you did not request it, ignore this email.`,
-      );
+      const tpl = await templateEngine.getTemplate(null, "account_otp");
+      const subject = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").subject : "Your YASCO login OTP";
+      const bodyEn = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").body : `Your YASCO login OTP is ${otp}.\n\nThis code expires in 10 minutes. If you did not request it, ignore this email.`;
+      const bodyAr = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "ar").body : "";
+      const fullBody = bodyAr ? `${bodyEn}\n\n---\n${bodyAr}` : bodyEn;
+      const result = await sendEmail(email, subject, fullBody);
 
       return {
         success: true,

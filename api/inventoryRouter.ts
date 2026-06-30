@@ -7,6 +7,7 @@ import {
   stockTransferItems, stockAdjustments, stockAdjustmentItems
 } from "@db/schema";
 import { eq, sql, and, like, desc } from "drizzle-orm";
+import { checkLowStockAndNotify } from "./lib/notifications/events";
 
 export const inventoryRouter = createRouter({
   // Product Categories

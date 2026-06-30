@@ -61,6 +61,30 @@ export const tenantsRelations = relations(schema.tenants, ({ many }) => ({
   documentCategories: many(schema.documentCategories),
   documents: many(schema.documents),
   companySettings: many(schema.companySettings),
+  floorPlans: many(schema.floorPlans),
+  restaurantTables: many(schema.restaurantTables),
+  tableOrders: many(schema.tableOrders),
+  kdsStations: many(schema.kdsStations),
+  kotTickets: many(schema.kotTickets),
+  orderCourses: many(schema.orderCourses),
+  prescriptions: many(schema.prescriptions),
+  controlledSubstanceLogs: many(schema.controlledSubstanceLog),
+  insuranceCompanies: many(schema.insuranceCompanies),
+  insuranceClaims: many(schema.insuranceClaims),
+  drugInteractions: many(schema.drugInteractions),
+  sfdaSerialNumbers: many(schema.sfdaSerialNumbers),
+  loyaltyPrograms: many(schema.loyaltyPrograms),
+  loyaltyCards: many(schema.loyaltyCards),
+  loyaltyTransactions: many(schema.loyaltyTransactions),
+  giftCards: many(schema.giftCards),
+  giftCardTransactions: many(schema.giftCardTransactions),
+  posShifts: many(schema.posShifts),
+  cashDrawerLogs: many(schema.cashDrawerLogs),
+  priceTiers: many(schema.priceTiers),
+  priceTierBreaks: many(schema.priceTierBreaks),
+  emvTransactions: many(schema.emvTransactions),
+  paymentSplits: many(schema.paymentSplits),
+  qrOrderSessions: many(schema.qrOrderSessions),
   taxRates: many(schema.taxRates),
   currencies: many(schema.currencies),
   auditLogs: many(schema.auditLogs),
@@ -97,6 +121,17 @@ export const usersRelations = relations(schema.users, ({ one, many }) => ({
   assignedProjectTasks: many(schema.projectTasks),
   assignedSupportTickets: many(schema.supportTickets),
   assignedAssets: many(schema.assets),
+  createdTableOrders: many(schema.tableOrders),
+  preparedKotTickets: many(schema.kotTickets),
+  createdPrescriptions: many(schema.prescriptions),
+  dispensedControlledSubstances: many(schema.controlledSubstanceLog),
+  createdInsuranceClaims: many(schema.insuranceClaims),
+  createdLoyaltyTransactions: many(schema.loyaltyTransactions),
+  issuedGiftCards: many(schema.giftCards),
+  createdGiftCardTransactions: many(schema.giftCardTransactions),
+  posShifts: many(schema.posShifts),
+  cashDrawerLogs: many(schema.cashDrawerLogs),
+  createdEmvTransactions: many(schema.emvTransactions),
   auditLogs: many(schema.auditLogs),
   notifications: many(schema.notifications),
 }));
@@ -631,4 +666,219 @@ export const countryTaxConfigsRelations = relations(schema.countryTaxConfigs, ({
 
 export const invoiceTaxSettingsRelations = relations(schema.invoiceTaxSettings, ({ one }) => ({
   tenant: one(schema.tenants, { fields: [schema.invoiceTaxSettings.tenantId], references: [schema.tenants.id] }),
+}));
+
+// =====================================================
+// 39B. QUALITY CONTROL RELATIONS
+// =====================================================
+
+export const qualityInspectionTemplatesRelations = relations(schema.qualityInspectionTemplates, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.qualityInspectionTemplates.tenantId], references: [schema.tenants.id] }),
+  lines: many(schema.qualityInspectionTemplateLines),
+  inspections: many(schema.qualityInspections),
+}));
+
+export const qualityInspectionTemplateLinesRelations = relations(schema.qualityInspectionTemplateLines, ({ one }) => ({
+  template: one(schema.qualityInspectionTemplates, { fields: [schema.qualityInspectionTemplateLines.templateId], references: [schema.qualityInspectionTemplates.id] }),
+}));
+
+export const qualityInspectionsRelations = relations(schema.qualityInspections, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.qualityInspections.tenantId], references: [schema.tenants.id] }),
+  template: one(schema.qualityInspectionTemplates, { fields: [schema.qualityInspections.templateId], references: [schema.qualityInspectionTemplates.id] }),
+  product: one(schema.products, { fields: [schema.qualityInspections.productId], references: [schema.products.id] }),
+  lines: many(schema.qualityInspectionLines),
+  ncrs: many(schema.nonConformanceReports),
+  blockedStock: many(schema.qualityBlockedStocks),
+}));
+
+export const qualityInspectionLinesRelations = relations(schema.qualityInspectionLines, ({ one }) => ({
+  inspection: one(schema.qualityInspections, { fields: [schema.qualityInspectionLines.inspectionId], references: [schema.qualityInspections.id] }),
+  templateLine: one(schema.qualityInspectionTemplateLines, { fields: [schema.qualityInspectionLines.templateLineId], references: [schema.qualityInspectionTemplateLines.id] }),
+}));
+
+export const nonConformanceReportsRelations = relations(schema.nonConformanceReports, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.nonConformanceReports.tenantId], references: [schema.tenants.id] }),
+  inspection: one(schema.qualityInspections, { fields: [schema.nonConformanceReports.inspectionId], references: [schema.qualityInspections.id] }),
+  product: one(schema.products, { fields: [schema.nonConformanceReports.productId], references: [schema.products.id] }),
+  capas: many(schema.correctivePreventiveActions),
+  blockedStock: many(schema.qualityBlockedStocks),
+}));
+
+export const correctivePreventiveActionsRelations = relations(schema.correctivePreventiveActions, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.correctivePreventiveActions.tenantId], references: [schema.tenants.id] }),
+  ncr: one(schema.nonConformanceReports, { fields: [schema.correctivePreventiveActions.ncrId], references: [schema.nonConformanceReports.id] }),
+}));
+
+export const batchQualityRecordsRelations = relations(schema.batchQualityRecords, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.batchQualityRecords.tenantId], references: [schema.tenants.id] }),
+  product: one(schema.products, { fields: [schema.batchQualityRecords.productId], references: [schema.products.id] }),
+  inspection: one(schema.qualityInspections, { fields: [schema.batchQualityRecords.inspectionId], references: [schema.qualityInspections.id] }),
+  ncr: one(schema.nonConformanceReports, { fields: [schema.batchQualityRecords.ncrId], references: [schema.nonConformanceReports.id] }),
+}));
+
+export const qualityBlockedStocksRelations = relations(schema.qualityBlockedStocks, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.qualityBlockedStocks.tenantId], references: [schema.tenants.id] }),
+  product: one(schema.products, { fields: [schema.qualityBlockedStocks.productId], references: [schema.products.id] }),
+  warehouse: one(schema.warehouses, { fields: [schema.qualityBlockedStocks.warehouseId], references: [schema.warehouses.id] }),
+  inspection: one(schema.qualityInspections, { fields: [schema.qualityBlockedStocks.inspectionId], references: [schema.qualityInspections.id] }),
+  ncr: one(schema.nonConformanceReports, { fields: [schema.qualityBlockedStocks.ncrId], references: [schema.nonConformanceReports.id] }),
+}));
+
+// =====================================================
+// 40. POS VERTICALS RELATIONS
+// =====================================================
+
+export const floorPlansRelations = relations(schema.floorPlans, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.floorPlans.tenantId], references: [schema.tenants.id] }),
+  tables: many(schema.restaurantTables),
+}));
+
+export const restaurantTablesRelations = relations(schema.restaurantTables, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.restaurantTables.tenantId], references: [schema.tenants.id] }),
+  floorPlan: one(schema.floorPlans, { fields: [schema.restaurantTables.floorPlanId], references: [schema.floorPlans.id] }),
+  orders: many(schema.tableOrders),
+  kotTickets: many(schema.kotTickets),
+}));
+
+export const tableOrdersRelations = relations(schema.tableOrders, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.tableOrders.tenantId], references: [schema.tenants.id] }),
+  restaurantTable: one(schema.restaurantTables, { fields: [schema.tableOrders.restaurantTableId], references: [schema.restaurantTables.id] }),
+  customer: one(schema.customers, { fields: [schema.tableOrders.customerId], references: [schema.customers.id] }),
+  kotTickets: many(schema.kotTickets),
+  orderCourses: many(schema.orderCourses),
+}));
+
+export const kdsStationsRelations = relations(schema.kdsStations, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.kdsStations.tenantId], references: [schema.tenants.id] }),
+  products: many(schema.kdsStationProducts),
+  kotTickets: many(schema.kotTickets),
+}));
+
+export const kdsStationProductsRelations = relations(schema.kdsStationProducts, ({ one }) => ({
+  station: one(schema.kdsStations, { fields: [schema.kdsStationProducts.stationId], references: [schema.kdsStations.id] }),
+  product: one(schema.products, { fields: [schema.kdsStationProducts.productId], references: [schema.products.id] }),
+}));
+
+export const kotTicketsRelations = relations(schema.kotTickets, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.kotTickets.tenantId], references: [schema.tenants.id] }),
+  tableOrder: one(schema.tableOrders, { fields: [schema.kotTickets.tableOrderId], references: [schema.tableOrders.id] }),
+  restaurantTable: one(schema.restaurantTables, { fields: [schema.kotTickets.restaurantTableId], references: [schema.restaurantTables.id] }),
+  station: one(schema.kdsStations, { fields: [schema.kotTickets.stationId], references: [schema.kdsStations.id] }),
+  items: many(schema.kotTicketItems),
+}));
+
+export const kotTicketItemsRelations = relations(schema.kotTicketItems, ({ one }) => ({
+  ticket: one(schema.kotTickets, { fields: [schema.kotTicketItems.kotTicketId], references: [schema.kotTickets.id] }),
+}));
+
+export const orderCoursesRelations = relations(schema.orderCourses, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.orderCourses.tenantId], references: [schema.tenants.id] }),
+  tableOrder: one(schema.tableOrders, { fields: [schema.orderCourses.tableOrderId], references: [schema.tableOrders.id] }),
+}));
+
+export const prescriptionsRelations = relations(schema.prescriptions, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.prescriptions.tenantId], references: [schema.tenants.id] }),
+  customer: one(schema.customers, { fields: [schema.prescriptions.customerId], references: [schema.customers.id] }),
+  items: many(schema.prescriptionItems),
+}));
+
+export const prescriptionItemsRelations = relations(schema.prescriptionItems, ({ one }) => ({
+  prescription: one(schema.prescriptions, { fields: [schema.prescriptionItems.prescriptionId], references: [schema.prescriptions.id] }),
+  product: one(schema.products, { fields: [schema.prescriptionItems.productId], references: [schema.products.id] }),
+}));
+
+export const controlledSubstanceLogRelations = relations(schema.controlledSubstanceLog, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.controlledSubstanceLog.tenantId], references: [schema.tenants.id] }),
+}));
+
+export const insuranceCompaniesRelations = relations(schema.insuranceCompanies, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.insuranceCompanies.tenantId], references: [schema.tenants.id] }),
+  claims: many(schema.insuranceClaims),
+}));
+
+export const insuranceClaimsRelations = relations(schema.insuranceClaims, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.insuranceClaims.tenantId], references: [schema.tenants.id] }),
+  invoice: one(schema.invoices, { fields: [schema.insuranceClaims.invoiceId], references: [schema.invoices.id] }),
+  insuranceCompany: one(schema.insuranceCompanies, { fields: [schema.insuranceClaims.insuranceCompanyId], references: [schema.insuranceCompanies.id] }),
+  customer: one(schema.customers, { fields: [schema.insuranceClaims.customerId], references: [schema.customers.id] }),
+}));
+
+export const drugInteractionsRelations = relations(schema.drugInteractions, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.drugInteractions.tenantId], references: [schema.tenants.id] }),
+  productA: one(schema.products, { fields: [schema.drugInteractions.productIdA], references: [schema.products.id] }),
+  productB: one(schema.products, { fields: [schema.drugInteractions.productIdB], references: [schema.products.id] }),
+}));
+
+export const sfdaSerialNumbersRelations = relations(schema.sfdaSerialNumbers, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.sfdaSerialNumbers.tenantId], references: [schema.tenants.id] }),
+  product: one(schema.products, { fields: [schema.sfdaSerialNumbers.productId], references: [schema.products.id] }),
+}));
+
+export const loyaltyProgramsRelations = relations(schema.loyaltyPrograms, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.loyaltyPrograms.tenantId], references: [schema.tenants.id] }),
+  cards: many(schema.loyaltyCards),
+}));
+
+export const loyaltyCardsRelations = relations(schema.loyaltyCards, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.loyaltyCards.tenantId], references: [schema.tenants.id] }),
+  program: one(schema.loyaltyPrograms, { fields: [schema.loyaltyCards.programId], references: [schema.loyaltyPrograms.id] }),
+  customer: one(schema.customers, { fields: [schema.loyaltyCards.customerId], references: [schema.customers.id] }),
+  transactions: many(schema.loyaltyTransactions),
+}));
+
+export const loyaltyTransactionsRelations = relations(schema.loyaltyTransactions, ({ one }) => ({
+  card: one(schema.loyaltyCards, { fields: [schema.loyaltyTransactions.cardId], references: [schema.loyaltyCards.id] }),
+}));
+
+export const giftCardsRelations = relations(schema.giftCards, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.giftCards.tenantId], references: [schema.tenants.id] }),
+  transactions: many(schema.giftCardTransactions),
+}));
+
+export const giftCardTransactionsRelations = relations(schema.giftCardTransactions, ({ one }) => ({
+  giftCard: one(schema.giftCards, { fields: [schema.giftCardTransactions.giftCardId], references: [schema.giftCards.id] }),
+}));
+
+export const posShiftsRelations = relations(schema.posShifts, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.posShifts.tenantId], references: [schema.tenants.id] }),
+  user: one(schema.users, { fields: [schema.posShifts.userId], references: [schema.users.id] }),
+  drawerLogs: many(schema.cashDrawerLogs),
+}));
+
+export const cashDrawerLogsRelations = relations(schema.cashDrawerLogs, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.cashDrawerLogs.tenantId], references: [schema.tenants.id] }),
+  shift: one(schema.posShifts, { fields: [schema.cashDrawerLogs.shiftId], references: [schema.posShifts.id] }),
+  user: one(schema.users, { fields: [schema.cashDrawerLogs.userId], references: [schema.users.id] }),
+}));
+
+export const priceTiersRelations = relations(schema.priceTiers, ({ one, many }) => ({
+  tenant: one(schema.tenants, { fields: [schema.priceTiers.tenantId], references: [schema.tenants.id] }),
+  breaks: many(schema.priceTierBreaks),
+  customerAssignments: many(schema.customerPriceTiers),
+}));
+
+export const priceTierBreaksRelations = relations(schema.priceTierBreaks, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.priceTierBreaks.tenantId], references: [schema.tenants.id] }),
+  priceTier: one(schema.priceTiers, { fields: [schema.priceTierBreaks.priceTierId], references: [schema.priceTiers.id] }),
+  product: one(schema.products, { fields: [schema.priceTierBreaks.productId], references: [schema.products.id] }),
+}));
+
+export const customerPriceTiersRelations = relations(schema.customerPriceTiers, ({ one }) => ({
+  customer: one(schema.customers, { fields: [schema.customerPriceTiers.customerId], references: [schema.customers.id] }),
+  priceTier: one(schema.priceTiers, { fields: [schema.customerPriceTiers.priceTierId], references: [schema.priceTiers.id] }),
+}));
+
+export const emvTransactionsRelations = relations(schema.emvTransactions, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.emvTransactions.tenantId], references: [schema.tenants.id] }),
+  invoice: one(schema.invoices, { fields: [schema.emvTransactions.invoiceId], references: [schema.invoices.id] }),
+}));
+
+export const paymentSplitsRelations = relations(schema.paymentSplits, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.paymentSplits.tenantId], references: [schema.tenants.id] }),
+  invoice: one(schema.invoices, { fields: [schema.paymentSplits.invoiceId], references: [schema.invoices.id] }),
+}));
+
+export const qrOrderSessionsRelations = relations(schema.qrOrderSessions, ({ one }) => ({
+  tenant: one(schema.tenants, { fields: [schema.qrOrderSessions.tenantId], references: [schema.tenants.id] }),
+  restaurantTable: one(schema.restaurantTables, { fields: [schema.qrOrderSessions.restaurantTableId], references: [schema.restaurantTables.id] }),
 }));

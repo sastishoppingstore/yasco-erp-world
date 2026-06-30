@@ -1,6 +1,6 @@
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router";
-import { Users, CalendarCheck, Landmark, BarChart3, Briefcase } from "lucide-react";
+import { Users, CalendarCheck, Landmark, BarChart3, Briefcase, Shield, FileCheck, Fingerprint, UserCheck, Building2 } from "lucide-react";
 
 export default function HRMPage() {
   const modules = [
@@ -8,13 +8,19 @@ export default function HRMPage() {
     { title: "Attendance", desc: "Time tracking & attendance", icon: CalendarCheck, path: "/app/hrm/attendance", color: "bg-emerald-600" },
     { title: "Leave", desc: "Leave requests & approvals", icon: Briefcase, path: "/app/hrm/leave", color: "bg-purple-600" },
     { title: "Payroll", desc: "Salary processing & slips", icon: Landmark, path: "/app/hrm/payroll", color: "bg-orange-600" },
-    { title: "Performance", desc: "Reviews & evaluations", icon: BarChart3, path: "/app/hrm/performance", color: "bg-cyan-600" },
+    { title: "Saudi Payroll", desc: "GOSI, WPS & Saudi compliance", icon: Shield, path: "/app/hrm/saudi-payroll", color: "bg-red-600" },
+    { title: "GOSI", desc: "Social insurance contributions", icon: FileCheck, path: "/app/hrm/gosi", color: "bg-teal-600" },
+    { title: "WPS", desc: "Wage Protection System (Mudad)", icon: Landmark, path: "/app/hrm/wps", color: "bg-indigo-600" },
+    { title: "EOSB", desc: "End of Service Benefits", icon: Building2, path: "/app/hrm/eosb", color: "bg-amber-600" },
+    { title: "Saudi Compliance", desc: "Nitaqat, Muqeem & Qiwa", icon: UserCheck, path: "/app/hrm/saudi-compliance", color: "bg-cyan-600" },
+    { title: "Biometric", desc: "Face/fingerprint & PDPL", icon: Fingerprint, path: "/app/hrm/biometric-setup", color: "bg-rose-600" },
+    { title: "Performance", desc: "Reviews & evaluations", icon: BarChart3, path: "/app/hrm/performance", color: "bg-violet-600" },
   ];
 
   return (
     <div className="space-y-6">
-      <div><h2 className="text-2xl font-bold">Human Resource Management</h2><p className="text-slate-500">Employee lifecycle management</p></div>
-      <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div><h2 className="text-2xl font-bold">Human Resource Management</h2><p className="text-slate-500">Employee lifecycle management with Saudi labor law compliance</p></div>
+      <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
         {modules.map((mod) => (
           <Link key={mod.path} to={mod.path} className="block">
             <Card className="hover:shadow-lg transition-all cursor-pointer group h-full">

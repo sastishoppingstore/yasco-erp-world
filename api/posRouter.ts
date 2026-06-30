@@ -7,6 +7,7 @@ import {
   posSessions, posHolds, cashboxTransactions, chartOfAccounts,
 } from "@db/schema";
 import { eq, and, like, desc, sql, gte, lte, inArray } from "drizzle-orm";
+import { onInvoiceCreated, checkLowStockAndNotify } from "./lib/notifications/events";
 
 async function getOrCreateWalkInCustomer(db: ReturnType<typeof getDb>, tenantId: number) {
   const existing = await db.query.customers.findFirst({
@@ -222,6 +223,12 @@ export const posRouter = createRouter({
         });
       }
 
+      onInvoiceCreated(tenantId, invoiceId).catch((err) =>
+        console.error("[notify] POS onInvoiceCreated error:", err)
+      );
+      checkLowStockAndNotify(tenantId).catch((err) =>
+        console.error("[notify] POS checkLowStock error:", err)
+      );
       return { id: invoiceId, invoiceNumber, success: true };
     }),
 

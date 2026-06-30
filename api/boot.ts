@@ -10,7 +10,7 @@ import { Paths } from "@contracts/constants";
 
 // High-Traffic Readiness: Basic in-memory rate limiter
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_WINDOW_MS = 60000;
 const MAX_REQUESTS_PER_WINDOW = 300;
 
 const rateLimiter = async (c: any, next: any) => {
@@ -31,7 +31,6 @@ const rateLimiter = async (c: any, next: any) => {
     }
   }
   
-  // Occasional cleanup to prevent memory leaks
   if (Math.random() < 0.01) {
     for (const [key, value] of rateLimitMap.entries()) {
       if (now > value.resetTime) {
@@ -68,6 +67,42 @@ app.get("/api/localization/detect", (c) => {
 app.get("/api/ping", (c) => c.json({ ok: true, ts: Date.now() }));
 app.on("HEAD", "/api/ping", (c) => c.body(null, 204));
 
+// ── Health Check ─────────────────────────────────────────────────────
+app.get("/api/health", async (c) => {
+  let dbStatus = "connected";
+  let redisStatus: string | undefined;
+  try {
+    const { getDb } = await import("./queries/connection");
+    const db = getDb();
+    await db.execute("SELECT 1" as any);
+  } catch {
+    dbStatus = "disconnected";
+  }
+  if (env.enableRedis) {
+    try {
+      const { isRedisReady } = await import("./lib/redis");
+      redisStatus = isRedisReady() ? "connected" : "disconnected";
+    } catch {
+      redisStatus = "disconnected";
+    }
+  }
+  const mem = process.memoryUsage();
+  return c.json({
+    status: dbStatus === "connected" ? "ok" : "degraded",
+    app: env.appName,
+    version: env.appVersion,
+    db: dbStatus,
+    redis: redisStatus,
+    uptime: Math.floor(process.uptime()),
+    memory: {
+      rss: Math.round(mem.rss / 1024 / 1024),
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+    },
+    ts: Date.now(),
+  });
+});
+
 // Apply rate limiting to API routes
 app.use("/api/trpc", rateLimiter, bodyLimit({ maxSize: 50 * 1024 * 1024 }));
 app.use("/api/trpc/*", rateLimiter, bodyLimit({ maxSize: 50 * 1024 * 1024 }));
@@ -92,7 +127,20 @@ app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 
 export default app;
 
-if (env.isProduction) {
+async function bootstrap() {
+  if (env.enableRedis) {
+    try {
+      const { connectRedis } = await import("./lib/redis");
+      const connected = await connectRedis();
+      if (connected) {
+        const { startAllWorkers } = await import("./queue/index");
+        startAllWorkers();
+      }
+    } catch (err: any) {
+      console.warn("[bootstrap] Redis/queue init skipped:", err.message);
+    }
+  }
+
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");
   serveStaticFiles(app);
@@ -100,6 +148,11 @@ if (env.isProduction) {
   const port = parseInt(process.env.PORT || "3000");
   const host = process.env.HOST || "0.0.0.0";
   serve({ fetch: app.fetch, port, hostname: host }, () => {
-    console.log(`Server running on http://${host}:${port}/ (High-Traffic Optimized)`);
+    console.log(`Server running on http://${host}:${port}/`);
   });
 }
+
+bootstrap().catch((err) => {
+  console.error("Fatal startup error:", err);
+  process.exit(1);
+});

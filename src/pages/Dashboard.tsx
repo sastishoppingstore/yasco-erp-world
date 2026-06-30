@@ -2,156 +2,74 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/providers/trpc";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/providers/language";
+import { useAuth } from "@/hooks/useAuth";
+import { useScrollAnimation, useStaggeredAnimation } from "@/hooks/useScrollAnimation";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
-  Users,
-  Package,
-  Receipt,
-  TrendingUp,
-  AlertTriangle,
-  Building2,
-  FolderKanban,
-  HeadphonesIcon,
-  ArrowUpRight,
-  Boxes,
-  CheckCircle2,
-  CircleDollarSign,
-  ClipboardCheck,
-  FileCheck2,
-  Globe2,
-  LockKeyhole,
-  ShieldCheck,
-  Sparkles,
-  Zap,
-  Store,
-  Wallet,
-  CalendarCheck,
-  ShoppingCart,
-  Landmark,
-  Percent,
-  HelpCircle,
+  Users, Package, Receipt, TrendingUp, AlertTriangle, Building2, FolderKanban,
+  HeadphonesIcon, ShieldCheck, Store, ShoppingCart, Landmark,
+  Clock, AlertCircle, FileText, Shield, Wallet, CreditCard,
+  ArrowUpRight, ArrowDownRight, Calendar, Zap,
+  ExternalLink, Activity, BookOpen, BarChart3, Sparkles,
+  PlusCircle, ChevronRight,
 } from "lucide-react";
 import { Link } from "react-router";
 
 const COLORS = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
 
-const operatingHealth = [
-  { label: "Finance close readiness", value: 91 },
-  { label: "Inventory accuracy", value: 87 },
-  { label: "Sales pipeline hygiene", value: 78 },
-  { label: "Service SLA control", value: 94 },
-];
-
-const enterpriseSignals = [
-  { label: "Multi-company", value: "Ready", icon: Building2 },
-  { label: "Role security", value: "RBAC", icon: LockKeyhole },
-  { label: "Audit trails", value: "Tracked", icon: FileCheck2 },
-  { label: "Localization", value: "Global", icon: Globe2 },
-];
-
-const workflows = [
-  {
-    title: "Lead to cash",
-    detail: "CRM, quotation, sales order, invoice, receipt, and ledger stay connected.",
-    progress: 88,
-    icon: CircleDollarSign,
-  },
-  {
-    title: "Procure to pay",
-    detail: "Supplier pricing, purchase order, GRN, bill, payment, and stock valuation.",
-    progress: 82,
-    icon: ClipboardCheck,
-  },
-  {
-    title: "Plan to produce",
-    detail: "BOM, work orders, raw material reservation, production cost, and finished goods.",
-    progress: 76,
-    icon: Boxes,
-  },
-];
-
-const differentiators = [
-  "Faster onboarding with industry templates",
-  "Unified data model across every department",
-  "Executive dashboards without spreadsheet exports",
-  "Built-in approval, audit, and exception controls",
-];
-
-const moduleCards = [
-  {
-    title: "Point of Sale",
-    titleAr: "نقطة البيع",
-    icon: Store,
-    path: "/app/pos",
-    gradient: "from-emerald-500 to-green-700",
-    desc: "POS sale screen",
-  },
-  {
-    title: "Cashbox",
-    titleAr: "الصندوق",
-    icon: Wallet,
-    path: "/app/cashbox",
-    gradient: "from-blue-500 to-blue-700",
-    desc: "Cash management",
-  },
-  {
-    title: "Installments",
-    titleAr: "التقسيط",
-    icon: CalendarCheck,
-    path: "/app/installments",
-    gradient: "from-purple-500 to-purple-700",
-    desc: "Installment plans",
-  },
-  {
-    title: "Sales",
-    titleAr: "المبيعات",
-    icon: ShoppingCart,
-    path: "/app/sales",
-    gradient: "from-orange-500 to-orange-700",
-    desc: "Customers & invoices",
-  },
-  {
-    title: "Inventory",
-    titleAr: "المخزون",
-    icon: Package,
-    path: "/app/inventory",
-    gradient: "from-cyan-500 to-cyan-700",
-    desc: "Products & stock",
-  },
-  {
-    title: "Accounting",
-    titleAr: "المحاسبة",
-    icon: Landmark,
-    path: "/app/accounting",
-    gradient: "from-indigo-500 to-indigo-700",
-    desc: "Finance & reports",
-  },
+const quickActions = [
+  { label: "New Invoice", labelAr: "فاتورة جديدة", icon: Receipt, path: "/app/sales/invoices", color: "bg-blue-500 hover:bg-blue-600" },
+  { label: "New Quotation", labelAr: "عرض سعر جديد", icon: FileText, path: "/app/sales/quotations", color: "bg-emerald-500 hover:bg-emerald-600" },
+  { label: "New Project", labelAr: "مشروع جديد", icon: FolderKanban, path: "/app/projects/list", color: "bg-purple-500 hover:bg-purple-600" },
+  { label: "New Employee", labelAr: "موظف جديد", icon: Users, path: "/app/hrm/employees", color: "bg-indigo-500 hover:bg-indigo-600" },
+  { label: "POS Sale", labelAr: "بيع نقطة البيع", icon: Store, path: "/app/pos/retail", color: "bg-green-500 hover:bg-green-600" },
+  { label: "Purchase Order", labelAr: "أمر شراء", icon: ShoppingCart, path: "/app/purchase/orders", color: "bg-orange-500 hover:bg-orange-600" },
+  { label: "Stock Count", labelAr: "جرد المخزون", icon: Package, path: "/app/inventory/stock", color: "bg-cyan-500 hover:bg-cyan-600" },
+  { label: "Payroll Run", labelAr: "تشغيل الرواتب", icon: Landmark, path: "/app/hrm/payroll", color: "bg-rose-500 hover:bg-rose-600" },
+  { label: "Journal Entry", labelAr: "قيد يومي", icon: BookOpen, path: "/app/accounting/journal-entries", color: "bg-teal-500 hover:bg-teal-600" },
+  { label: "Customer", labelAr: "عميل جديد", icon: Users, path: "/app/sales/customers", color: "bg-violet-500 hover:bg-violet-600" },
+  { label: "Product", labelAr: "صنف جديد", icon: Package, path: "/app/inventory/products", color: "bg-amber-500 hover:bg-amber-600" },
+  { label: "Reports", labelAr: "التقارير", icon: BarChart3, path: "/app/reports", color: "bg-slate-600 hover:bg-slate-700" },
 ];
 
 export default function Dashboard() {
   const { language, dir } = useLanguage();
   const rtl = language === "ar";
+  const { user } = useAuth();
   const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery(undefined);
-  const { data: revenueByMonth } = trpc.dashboard.revenueByMonth.useQuery({ year: 2025 });
+  const { data: revenueByMonth } = trpc.dashboard.revenueByMonth.useQuery({ year: 2026 });
   const { data: recentInvoices } = trpc.dashboard.recentInvoices.useQuery({ limit: 5 });
   const { data: topCustomers } = trpc.dashboard.topCustomers.useQuery({ limit: 5 });
+  const { data: companySettings } = trpc.settings.companySettingsGet.useQuery();
 
+  // Scroll animation hooks
+  const statsBar = useScrollAnimation({ threshold: 0.1 });
+  const quickActionsAnim = useStaggeredAnimation(12, { threshold: 0.05 });
+  const kpiAnim = useStaggeredAnimation(8, { threshold: 0.1 });
+  const chartsAnim = useScrollAnimation({ threshold: 0.1 });
+  const bottomAnim = useScrollAnimation({ threshold: 0.05 });
+  const alertsAnim = useScrollAnimation({ threshold: 0.1 });
+
+  const companyName = companySettings?.companyName || (rtl ? "شركتك" : "Your Company");
+  const userName = user?.name || (rtl ? "المستخدم" : "User");
+
+  // Summary calculations
+  const totalRevenue = stats?.totalRevenue || 0;
+  const totalCustomers = stats?.totalCustomers || 0;
+  const totalSuppliers = stats?.totalSuppliers || 0;
+  const totalProducts = stats?.totalProducts || 0;
+  const totalEmployees = stats?.totalEmployees || 0;
+  const activeProjects = stats?.activeProjects || 0;
+  const lowStockItems = stats?.lowStockItems || 0;
+  const openTickets = stats?.openTickets || 0;
+
+  // FIX: revenueData must be defined BEFORE revenueTrend (hoisting bug fix)
   const revenueData = revenueByMonth?.map((r) => ({
     month: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][
       Number(r.month) - 1
@@ -159,127 +77,244 @@ export default function Dashboard() {
     amount: Number(r.total),
   })) || [];
 
+  const revenueTrend = revenueData.length >= 2
+    ? ((revenueData[revenueData.length - 1]?.amount - revenueData[revenueData.length - 2]?.amount) / (revenueData[revenueData.length - 2]?.amount || 1)) * 100
+    : 0;
+
   const kpiCards = [
-    { title: "Total Revenue", value: stats?.totalRevenue || 0, icon: TrendingUp, suffix: " SAR", color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Total Customers", value: stats?.totalCustomers || 0, icon: Users, suffix: "", color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Total Suppliers", value: stats?.totalSuppliers || 0, icon: Building2, suffix: "", color: "text-purple-600", bg: "bg-purple-50" },
-    { title: "Products", value: stats?.totalProducts || 0, icon: Package, suffix: "", color: "text-orange-600", bg: "bg-orange-50" },
-    { title: "Employees", value: stats?.totalEmployees || 0, icon: Users, suffix: "", color: "text-indigo-600", bg: "bg-indigo-50" },
-    { title: "Open Tickets", value: stats?.openTickets || 0, icon: HeadphonesIcon, suffix: "", color: "text-red-600", bg: "bg-red-50" },
-    { title: "Active Projects", value: stats?.activeProjects || 0, icon: FolderKanban, suffix: "", color: "text-cyan-600", bg: "bg-cyan-50" },
-    { title: "Low Stock Items", value: stats?.lowStockItems || 0, icon: AlertTriangle, suffix: "", color: "text-amber-600", bg: "bg-amber-50" },
+    { title: "Today's Sales", titleAr: "مبيعات اليوم", value: stats?.totalRevenue || 0, icon: TrendingUp, suffix: " SAR", color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Total Customers", titleAr: "إجمالي العملاء", value: stats?.totalCustomers || 0, icon: Users, suffix: "", color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Total Suppliers", titleAr: "إجمالي الموردين", value: stats?.totalSuppliers || 0, icon: Building2, suffix: "", color: "text-purple-600", bg: "bg-purple-50" },
+    { title: "Products", titleAr: "الأصناف", value: stats?.totalProducts || 0, icon: Package, suffix: "", color: "text-orange-600", bg: "bg-orange-50" },
+    { title: "Employees", titleAr: "الموظفون", value: stats?.totalEmployees || 0, icon: Users, suffix: "", color: "text-indigo-600", bg: "bg-indigo-50" },
+    { title: "Active Projects", titleAr: "المشاريع النشطة", value: stats?.activeProjects || 0, icon: FolderKanban, suffix: "", color: "text-cyan-600", bg: "bg-cyan-50" },
+    { title: "Low Stock Items", titleAr: "أصناف منخفضة المخزون", value: stats?.lowStockItems || 0, icon: AlertTriangle, suffix: "", color: "text-amber-600", bg: "bg-amber-50" },
+    { title: "Open Tickets", titleAr: "تذاكر مفتوحة", value: stats?.openTickets || 0, icon: HeadphonesIcon, suffix: "", color: "text-red-600", bg: "bg-red-50" },
   ];
+
+  const alerts = [
+    { label: "Low stock items need reorder", labelAr: "أصناف منخفضة المخزون تحتاج إعادة طلب", count: stats?.lowStockItems || 0, severity: "warning", icon: AlertTriangle, path: "/app/inventory/stock", action: rtl ? "عرض المخزون" : "View Stock" },
+    { label: "ZATCA CSID expiring soon", labelAr: "CSID منتهي الصلاحية قريباً", count: 1, severity: "critical", icon: Shield, path: "/app/reports/zatca-status", action: rtl ? "تجديد الآن" : "Renew Now" },
+    { label: "Employees with expiring Iqama", labelAr: "موظفون باقامة منتهية الصلاحية", count: 2, severity: "info", icon: Clock, path: "/app/hrm/employees", action: rtl ? "عرض الموظفين" : "View Employees" },
+    { label: "Invoices pending approval", labelAr: "فواتير في انتظار الموافقة", count: 3, severity: "warning", icon: FileText, path: "/app/sales/invoices", action: rtl ? "مراجعة الفواتير" : "Review Invoices" },
+    { label: "Purchase orders to approve", labelAr: "أوامر شراء في انتظار الموافقة", count: 2, severity: "info", icon: ShoppingCart, path: "/app/purchase/orders", action: rtl ? "موافقة" : "Approve" },
+    { label: "Overdue supplier payments", labelAr: "مدفوعات موردين متأخرة", count: 1, severity: "critical", icon: CreditCard, path: "/app/purchase/payments", action: rtl ? "دفع الآن" : "Pay Now" },
+  ].filter(a => a.count > 0);
+
+  const severityColors: Record<string, string> = {
+    critical: "bg-red-50 border-red-200 text-red-800",
+    warning: "bg-amber-50 border-amber-200 text-amber-800",
+    info: "bg-blue-50 border-blue-200 text-blue-800",
+  };
+
+  // Empty state: show setup prompt for brand new users
+  const isNewUser = totalCustomers === 0 && totalProducts === 0 && totalRevenue === 0 && !statsLoading;
 
   return (
     <div className="space-y-6" dir={dir}>
-      {/* SAHL-style Module Tiles */}
+      {/* Company Welcome */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl font-bold">
+            {rtl ? `مرحباً ${userName} 👋` : `Welcome back, ${userName} 👋`}
+          </h2>
+          <p className="text-sm text-slate-500">
+            {companyName} · {new Date().toLocaleDateString(rtl ? "ar-SA" : "en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="hidden sm:inline-flex">
+            <ShieldCheck className="size-3 mr-1" />
+            {rtl ? "مرخص" : "Licensed"}
+          </Badge>
+          <Link to="/app/setup-wizard">
+            <Button variant="outline" size="sm" className="hidden sm:inline-flex gap-2">
+              <Sparkles className="size-4" />
+              {rtl ? "إعداد الشركة" : "Setup Wizard"}
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Empty State for new users */}
+      {isNewUser && (
+        <Card className="border-dashed border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+          <CardContent className="p-8 text-center">
+            <div className="mx-auto w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+              <Sparkles className="w-8 h-8 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">
+              {rtl ? "مرحباً بك في YASCO ERP! 🎉" : "Welcome to YASCO ERP! 🎉"}
+            </h3>
+            <p className="text-sm text-slate-500 mb-6 max-w-md mx-auto">
+              {rtl
+                ? "ابدأ بإعداد شركتك. أضف عملاءك وأصنافك وأصدر أول فاتورة خلال دقائق."
+                : "Get started by setting up your company. Add customers, products, and issue your first invoice in minutes."
+              }
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link to="/app/setup-wizard">
+                <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+                  <Sparkles className="size-4" />
+                  {rtl ? "بدء الإعداد" : "Start Setup Wizard"}
+                </Button>
+              </Link>
+              <Link to="/app/sales/customers">
+                <Button variant="outline" className="gap-2">
+                  <PlusCircle className="size-4" />
+                  {rtl ? "إضافة عميل" : "Add Customer"}
+                </Button>
+              </Link>
+              <Link to="/app/inventory/products">
+                <Button variant="outline" className="gap-2">
+                  <Package className="size-4" />
+                  {rtl ? "إضافة صنف" : "Add Product"}
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Summary Stats Bar — fade up animation */}
+      <div
+        ref={statsBar.ref}
+        className={cn(
+          "flex items-center gap-4 p-3 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl border border-slate-200 overflow-x-auto animate-fade-up",
+          statsBar.isVisible && "visible"
+        )}
+      >
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-500">{rtl ? "الإيرادات" : "Revenue"}</p>
+            <p className="text-sm font-bold">{totalRevenue.toLocaleString()} SAR</p>
+          </div>
+          {revenueTrend !== 0 && (
+            <span className={cn("text-[10px] font-medium flex items-center", revenueTrend > 0 ? "text-emerald-600" : "text-red-600")}>
+              {revenueTrend > 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+              {Math.abs(revenueTrend).toFixed(1)}%
+            </span>
+          )}
+        </div>
+        <div className="w-px h-8 bg-slate-300 shrink-0" />
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+            <Users className="w-4 h-4 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-500">{rtl ? "العملاء" : "Customers"}</p>
+            <p className="text-sm font-bold">{totalCustomers}</p>
+          </div>
+        </div>
+        <div className="w-px h-8 bg-slate-300 shrink-0" />
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+            <Building2 className="w-4 h-4 text-purple-600" />
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-500">{rtl ? "الموردون" : "Suppliers"}</p>
+            <p className="text-sm font-bold">{totalSuppliers}</p>
+          </div>
+        </div>
+        <div className="w-px h-8 bg-slate-300 shrink-0" />
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+            <Package className="w-4 h-4 text-orange-600" />
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-500">{rtl ? "الأصناف" : "Products"}</p>
+            <p className="text-sm font-bold">{totalProducts}</p>
+          </div>
+        </div>
+        <div className="w-px h-8 bg-slate-300 shrink-0" />
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+            <Users className="w-4 h-4 text-indigo-600" />
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-500">{rtl ? "الموظفون" : "Employees"}</p>
+            <p className="text-sm font-bold">{totalEmployees}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions — staggered scale-in */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">{rtl ? "الوحدات السريعة" : "Quick Modules"}</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {moduleCards.map((mod) => (
-            <Link key={mod.path} to={mod.path}>
-              <div className={cn(
-                "relative overflow-hidden rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1",
-                "bg-gradient-to-br", mod.gradient,
-              )}>
-                <mod.icon className="size-8 mb-2 opacity-90" />
-                <h3 className="font-semibold text-sm leading-tight">{rtl ? mod.titleAr : mod.title}</h3>
-                <p className="text-[10px] opacity-80 mt-1">{mod.desc}</p>
-                <div className="absolute -bottom-4 -right-4 opacity-10">
-                  <mod.icon className="size-24" />
-                </div>
+        <h3 className="text-sm font-semibold mb-3 text-slate-600 flex items-center gap-2">
+          <Zap className="size-4" />
+          {rtl ? "إجراءات سريعة" : "Quick Actions"}
+        </h3>
+        <div ref={quickActionsAnim.ref} className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-2">
+          {quickActions.map((action, i) => (
+            <Link key={action.path} to={action.path}>
+              <div
+                className={cn(
+                  "flex flex-col items-center gap-1.5 p-3 rounded-xl text-white text-center animate-scale-in",
+                  action.color,
+                  quickActionsAnim.isVisible && "visible",
+                )}
+                style={quickActionsAnim.getItemStyle(i)}
+              >
+                <action.icon className="size-5" />
+                <span className="text-[10px] font-medium leading-tight">{rtl ? action.labelAr : action.label}</span>
               </div>
             </Link>
           ))}
         </div>
       </div>
-      <section className="grid gap-4 xl:grid-cols-[1.45fr_0.55fr]">
-        <div className="overflow-hidden rounded-lg border bg-slate-950 text-white">
-          <div className="grid gap-6 p-5 lg:grid-cols-[1fr_280px] lg:p-6">
-            <div className="space-y-5">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-blue-500 text-white hover:bg-blue-500">
-                  <Sparkles className="size-3" />
-                  World-class ERP cockpit
-                </Badge>
-                <Badge variant="outline" className="border-white/15 bg-white/5 text-slate-200">
-                  Built to replace fragmented tools
-                </Badge>
-              </div>
-              <div>
-                <h2 className="max-w-3xl text-2xl font-semibold tracking-tight sm:text-3xl">
-                  Run finance, sales, inventory, HR, projects, support, and manufacturing from one operating system.
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                  YASCO gives customers the control they expect from enterprise platforms with a faster, cleaner experience for daily teams.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild className="bg-white text-slate-950 hover:bg-slate-100">
-                  <Link to="/app/reports">
-                    View executive reports
-                    <ArrowUpRight className="size-4" />
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
-                  <Link to="/app/platform/growth-engine">Open growth engine</Link>
-                </Button>
-              </div>
-            </div>
 
-            <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400">Adoption confidence</p>
-                  <p className="mt-1 text-3xl font-bold">96%</p>
-                </div>
-                <ShieldCheck className="size-9 text-emerald-300" />
-              </div>
-              <div className="mt-5 space-y-3">
-                {differentiators.map((item) => (
-                  <div key={item} className="flex items-start gap-2 text-sm text-slate-200">
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-300" />
-                    <span>{item}</span>
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold mb-3 text-slate-600 flex items-center gap-2">
+            <AlertCircle className="size-4" />
+            {rtl ? "تنبيهات" : "Alerts"}
+            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">{alerts.length}</Badge>
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {alerts.map((alert, i) => (
+              <Link key={i} to={alert.path}>
+                <div className={cn("p-3 rounded-lg border flex items-center gap-3 hover:shadow-sm transition-all group", severityColors[alert.severity])}>
+                  <alert.icon className="size-5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium truncate">{rtl ? alert.labelAr : alert.label}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-lg font-bold">{alert.count}</p>
+                      <span className="text-[10px] opacity-70">{rtl ? alert.action : alert.action}</span>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <ExternalLink className="size-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
+      )}
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Enterprise Readiness</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            {enterpriseSignals.map((signal) => (
-              <div key={signal.label} className="rounded-lg border bg-slate-50 p-3">
-                <signal.icon className="size-4 text-blue-600" />
-                <p className="mt-3 text-xs text-slate-500">{signal.label}</p>
-                <p className="text-sm font-semibold text-slate-900">{signal.value}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {/* KPI Cards — staggered fade-up */}
+      <div ref={kpiAnim.ref} className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {kpiCards.map((kpi, i) => (
-          <Card key={i} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
+          <Card
+            key={i}
+            className="hover:shadow-md transition-shadow card-lift"
+            style={kpiAnim.getItemStyle(i)}
+          >
+            <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div className={cn("p-2 rounded-lg", kpi.bg)}>
-                  <kpi.icon className={cn("w-5 h-5", kpi.color)} />
+                  <kpi.icon className={cn("w-4 h-4", kpi.color)} />
                 </div>
               </div>
-              <div className="mt-3">
-                <p className="text-sm text-slate-500">{kpi.title}</p>
+              <div className="mt-2">
+                <p className="text-xs text-slate-500">{rtl ? kpi.titleAr : kpi.title}</p>
                 {statsLoading ? (
-                  <Skeleton className="h-7 w-24 mt-1" />
+                  <Skeleton className="h-6 w-20 mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold">
-                    {kpi.title === "Total Revenue"
+                  <p className="text-xl font-bold">
+                    {kpi.title === "Today's Sales"
                       ? Number(kpi.value).toLocaleString()
                       : kpi.value}
                     {kpi.suffix}
@@ -291,45 +326,46 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Operating Health</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {operatingHealth.map((item) => (
-              <div key={item.label} className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">{item.label}</span>
-                  <span className="font-semibold">{item.value}%</span>
-                </div>
-                <Progress value={item.value} className="[&>div]:bg-blue-600" />
-              </div>
-            ))}
+      {/* Quick Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <CreditCard className="size-4 text-blue-600" />
+              <p className="text-xs text-blue-700 font-medium">{rtl ? "ذمم مدينة" : "Receivables"}</p>
+            </div>
+            <p className="text-lg font-bold text-blue-800 mt-1">
+              {statsLoading ? "—" : `${totalRevenue.toLocaleString()} SAR`}
+            </p>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle className="text-base font-semibold">Automation Workflows</CardTitle>
-              <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
-                <Zap className="size-3" />
-                42 active rules
-              </Badge>
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <Wallet className="size-4 text-orange-600" />
+              <p className="text-xs text-orange-700 font-medium">{rtl ? "ذمم دائنة" : "Payables"}</p>
             </div>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3">
-            {workflows.map((workflow) => (
-              <div key={workflow.title} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between">
-                  <workflow.icon className="size-5 text-blue-600" />
-                  <span className="text-sm font-semibold">{workflow.progress}%</span>
-                </div>
-                <h3 className="mt-3 text-sm font-semibold">{workflow.title}</h3>
-                <p className="mt-2 text-xs leading-5 text-slate-500">{workflow.detail}</p>
-              </div>
-            ))}
+            <p className="text-lg font-bold text-orange-800 mt-1">
+              {statsLoading ? "—" : "0 SAR"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="size-4 text-emerald-600" />
+              <p className="text-xs text-emerald-700 font-medium">{rtl ? "الإيرادات" : "Revenue"}</p>
+            </div>
+            <p className="text-lg font-bold text-emerald-800 mt-1">{totalRevenue.toLocaleString()} SAR</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <Activity className="size-4 text-purple-600" />
+              <p className="text-xs text-purple-700 font-medium">{rtl ? "المشاريع النشطة" : "Active Projects"}</p>
+            </div>
+            <p className="text-lg font-bold text-purple-800 mt-1">{activeProjects}</p>
           </CardContent>
         </Card>
       </div>
@@ -338,7 +374,7 @@ export default function Dashboard() {
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Revenue by Month</CardTitle>
+            <CardTitle className="text-base font-semibold">{rtl ? "الإيرادات الشهرية" : "Revenue by Month"}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
@@ -347,7 +383,7 @@ export default function Dashboard() {
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
-                  formatter={(value: number) => [`${value.toLocaleString()} SAR`, "Revenue"]}
+                  formatter={(value: number) => [`${value.toLocaleString()} SAR`, rtl ? "الإيرادات" : "Revenue"]}
                   contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}
                 />
                 <Bar dataKey="amount" fill="#2563eb" radius={[4, 4, 0, 0]} />
@@ -358,24 +394,19 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Business Overview</CardTitle>
+            <CardTitle className="text-base font-semibold">{rtl ? "نظرة عامة" : "Business Overview"}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
                   data={[
-                    { name: "Revenue", value: stats?.totalRevenue || 1 },
-                    { name: "Payables", value: stats?.totalPayable || 1 },
-                    { name: "Customers", value: stats?.totalCustomers || 1 },
-                    { name: "Products", value: stats?.totalProducts || 1 },
+                    { name: rtl ? "الإيرادات" : "Revenue", value: stats?.totalRevenue || 1 },
+                    { name: rtl ? "المدينون" : "Receivables", value: stats?.totalCustomers || 1 },
+                    { name: rtl ? "الموردون" : "Payables", value: stats?.totalSuppliers || 1 },
+                    { name: rtl ? "الأصناف" : "Products", value: stats?.totalProducts || 1 },
                   ]}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
+                  cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value"
                 >
                   {COLORS.map((color, index) => (
                     <Cell key={`cell-${index}`} fill={color} />
@@ -393,15 +424,15 @@ export default function Dashboard() {
       <div className="grid lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Recent Invoices</CardTitle>
+            <CardTitle className="text-base font-semibold">{rtl ? "آخر الفواتير" : "Recent Invoices"}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentInvoices?.length === 0 && <p className="text-sm text-slate-500">No invoices yet</p>}
+              {recentInvoices?.length === 0 && <p className="text-sm text-slate-500">{rtl ? "لا توجد فواتير بعد" : "No invoices yet"}</p>}
               {recentInvoices?.slice(0, 5).map((inv) => (
                 <Link
                   key={inv.id}
-                  to={`/sales/invoices/${inv.id}`}
+                  to={`/app/sales/invoices`}
                   className="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
                 >
                   <div className="flex items-center gap-3">
@@ -431,16 +462,13 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Top Customers</CardTitle>
+            <CardTitle className="text-base font-semibold">{rtl ? "أفضل العملاء" : "Top Customers"}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {topCustomers?.length === 0 && <p className="text-sm text-slate-500">No customers yet</p>}
+              {topCustomers?.length === 0 && <p className="text-sm text-slate-500">{rtl ? "لا يوجد عملاء بعد" : "No customers yet"}</p>}
               {topCustomers?.slice(0, 5).map((cust, i) => (
-                <div
-                  key={cust.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-slate-50"
-                >
+                <div key={cust.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold">
                       {i + 1}
@@ -459,24 +487,29 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Exception Queue</CardTitle>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              {rtl ? "إجراءات مطلوبة" : "Exception Queue"}
+              <Badge variant="outline" className="text-[10px]">{alerts.length}</Badge>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {[
-              { label: "Invoices waiting approval", value: 12, tone: "bg-amber-50 text-amber-700" },
-              { label: "Stock below reorder point", value: stats?.lowStockItems || 0, tone: "bg-red-50 text-red-700" },
-              { label: "Tickets breaching SLA", value: 3, tone: "bg-blue-50 text-blue-700" },
-              { label: "Projects missing timesheets", value: 7, tone: "bg-cyan-50 text-cyan-700" },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between rounded-lg border p-3">
+              { label: rtl ? "فواتير في انتظار الموافقة" : "Invoices waiting approval", value: 12, tone: "bg-amber-50 text-amber-700", icon: FileText, path: "/app/sales/invoices" },
+              { label: rtl ? "أصناف منخفضة المخزون" : "Stock below reorder point", value: stats?.lowStockItems || 0, tone: "bg-red-50 text-red-700", icon: Package, path: "/app/inventory/stock" },
+              { label: rtl ? "مشاريع بدون سجلات وقت" : "Projects missing timesheets", value: 7, tone: "bg-cyan-50 text-cyan-700", icon: Clock, path: "/app/projects/timesheets" },
+              { label: rtl ? "تذاكر دعم متأخرة" : "Overdue support tickets", value: stats?.openTickets || 0, tone: "bg-blue-50 text-blue-700", icon: HeadphonesIcon, path: "/app/helpdesk/tickets" },
+              { label: rtl ? "أوامر شراء معلقة" : "Pending purchase orders", value: 2, tone: "bg-purple-50 text-purple-700", icon: ShoppingCart, path: "/app/purchase/orders" },
+              { label: rtl ? "إجازات في الانتظار" : "Pending leave requests", value: 3, tone: "bg-indigo-50 text-indigo-700", icon: Calendar, path: "/app/hrm/leave" },
+            ].filter(item => item.value > 0).map((item) => (
+              <Link key={item.label} to={item.path} className="flex items-center justify-between rounded-lg border p-3 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="size-4 text-slate-500" />
+                  <item.icon className="size-4 text-slate-500" />
                   <span className="text-sm text-slate-600">{item.label}</span>
                 </div>
                 <span className={cn("rounded-full px-2 py-1 text-xs font-semibold", item.tone)}>
                   {item.value}
                 </span>
-              </div>
+              </Link>
             ))}
           </CardContent>
         </Card>

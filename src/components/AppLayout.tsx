@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/providers/language";
 import { useCountryDetection } from "@/providers/country-detection";
+import { trpc } from "@/providers/trpc";
 
 import {
   LayoutDashboard,
@@ -33,7 +34,6 @@ import {
   Languages,
   Search,
   Bell,
-  Plus,
   ShieldCheck,
   Command,
   Rocket,
@@ -43,15 +43,18 @@ import {
   Wallet,
   CalendarCheck,
   CreditCard,
-  HelpCircle,
-  Newspaper,
   Sparkles,
   Key,
   Palette,
   FileText,
+  User,
+  X,
+  ChevronDown,
 } from "lucide-react";
 
 import { AiAssistantPanel } from "./AiAssistantPanel";
+import { SyncStatusBar } from "./sync/SyncStatusBar";
+import { VoiceCommandButton, VoiceCommandHeaderButton } from "./VoiceCommand";
 
 const menuGroups = [
   {
@@ -126,6 +129,7 @@ const menuGroups = [
       { label: "Attendance", labelAr: "الحضور", icon: Briefcase, path: "/app/hrm/attendance" },
       { label: "Leave Management", labelAr: "إدارة الإجازات", icon: Briefcase, path: "/app/hrm/leave" },
       { label: "Payroll", labelAr: "الرواتب", icon: Landmark, path: "/app/hrm/payroll" },
+      { label: "Saudi GOSI Payroll", labelAr: "الرواتب والتأمينات", icon: ShieldCheck, path: "/app/hrm/saudi-payroll" },
       { label: "Performance", labelAr: "الأداء", icon: BarChart3, path: "/app/hrm/performance" },
     ],
   },
@@ -169,8 +173,13 @@ const menuGroups = [
     titleAr: "النظام",
     items: [
       { label: "Reports", labelAr: "التقارير", icon: BarChart3, path: "/app/reports" },
+      { label: "Financial Statements", labelAr: "القوائم المالية", icon: Receipt, path: "/app/reports/financial" },
+      { label: "ZATCA Dashboard", labelAr: "لوحة الزكاة والضريبة", icon: ShieldCheck, path: "/app/reports/zatca-dashboard" },
       { label: "ZATCA Status", labelAr: "حالة الفوترة", icon: ShieldCheck, path: "/app/reports/zatca-status" },
+      { label: "Sync Status", labelAr: "حالة المزامنة", icon: Workflow, path: "/app/sync/queue" },
       { label: "Master Control", labelAr: "التحكم الرئيسي", icon: ShieldCheck, path: "/app/admin/master-control" },
+      { label: "Company Profile", labelAr: "ملف الشركة", icon: Palette, path: "/app/settings/company-profile" },
+      { label: "Branches", labelAr: "الفروع", icon: Building2, path: "/app/branches" },
       { label: "Settings", labelAr: "الإعدادات", icon: Settings, path: "/app/settings" },
       { label: "Company Legal Info", labelAr: "بيانات الشركة القانونية", icon: Building2, path: "/app/settings/company-legal-information" },
       { label: "ZATCA Integration", labelAr: "ربط هيئة الزكاة", icon: ShieldCheck, path: "/app/settings/zatca-integration" },
@@ -202,54 +211,133 @@ const SidebarContent = memo(function SidebarContent({ collapsed, onNavigate }: {
   const { language, setLang, dir } = useLanguage();
   const { user } = useAuth();
   const rtl = language === "ar";
+  const { data: companySettings } = trpc.settings.companySettingsGet.useQuery();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const userAdminItems = adminMenuItems.filter(item => item.roles.includes(user?.role || ""));
 
+  const displayName = companySettings?.companyName || "YASCO ERP";
+  const displayAr = companySettings?.companyNameAr;
+  const logo = companySettings?.logo;
+  const initials = displayName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+
+  // Filter menu items by search query
+  const allItems = menuGroups.flatMap(g => g.items.map(item => ({ ...item, group: rtl ? g.titleAr : g.title })));
+  const filteredItems = searchQuery.trim()
+    ? allItems.filter(item =>
+        item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.labelAr.includes(searchQuery)
+      )
+    : null;
+
   return (
     <div dir={dir} className="flex h-full min-h-0 flex-col bg-slate-900 text-white">
+      {/* Logo */}
       <div className={cn("flex items-center gap-3 p-4 border-b border-slate-700", collapsed && "justify-center p-3")}>
-        <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-sm">YA</div>
+        {logo ? (
+          <img src={logo} alt={displayName} className="w-8 h-8 rounded-lg object-contain bg-white" />
+        ) : (
+          <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-sm">{initials}</div>
+        )}
         {!collapsed && (
           <div className="min-w-0">
-            <span className="block font-bold text-lg tracking-tight leading-5">YASCO</span>
-            <span className="text-[11px] text-slate-400">Enterprise OS</span>
+            <span className="block font-bold text-lg tracking-tight leading-5 truncate">{displayName}</span>
+            {displayAr && <span className="block text-[11px] text-slate-400 truncate" dir="rtl">{displayAr}</span>}
+            {!displayAr && <span className="text-[11px] text-slate-400">Enterprise ERP</span>}
           </div>
         )}
       </div>
+
+      {/* Search */}
+      {!collapsed && (
+        <div className="px-3 py-2 border-b border-slate-800">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={rtl ? "ابحث في القائمة..." : "Search menu..."}
+              className="w-full bg-slate-800 text-slate-200 text-xs pl-8 pr-3 py-2 rounded-lg outline-none placeholder:text-slate-500 focus:ring-1 focus:ring-emerald-500"
+              aria-label="Search menu items"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                <X className="size-3" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <nav
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 pr-1 scrollbar-thin scrollbar-track-slate-900 scrollbar-thumb-slate-700"
         aria-label={rtl ? "قائمة النظام" : "ERP navigation"}
       >
-        {menuGroups.map((group) => (
-          <div key={group.title} className="mb-3">
-            {!collapsed && (
-              <div className="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                {rtl ? group.titleAr : group.title}
-              </div>
+        {/* Search results */}
+        {filteredItems ? (
+          <div className="mb-3">
+            {filteredItems.length === 0 ? (
+              <p className="px-4 py-3 text-xs text-slate-400">{rtl ? "لا توجد نتائج" : "No results found"}</p>
+            ) : (
+              filteredItems.map((item) => {
+                const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => { setSearchQuery(""); onNavigate?.(); }}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 text-sm transition-colors hover:bg-slate-800",
+                      isActive && "bg-emerald-600/20 text-emerald-400",
+                      isActive && (rtl ? "border-l-2 border-emerald-500" : "border-r-2 border-emerald-500"),
+                      !isActive && "text-slate-300",
+                    )}
+                  >
+                    <item.icon className="w-4 h-4 shrink-0" />
+                    <div className="min-w-0">
+                      <span className="truncate block">{rtl ? item.labelAr : item.label}</span>
+                      <span className="text-[10px] text-slate-500">{item.group}</span>
+                    </div>
+                  </Link>
+                );
+              })
             )}
-            {group.items.map((item) => {
-              const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={onNavigate}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-2 text-sm transition-colors hover:bg-slate-800",
-                    isActive && "bg-emerald-600/20 text-emerald-400",
-                    isActive && (rtl ? "border-l-2 border-emerald-500" : "border-r-2 border-emerald-500"),
-                    !isActive && "text-slate-300",
-                    collapsed && "justify-center px-3"
-                  )}
-                >
-                  <item.icon className={cn("shrink-0", collapsed ? "w-5 h-5" : "w-4 h-4")} />
-                  {!collapsed && <span className="truncate">{rtl ? item.labelAr : item.label}</span>}
-                </Link>
-              );
-            })}
           </div>
-        ))}
-        {userAdminItems.length > 0 && (
+        ) : (
+          menuGroups.map((group) => (
+            <div key={group.title} className="mb-3">
+              {!collapsed && (
+                <div className="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                  {rtl ? group.titleAr : group.title}
+                </div>
+              )}
+              {group.items.map((item) => {
+                const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={onNavigate}
+                    title={collapsed ? (rtl ? item.labelAr : item.label) : undefined}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 text-sm transition-colors hover:bg-slate-800",
+                      isActive && "bg-emerald-600/20 text-emerald-400",
+                      isActive && (rtl ? "border-l-2 border-emerald-500" : "border-r-2 border-emerald-500"),
+                      !isActive && "text-slate-300",
+                      collapsed && "justify-center px-3"
+                    )}
+                  >
+                    <item.icon className={cn("shrink-0", collapsed ? "w-5 h-5" : "w-4 h-4")} />
+                    {!collapsed && <span className="truncate">{rtl ? item.labelAr : item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          ))
+        )}
+
+        {userAdminItems.length > 0 && !filteredItems && (
           <div className="mb-3">
             {!collapsed && (
               <div className="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
@@ -263,6 +351,7 @@ const SidebarContent = memo(function SidebarContent({ collapsed, onNavigate }: {
                   key={item.path}
                   to={item.path}
                   onClick={onNavigate}
+                  title={collapsed ? (rtl ? item.labelAr : item.label) : undefined}
                   className={cn(
                     "flex items-center gap-3 px-4 py-2 text-sm transition-colors hover:bg-slate-800",
                     isActive && "bg-emerald-600/20 text-emerald-400",
@@ -279,6 +368,8 @@ const SidebarContent = memo(function SidebarContent({ collapsed, onNavigate }: {
           </div>
         )}
       </nav>
+
+      {/* Bottom Actions */}
       <div className={cn("border-t border-slate-700 p-3", collapsed && "p-2")}>
         <Button
           variant="ghost"
@@ -297,6 +388,89 @@ const SidebarContent = memo(function SidebarContent({ collapsed, onNavigate }: {
   );
 });
 
+// User Profile Dropdown Component
+function UserProfileDropdown({ user, logout, rtl }: { user: { name?: string; role?: string } | null; logout: () => void; rtl: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const initials = (user?.name || "U").slice(0, 2).toUpperCase();
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 rounded-full hover:bg-white/10 transition-colors p-1 pr-2"
+        aria-label="User menu"
+        aria-expanded={open}
+      >
+        <div className="w-7 h-7 rounded-full bg-emerald-600 border border-white/20 flex items-center justify-center text-white text-xs font-medium">
+          {initials}
+        </div>
+        <span className="text-xs text-white hidden xl:block max-w-20 truncate">{user?.name || ""}</span>
+        <ChevronDown className="size-3 text-white/70 hidden xl:block" />
+      </button>
+
+      {open && (
+        <div className={cn(
+          "absolute top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50",
+          rtl ? "left-0" : "right-0"
+        )}>
+          {/* User info */}
+          <div className="px-3 py-2 border-b border-slate-100">
+            <p className="text-sm font-semibold text-slate-800 truncate">{user?.name || "User"}</p>
+            <p className="text-xs text-slate-500 capitalize">{user?.role || "user"}</p>
+          </div>
+
+          <Link
+            to="/app/settings/company-profile"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <Building2 className="size-4 text-slate-400" />
+            {rtl ? "ملف الشركة" : "Company Profile"}
+          </Link>
+          <Link
+            to="/app/settings"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <Settings className="size-4 text-slate-400" />
+            {rtl ? "الإعدادات" : "Settings"}
+          </Link>
+          <Link
+            to="/app/setup-wizard"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <Sparkles className="size-4 text-slate-400" />
+            {rtl ? "معالج الإعداد" : "Setup Wizard"}
+          </Link>
+
+          <div className="border-t border-slate-100 mt-1 pt-1">
+            <button
+              onClick={() => { setOpen(false); logout(); }}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors w-full text-start"
+            >
+              <LogOut className="size-4" />
+              {rtl ? "تسجيل الخروج" : "Sign out"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -306,12 +480,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const countryDetection = useCountryDetection();
   const rtl = language === "ar";
   const theme = countryThemes[countryDetection.selectedCountry] ?? countryThemes.US;
-  const activeItem = menuGroups.flatMap(g => g.items).find(i => i.path === location.pathname);
+
+  // Breadcrumb: find active item label
+  const allNavItems = menuGroups.flatMap(g => g.items);
+  const activeItem = allNavItems.find(i => location.pathname === i.path || location.pathname.startsWith(i.path + "/"));
 
   if (isLoading && !user) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
-        Checking secure session...
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-white text-sm mx-auto">YA</div>
+          <p className="text-sm text-slate-500">Checking secure session...</p>
+        </div>
       </div>
     );
   }
@@ -321,20 +501,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden h-dvh lg:block transition-all duration-300 shrink-0",
+          "hidden h-dvh lg:block transition-all duration-300 shrink-0 overflow-y-auto",
           collapsed ? "w-16" : "w-64"
         )}
       >
-        <div className={cn("sticky top-0 h-dvh", collapsed ? "w-16" : "w-64")}>
-          <SidebarContent collapsed={collapsed} />
-        </div>
+        <SidebarContent collapsed={collapsed} />
       </aside>
 
       {/* Mobile Sidebar */}
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild className="lg:hidden">
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger asChild className="lg:hidden">
           <Button variant="ghost" size="icon" className={cn("absolute top-3 z-50", rtl ? "right-3" : "left-3")}>
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5 text-white" />
           </Button>
         </SheetTrigger>
         <SheetContent side={rtl ? "right" : "left"} className="h-dvh p-0 w-64">
@@ -352,6 +530,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               size="icon"
               className="hidden lg:flex hover:bg-white/10 text-white"
               onClick={() => setCollapsed(!collapsed)}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </Button>
@@ -364,19 +543,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </p>
             </div>
           </div>
+
+          {/* Search Bar */}
           <div className="order-3 w-full md:order-none md:w-[360px] lg:w-[460px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-emerald-100" />
               <Input
                 aria-label="Search records and actions"
                 className="h-10 rounded-full border-white/20 bg-white/10 text-white placeholder:text-emerald-100/70 pl-9 pr-20 focus-visible:ring-emerald-400"
-                placeholder={rtl ? "ابحث في الفواتير والعملاء والمخزون والتقارير..." : "Search invoices, customers, stock, reports..."}
+                placeholder={rtl ? "ابحث في الفواتير والعملاء والمخزون..." : "Search invoices, customers, stock..."}
               />
               <div className="absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-full bg-white/20 px-2 py-1 text-[11px] text-white sm:flex">
                 <Command className="size-3" /> K
               </div>
             </div>
           </div>
+
+          {/* Right Actions */}
           <div className="flex items-center gap-2">
             <Badge variant="outline" className={cn("hidden lg:inline-flex", theme.badge)}>
               {countryDetection.countryFlag}
@@ -387,7 +570,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <ShieldCheck className="size-3 mr-1" />
               {rtl ? `مرخص: ${theme.product}` : `Licensed: ${theme.product}`}
             </Badge>
-            <AiAssistantPanel 
+            <AiAssistantPanel
               trigger={
                 <Button variant="outline" size="sm" className="hidden sm:inline-flex border-white/20 bg-white/10 hover:bg-white/20 text-white hover:text-white">
                   <Sparkles className="size-4 mr-1" />
@@ -395,17 +578,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </Button>
               }
             />
+            {/* Voice Command Header Button */}
+            <VoiceCommandHeaderButton />
+
             <Button variant="ghost" size="icon" aria-label="Notifications" className="relative hover:bg-white/10 text-white">
               <Bell className="size-4" />
               <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500" />
             </Button>
-            <span className="text-xs text-emerald-100 hidden xl:block">{user?.name || "Al Watan Trading Co."}</span>
-            <div className="w-8 h-8 rounded-full bg-emerald-600 border border-white/20 flex items-center justify-center text-white text-xs font-medium">
-              {(user?.name || "AW").slice(0, 2).toUpperCase()}
-            </div>
-            <Button variant="ghost" size="icon" aria-label={rtl ? "تسجيل الخروج" : "Sign out"} onClick={logout} className="hover:bg-white/10 text-white">
-              <LogOut className="size-4" />
-            </Button>
+            <SyncStatusBar />
+
+            {/* User Profile Dropdown */}
+            <UserProfileDropdown user={user} logout={logout} rtl={rtl} />
           </div>
         </header>
 
@@ -414,6 +597,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* Floating Voice Command Button */}
+      <VoiceCommandButton />
     </div>
   );
 }

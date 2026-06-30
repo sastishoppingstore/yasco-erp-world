@@ -6,12 +6,19 @@ use std::{
   time::{Duration, Instant},
 };
 
+use commands::{
+  biometric::{capture_face, enroll_fingerprint, get_biometric_devices, verify_fingerprint},
+  hardware_fingerprint::{get_cpu_id, get_disk_serial, get_hardware_id, get_mac_address},
+  pos_printer::{get_printer_list, open_cash_drawer, print_barcode, print_receipt},
+};
 use tauri::Manager;
 use tauri_plugin_shell::{
   process::{CommandChild, CommandEvent},
   ShellExt,
 };
 use tauri_plugin_sql::{Migration, MigrationKind};
+
+mod commands;
 
 struct BackendChild(Option<CommandChild>);
 
@@ -34,6 +41,20 @@ pub fn run() {
         .add_migrations("sqlite:erp.db", get_migrations())
         .build(),
     )
+    .invoke_handler(tauri::generate_handler![
+      print_receipt,
+      print_barcode,
+      open_cash_drawer,
+      get_printer_list,
+      enroll_fingerprint,
+      verify_fingerprint,
+      capture_face,
+      get_biometric_devices,
+      get_hardware_id,
+      get_cpu_id,
+      get_disk_serial,
+      get_mac_address,
+    ])
     .setup(|app| {
       start_local_backend(app)?;
 

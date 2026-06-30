@@ -1,10 +1,12 @@
 {
-  "generatedFor": "Global ERP Platform Build Strategy 2025-2026",
+  "generatedFor": "YASCO ERP — Complete Saudi Market ERP",
   "rule": "Preserve existing routes, APIs, tables, buttons, admin settings, reports and workflows; enhance through compliance layers.",
   "stack": {
-    "frontend": "React + TypeScript + Vite + Tailwind",
-    "backend": "Hono + tRPC + TypeScript",
-    "database": "Drizzle ORM / MySQL schema",
+    "frontend": "React 19 + TypeScript + Vite + Tailwind + shadcn/ui",
+    "backend": "Hono + tRPC + TypeScript + Drizzle ORM",
+    "database": "MySQL via Drizzle ORM (273 tables)",
+    "queue": "BullMQ + Redis (7 queues)",
+    "desktop": "Tauri v2 + Rust native commands (biometric, POS printer, HW fingerprint)",
     "package": "single workspace package"
   },
   "features": [
@@ -17,9 +19,9 @@
     },
     {
       "name": "Authentication and login",
-      "locations": ["src/pages/Login.tsx", "api/auth-router.ts", "src/hooks/useAuth.ts"],
+      "locations": ["src/pages/Login.tsx", "api/auth-router.ts", "src/stores/authStore.ts"],
       "status": "working",
-      "dependencies": ["Kimi auth/session helpers", "users table"],
+      "dependencies": ["JWT auth", "session management", "RBAC"],
       "strategy": "enhance with JWT refresh, 2FA, device tracking and super-admin separation"
     },
     {
@@ -37,25 +39,46 @@
       "strategy": "enhance; legal tax country remains company/branch/admin confirmed"
     },
     {
+      "name": "Zustand state management",
+      "locations": ["src/stores/authStore.ts", "src/stores/appStore.ts", "src/stores/themeStore.ts"],
+      "status": "working",
+      "dependencies": ["zustand", "zustand/middleware persist"],
+      "strategy": "3 stores with localStorage persist (auth, app, theme)"
+    },
+    {
+      "name": "i18next internationalization",
+      "locations": ["src/i18n/index.ts", "src/i18n/locales/en.json", "src/i18n/locales/ar.json"],
+      "status": "working",
+      "dependencies": ["i18next", "react-i18next", "i18next-browser-languagedetector"],
+      "strategy": "Arabic/English with RTL DirectionProvider and browser detection"
+    },
+    {
+      "name": "Hijri calendar utility",
+      "locations": ["src/lib/hijri.ts"],
+      "status": "working",
+      "dependencies": ["hijri-js"],
+      "strategy": "Gregorian/Hijri conversion with Arabic/English month names"
+    },
+    {
       "name": "Accounting",
       "locations": ["src/pages/accounting/*", "api/accountingRouter.ts", "db/schema.ts"],
-      "status": "partial",
-      "dependencies": ["chart_of_accounts", "journal_entries", "cost_centers"],
+      "status": "working",
+      "dependencies": ["chart_of_accounts", "journal_entries", "cost_centers", "fiscal_years"],
       "strategy": "enhance with bank reconciliation, fixed assets, closing, consolidated reports and country COA templates"
     },
     {
       "name": "Sales and invoicing",
       "locations": ["src/pages/sales/*", "api/salesRouter.ts", "db/schema.ts"],
-      "status": "partial",
-      "dependencies": ["customers", "invoices", "invoice_items", "company_settings"],
-      "strategy": "enhance with universal invoice engine, delivery notes, recurring invoices, payments, reminders and portals"
+      "status": "working",
+      "dependencies": ["customers", "quotations", "orders", "invoices", "credit_notes", "payments"],
+      "strategy": "enhance with universal invoice engine, delivery notes, recurring invoices, reminders and portals"
     },
     {
-      "name": "Saudi VAT and ZATCA readiness",
-      "locations": ["api/taxComplianceRouter.ts", "src/pages/settings/TaxComplianceSettings.tsx", "src/pages/sales/invoices.tsx"],
-      "status": "partial",
-      "dependencies": ["company_settings", "tax_integrations", "tax_credentials", "tax_submissions", "e_invoice_documents"],
-      "strategy": "enhance to certified Phase 2 connector: CSID, PCSID, signing, clearance/reporting, PDF/A-3, archive"
+      "name": "Saudi VAT and ZATCA Phase 2",
+      "locations": ["api/lib/zatca/", "api/zatcaRouter.ts", "api/taxComplianceRouter.ts"],
+      "status": "working",
+      "dependencies": ["xmlBuilder", "signingEngine (secp256k1)", "certificates", "hashChain (PIH)", "clearance", "archiving (6yr)", "validator", "waveConfig", "onboarding", "pdfGenerator (PDF/A-3)"],
+      "strategy": "Full Phase 2: CSID/PCSID onboarding, ECDSA signing, UBL 2.1 XML, hash chain with PIH, 9-tag QR TLV, clearance/reporting, PDF/A-3 generation, 6-year archiving"
     },
     {
       "name": "Pakistan FBR readiness",
@@ -72,74 +95,200 @@
       "strategy": "enhance with TRN validation, VAT return workflow, reverse charge, zero-rated/exempt flows"
     },
     {
-      "name": "POS",
-      "locations": ["src/pages/pos/index.tsx", "api/posRouter.ts"],
-      "status": "partial",
+      "name": "POS (Retail, Restaurant, Pharmacy, Wholesale)",
+      "locations": ["src/pages/pos/*", "api/posRouter.ts", "api/posRestaurantRouter.ts", "api/posPharmacyRouter.ts", "api/posWholesaleRouter.ts"],
+      "status": "working",
       "dependencies": ["products", "inventory_balances", "pos_sessions", "cashbox_transactions", "invoices"],
       "strategy": "enhance with offline sync, thermal print templates, Saudi QR receipts and device integrations"
     },
     {
-      "name": "Inventory and warehouse",
-      "locations": ["src/pages/inventory/*", "api/inventoryRouter.ts", "db/schema.ts"],
-      "status": "partial",
-      "dependencies": ["products", "warehouses", "inventory_balances", "stock_movements"],
-      "strategy": "enhance with valuation, serial/batch depth, bins, cycle counts, reorder automation"
-    },
-    {
       "name": "Purchase and suppliers",
       "locations": ["src/pages/purchase/*", "api/purchaseRouter.ts"],
-      "status": "partial",
+      "status": "working",
       "dependencies": ["suppliers", "purchase_orders", "goods_received_notes", "supplier_payments"],
       "strategy": "enhance with RFQ, comparison, landed cost and three-way matching"
     },
     {
+      "name": "Inventory and warehouse",
+      "locations": ["src/pages/inventory/*", "api/inventoryRouter.ts", "db/schema.ts"],
+      "status": "working",
+      "dependencies": ["products", "warehouses", "inventory_balances", "stock_movements", "transfers"],
+      "strategy": "enhance with valuation, serial/batch depth, bins, cycle counts, reorder automation"
+    },
+    {
       "name": "CRM",
       "locations": ["src/pages/crm/*", "api/crmRouter.ts"],
-      "status": "partial",
-      "dependencies": ["leads", "opportunities", "crm_activities", "customers"],
+      "status": "working",
+      "dependencies": ["leads", "opportunities", "activities"],
       "strategy": "enhance with scoring, automation, territories, campaigns and customer portal"
     },
     {
-      "name": "HR and payroll",
-      "locations": ["src/pages/hrm/*", "api/hrmRouter.ts"],
-      "status": "partial",
-      "dependencies": ["employees", "attendance", "leave_requests", "salary_slips"],
-      "strategy": "enhance with Saudi GOSI/WPS, Pakistan EOBI/SESSI, UAE gratuity and payroll posting"
+      "name": "HR and payroll (Saudi)",
+      "locations": ["src/pages/hrm/*", "api/hrmRouter.ts", "api/gosiRouter.ts", "api/wpsRouter.ts", "api/eosbRouter.ts"],
+      "status": "working",
+      "dependencies": ["employees", "attendance", "leave", "payroll", "GOSI (new/old)", "WPS file gen", "EOSB accrual", "Qiwa", "Nitaqat"],
+      "strategy": "enhance with Pakistan EOBI/SESSI, UAE gratuity and payroll posting"
+    },
+    {
+      "name": "Saudi compliance (GOSI/WPS/Qiwa/Nitaqat/EOSB)",
+      "locations": ["api/saudiComplianceRouter.ts", "api/gosiRouter.ts", "api/wpsRouter.ts", "api/eosbRouter.ts", "api/lib/gosi.ts", "api/lib/wps.ts", "api/lib/qiwa.ts", "api/lib/nitaqat.ts"],
+      "status": "working",
+      "dependencies": ["employee data", "salary data", "GOSI rate tables", "WPS file format", "Qiwa API", "Nitaqat bands"],
+      "strategy": "Full Saudi labor law compliance engine"
+    },
+    {
+      "name": "Biometric PDPL compliance",
+      "locations": ["api/biometricRouter.ts", "api/lib/pdpl.ts", "db/schema.ts (pdpl_data_subject_requests, biometric_*)"],
+      "status": "working",
+      "dependencies": ["AES-256-GCM encryption", "consent management", "data subject requests"],
+      "strategy": "Saudi PDPL-compliant biometric data handling with encryption and consent"
     },
     {
       "name": "Manufacturing",
       "locations": ["src/pages/manufacturing/*", "api/manufacturingRouter.ts"],
-      "status": "partial",
+      "status": "working",
       "dependencies": ["bill_of_materials", "work_orders", "production_orders"],
       "strategy": "enhance with MRP, routing, shop floor, quality, scrap and costing"
     },
     {
       "name": "Projects",
       "locations": ["src/pages/projects/*", "api/projectsRouter.ts"],
-      "status": "partial",
+      "status": "working",
       "dependencies": ["projects", "tasks", "timesheets"],
       "strategy": "enhance with Gantt, billing, project P&L and resource planning"
     },
     {
+      "name": "Construction module (enhanced)",
+      "locations": ["src/pages/construction/*", "api/constructionRouter.ts", "db/schema.ts (19 new tables)"],
+      "status": "working",
+      "dependencies": ["WBS 4-level", "BOQ import", "contracts (5 types)", "variation orders", "advance payments", "CVR", "decennial liability", "daily reports", "SBC/SCA/GTPL", "HSE/heat stress/safety/PPE", "engineering saudization", "equipment schedule", "material requirements"],
+      "strategy": "Full Saudi construction module with SBC/SCA/GTPL compliance"
+    },
+    {
       "name": "Helpdesk",
-      "locations": ["src/pages/helpdesk/tickets.tsx", "api/helpdeskRouter.ts"],
-      "status": "partial",
-      "dependencies": ["support_tickets"],
+      "locations": ["src/pages/helpdesk/*", "api/helpdeskRouter.ts"],
+      "status": "working",
+      "dependencies": ["support_tickets", "SLA"],
       "strategy": "enhance with SLA, email/WhatsApp-to-ticket, escalation and CSAT"
+    },
+    {
+      "name": "Fixed assets and fleet",
+      "locations": ["src/pages/assets/*", "api/assetsRouter.ts"],
+      "status": "working",
+      "dependencies": ["fixed_assets", "depreciation", "fleet", "fuel_tracking"],
+      "strategy": "enhance with maintenance schedules, disposal workflows"
+    },
+    {
+      "name": "AI Assistant",
+      "locations": ["src/components/AiAssistantPanel.tsx", "api/aiAssistantRouter.ts", "api/aiChatbotRouter.ts", "api/aiVoiceRouter.ts", "api/aiAutomationRouter.ts"],
+      "status": "working",
+      "dependencies": ["Gemini AI", "voice STT/TTS", "chatbot", "reports", "forecasting", "automation rules"],
+      "strategy": "permission-aware AI with voice, chat, report generation, and automation"
     },
     {
       "name": "Master Control",
       "locations": ["src/pages/admin/master-control.tsx", "api/masterRouter.ts"],
       "status": "working",
       "dependencies": ["audit_logs", "company_settings", "module_registry"],
-      "strategy": "preserve; use as implementation control board for remaining roadmap"
+      "strategy": "implementation control board for remaining roadmap"
     },
     {
-      "name": "AI assistant",
-      "locations": ["src/components/AiAssistantPanel.tsx", "api/aiAssistantRouter.ts"],
-      "status": "partial",
-      "dependencies": ["module data", "tenant records", "role context"],
-      "strategy": "enhance with strict permission-aware answers and OCR/report insights"
+      "name": "Redis caching + BullMQ queues",
+      "locations": ["api/lib/redis.ts", "api/queue/"],
+      "status": "working",
+      "dependencies": ["ioredis", "bullmq", "7 queues (email, tax, report, export, backup, maintenance, cleanup)"],
+      "strategy": "Production-grade caching, rate limiting, session store with queue workers"
+    },
+    {
+      "name": "Tauri desktop app",
+      "locations": ["src-tauri/src/commands/", "src-tauri/src/lib.rs"],
+      "status": "working",
+      "dependencies": ["POS printer (ESC/POS)", "biometric (ZKTeco)", "hardware fingerprint", "SQLite offline"],
+      "strategy": "100% offline-capable desktop with native hardware access"
+    },
+    {
+      "name": "Sync engine",
+      "locations": ["api/syncRouter.ts", "api/syncEnhancedRouter.ts", "api/lib/sync/"],
+      "status": "working",
+      "dependencies": ["push/pull engine", "delta sync", "conflict resolution"],
+      "strategy": "Bidirectional sync with offline-first support"
+    },
+    {
+      "name": "Licensing engine",
+      "locations": ["api/licenseRouter.ts", "api/licenseKeyRouter.ts", "api/licenseAdminRouter.ts", "api/lib/license.ts", "api/lib/hardwareFingerprint.ts", "api/lib/timeGuard.ts"],
+      "status": "working",
+      "dependencies": ["ECDSA-signed licenses", "hardware fingerprint", "clock rollback detection", "time-locked keys"],
+      "strategy": "Monetization engine with device binding and tamper protection"
+    },
+    {
+      "name": "Dashboard/Report builder",
+      "locations": ["api/dashboardBuilderRouter.ts", "api/reportBuilderRouter.ts", "src/pages/admin/workflows/"],
+      "status": "working",
+      "dependencies": ["drag-drop builder", "chart widgets", "data sources"],
+      "strategy": "Custom BI dashboards and report builder"
+    },
+    {
+      "name": "Workflow engine",
+      "locations": ["api/workflowRouter.ts", "api/workflowBuilderRouter.ts", "api/lib/workflowEngine.ts"],
+      "status": "working",
+      "dependencies": ["state machine", "actions", "conditions", "audit log"],
+      "strategy": "Custom approval and automation workflows"
+    },
+    {
+      "name": "Document management + e-signatures",
+      "locations": ["api/documentRouter.ts", "api/lib/documentEngine.ts", "api/lib/eSignatureEngine.ts", "src/pages/documents/*"],
+      "status": "working",
+      "dependencies": ["S3 upload", "versioning", "audit trail", "electronic signatures"],
+      "strategy": "Full document lifecycle with e-signature support"
+    },
+    {
+      "name": "SaaS/Registration/SuperAdmin",
+      "locations": ["api/saasRouter.ts", "api/registrationRouter.ts", "api/superAdminRouter.ts"],
+      "status": "working",
+      "dependencies": ["multi-tenant", "plan management", "reseller system", "company onboarding"],
+      "strategy": "Multi-tenant SaaS platform with reseller management"
+    },
+    {
+      "name": "Vertical modules",
+      "locations": ["api/healthcareRouter.ts", "api/educationRouter.ts", "api/hotelRouter.ts", "api/transportRouter.ts", "api/realEstateRouter.ts", "api/travelRouter.ts", "api/aviationRouter.ts"],
+      "status": "working",
+      "dependencies": ["industry-specific tables and endpoints"],
+      "strategy": "7 verticals with dedicated routers and frontend pages"
+    },
+    {
+      "name": "Portals (Customer/Vendor/Employee)",
+      "locations": ["api/portal*Router.ts", "src/pages/portal/*"],
+      "status": "working",
+      "dependencies": ["self-service", "invoice view", "ticketing", "payslips"],
+      "strategy": "Multi-portal self-service for external users"
+    },
+    {
+      "name": "IoT device management",
+      "locations": ["api/iotRouter.ts", "src/pages/iot/*"],
+      "status": "working",
+      "dependencies": ["device registry", "telemetry", "alerts"],
+      "strategy": "IoT sensor and device monitoring"
+    },
+    {
+      "name": "Plugin system",
+      "locations": ["api/pluginRouter.ts", "src/pages/admin/plugins/*"],
+      "status": "working",
+      "dependencies": ["plugin registry", "lifecycle management"],
+      "strategy": "Extensible plugin architecture"
+    },
+    {
+      "name": "Mobile app APIs",
+      "locations": ["api/mobileRouter.ts"],
+      "status": "working",
+      "dependencies": ["mobile-optimized endpoints"],
+      "strategy": "Mobile app backend APIs"
+    },
+    {
+      "name": "Notifications engine",
+      "locations": ["api/notificationRouter.ts", "api/notificationEnhancedRouter.ts"],
+      "status": "working",
+      "dependencies": ["email", "in-app", "templates"],
+      "strategy": "Multi-channel notification system with templates"
     }
   ]
 }

@@ -1,9 +1,10 @@
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router";
-import { Building2, ShoppingBag, Package, CreditCard } from "lucide-react";
+import { Building2, ShoppingBag, Package, CreditCard, FileText } from "lucide-react";
 
 export default function PurchasePage() {
   const modules = [
+    { title: "Requisitions", desc: "Purchase requests & approvals", icon: FileText, path: "/app/purchase/requisitions", color: "bg-amber-600" },
     { title: "Suppliers", desc: "Vendor management", icon: Building2, path: "/app/purchase/suppliers", color: "bg-blue-600" },
     { title: "Purchase Orders", desc: "Create and track POs", icon: ShoppingBag, path: "/app/purchase/orders", color: "bg-emerald-600" },
     { title: "Goods Receipt", desc: "GRN management", icon: Package, path: "/app/purchase/grn", color: "bg-purple-600" },

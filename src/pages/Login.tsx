@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router";
-import { Building2, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { useNavigate, Link } from "react-router";
+import { Building2, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, Info } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +10,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function Login() {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
-  const [username, setUsername] = useState("wafaweb");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [message, setMessage] = useState("");
@@ -67,7 +70,8 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <div className="grid min-h-screen lg:grid-cols-[1fr_460px]">
+      <div className="grid min-h-screen lg:grid-cols-[1fr_480px]">
+        {/* Left Panel — Branding */}
         <section className="flex items-center px-6 py-10 lg:px-12">
           <div className="max-w-3xl space-y-7">
             <div className="flex items-center gap-3">
@@ -103,9 +107,22 @@ export default function Login() {
                 </div>
               ))}
             </div>
+
+            {/* Demo credentials hint */}
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4 flex gap-3">
+              <Info className="size-4 text-blue-300 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-blue-200">Default Admin Credentials</p>
+                <p className="text-xs text-blue-300 mt-1">
+                  Username: <code className="font-mono bg-blue-900/50 px-1 rounded">wafaweb</code>
+                  {" "}· Password set in <code className="font-mono bg-blue-900/50 px-1 rounded">.env</code> as <code className="font-mono bg-blue-900/50 px-1 rounded">ADMIN_PASSWORD</code>
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
+        {/* Right Panel — Login Form */}
         <section className="flex items-center justify-center bg-white px-4 py-8 text-slate-950">
           <Card className="w-full max-w-md border-slate-200 shadow-xl">
             <CardHeader>
@@ -122,6 +139,7 @@ export default function Login() {
                   <TabsTrigger value="otp">Email OTP</TabsTrigger>
                 </TabsList>
 
+                {/* Password Tab */}
                 <TabsContent value="password" className="mt-5">
                   <form onSubmit={onPasswordSubmit} className="space-y-4">
                     <div className="space-y-2">
@@ -131,21 +149,50 @@ export default function Login() {
                         autoComplete="username"
                         value={username}
                         onChange={(event) => setUsername(event.target.value)}
-                        placeholder="wafaweb"
+                        placeholder="Enter your username"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        autoComplete="current-password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="Enter admin password"
-                        required
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Password</Label>
+                        <Link
+                          to="/forgot-password"
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          Forgot password?
+                        </Link>
+                      </div>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          autoComplete="current-password"
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          placeholder="Enter your password"
+                          className="pr-10"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="remember-me"
+                        checked={rememberMe}
+                        onCheckedChange={(v) => setRememberMe(!!v)}
                       />
+                      <Label htmlFor="remember-me" className="text-sm font-normal cursor-pointer">
+                        Remember me
+                      </Label>
                     </div>
                     <Button className="w-full" disabled={isBusy}>
                       {passwordLogin.isPending ? "Signing in..." : "Sign in"}
@@ -153,6 +200,7 @@ export default function Login() {
                   </form>
                 </TabsContent>
 
+                {/* OTP Tab */}
                 <TabsContent value="otp" className="mt-5 space-y-4">
                   <form onSubmit={onOtpRequest} className="space-y-4">
                     <div className="space-y-2">
@@ -200,6 +248,14 @@ export default function Login() {
                   </AlertDescription>
                 </Alert>
               )}
+
+              {/* Register link */}
+              <p className="mt-6 text-center text-sm text-slate-500">
+                New business?{" "}
+                <Link to="/register" className="text-blue-600 font-medium hover:underline">
+                  Register here
+                </Link>
+              </p>
             </CardContent>
           </Card>
         </section>

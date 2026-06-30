@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,12 @@ import { useCountryDetection } from "@/providers/country-detection";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileCode2, FileSignature, Plus, Eye, Printer, QrCode, RefreshCw, Send } from "lucide-react";
+import { FileCode2, FileSignature, Plus, Eye, Printer, QrCode, RefreshCw, Send, Trash2, X } from "lucide-react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
+import SaudiInvoicePrint from "./SaudiInvoicePrint";
+
+type InvoiceItem = { description: string; quantity: number; unitPrice: string; taxPercent: string; totalAmount: string };
 
 export default function InvoicesPage() {
   const { data: invoices, refetch } = trpc.sales.invoiceList.useQuery(undefined);
@@ -63,19 +66,55 @@ export default function InvoicesPage() {
   });
   const [open, setOpen] = useState(false);
   const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   const invoiceDetail = trpc.sales.invoiceGet.useQuery(
     { id: viewInvoiceId! },
     { enabled: !!viewInvoiceId }
   );
   const [statusFilter, setStatusFilter] = useState("");
+
+  const handlePrint = () => {
+    const content = printRef.current;
+    if (!content) return;
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<html><head><title>Invoice ${detail?.invoice?.invoiceNumber ?? ""}</title></head><body>${content.innerHTML}</body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+    w.close();
+  };
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [form, setForm] = useState({
     invoiceNumber: "", customerId: 0, date: "", dueDate: "",
     invoiceType: "standard" as "standard" | "simplified" | "zatca",
     subTotal: "0", taxAmount: "0", taxPercent: "15", totalAmount: "0",
     notes: "",
-    items: [{ description: "", quantity: 1, unitPrice: "0", taxPercent: "15", totalAmount: "0" }],
+    items: [{ description: "", quantity: 1, unitPrice: "0", taxPercent: "15", totalAmount: "0" }] as InvoiceItem[],
   });
+
+  const addItem = () => {
+    setForm(prev => recalc({
+      ...prev,
+      items: [...prev.items, { description: "", quantity: 1, unitPrice: "0", taxPercent: prev.taxPercent, totalAmount: "0" }],
+    }));
+  };
+
+  const removeItem = (index: number) => {
+    if (form.items.length <= 1) return;
+    setForm(prev => recalc({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
+    setForm(prev => {
+      const newItems = [...prev.items];
+      newItems[index] = { ...newItems[index], [field]: value };
+      return recalc({ ...prev, items: newItems });
+    });
+  };
 
   useEffect(() => {
     const isSaudiContext =
@@ -190,22 +229,64 @@ export default function InvoicesPage() {
                   <div>Tax/VAT: {selectedCustomer.taxNumber || "Not provided"}</div>
                 </div>
               )}
-              <div><Label>Description</Label><Input value={form.items[0].description} onChange={e => {
-                const newItems = [...form.items]; newItems[0].description = e.target.value; setForm(recalc({...form, items: newItems}));
-              }} /></div>
-              <div className="grid grid-cols-3 gap-4">
-                <div><Label>Qty</Label><Input type="number" value={form.items[0].quantity} onChange={e => {
-                  const newItems = [...form.items]; newItems[0].quantity = Number(e.target.value); setForm(recalc({...form, items: newItems}));
-                }} /></div>
-                <div><Label>Unit Price</Label><Input type="number" value={form.items[0].unitPrice} onChange={e => {
-                  const newItems = [...form.items]; newItems[0].unitPrice = e.target.value; setForm(recalc({...form, items: newItems}));
-                }} /></div>
-                <div><Label>Total</Label><Input value={form.totalAmount} readOnly /></div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Line Items</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                    <Plus className="size-3.5 mr-1" />Add Item
+                  </Button>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="w-20">Qty</TableHead>
+                        <TableHead className="w-28">Unit Price</TableHead>
+                        <TableHead className="w-20">VAT %</TableHead>
+                        <TableHead className="w-28 text-right">Total</TableHead>
+                        <TableHead className="w-10"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {form.items.map((item, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="text-muted-foreground text-sm">{idx + 1}</TableCell>
+                          <TableCell>
+                            <Input value={item.description} onChange={e => updateItem(idx, "description", e.target.value)} placeholder="Item description" className="h-8 text-sm" />
+                          </TableCell>
+                          <TableCell>
+                            <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", Number(e.target.value))} className="h-8 text-sm" min="0" />
+                          </TableCell>
+                          <TableCell>
+                            <Input type="number" value={item.unitPrice} onChange={e => updateItem(idx, "unitPrice", e.target.value)} className="h-8 text-sm" min="0" />
+                          </TableCell>
+                          <TableCell>
+                            <Input type="number" value={item.taxPercent} onChange={e => updateItem(idx, "taxPercent", e.target.value)} className="h-8 text-sm" min="0" max="100" />
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {Number(item.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell>
+                            {form.items.length > 1 && (
+                              <Button type="button" variant="ghost" size="icon" className="size-7 text-red-500 hover:text-red-700" onClick={() => removeItem(idx)}>
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
+
               <div className="grid grid-cols-3 gap-4 rounded-lg bg-slate-50 p-3">
-                <div><Label>Subtotal</Label><Input value={form.subTotal} readOnly /></div>
-                <div><Label>VAT</Label><Input value={form.taxAmount} readOnly /></div>
-                <div><Label>Grand Total</Label><Input value={form.totalAmount} readOnly /></div>
+                <div><Label className="text-xs">Subtotal</Label><Input value={form.subTotal} readOnly className="h-8 font-mono" /></div>
+                <div><Label className="text-xs">VAT ({form.taxPercent}%)</Label><Input value={form.taxAmount} readOnly className="h-8 font-mono" /></div>
+                <div><Label className="text-xs font-semibold">Grand Total</Label><Input value={form.totalAmount} readOnly className="h-8 font-mono font-bold" /></div>
               </div>
               {(form.invoiceType === "zatca" || settings?.zatcaEnabled) && (
                 <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
@@ -253,102 +334,96 @@ export default function InvoicesPage() {
       </Card>
 
       <Dialog open={!!viewInvoiceId} onOpenChange={(next) => !next && setViewInvoiceId(null)}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between gap-3">
-              <span>Invoice Preview</span>
+              <span className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+                  <QrCode className="h-4 w-4 text-emerald-700" />
+                </span>
+                Saudi ZATCA Invoice / فاتورة ضريبية
+              </span>
               <div className="flex flex-wrap justify-end gap-2">
                 {selectedInvoiceId && (
                   <>
-                    <Button size="sm" variant="outline" onClick={() => generateXml.mutate({ invoiceId: selectedInvoiceId })}><FileCode2 className="mr-2 h-4 w-4" />XML</Button>
-                    <Button size="sm" variant="outline" onClick={() => generateQr.mutate({ invoiceId: selectedInvoiceId })}><QrCode className="mr-2 h-4 w-4" />QR</Button>
-                    <Button size="sm" variant="outline" onClick={() => signInvoice.mutate({ invoiceId: selectedInvoiceId })}><FileSignature className="mr-2 h-4 w-4" />Sign</Button>
-                    <Button size="sm" variant="outline" onClick={() => clearInvoice.mutate({ invoiceId: selectedInvoiceId })}><Send className="mr-2 h-4 w-4" />Clear</Button>
-                    <Button size="sm" variant="outline" onClick={() => reportInvoice.mutate({ invoiceId: selectedInvoiceId })}><Send className="mr-2 h-4 w-4" />Report</Button>
-                    <Button size="sm" variant="outline" onClick={() => syncZatcaStatus.mutate({ invoiceId: selectedInvoiceId })}><RefreshCw className="mr-2 h-4 w-4" />Sync</Button>
+                    <Button size="sm" variant="outline" onClick={() => generateXml.mutate({ invoiceId: selectedInvoiceId })}>
+                      <FileCode2 className="mr-2 h-4 w-4" />XML
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => generateQr.mutate({ invoiceId: selectedInvoiceId })}>
+                      <QrCode className="mr-2 h-4 w-4" />QR
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => signInvoice.mutate({ invoiceId: selectedInvoiceId })}>
+                      <FileSignature className="mr-2 h-4 w-4" />Sign
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => clearInvoice.mutate({ invoiceId: selectedInvoiceId })}>
+                      <Send className="mr-2 h-4 w-4" />Clear
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => reportInvoice.mutate({ invoiceId: selectedInvoiceId })}>
+                      <Send className="mr-2 h-4 w-4" />Report
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => syncZatcaStatus.mutate({ invoiceId: selectedInvoiceId })}>
+                      <RefreshCw className="mr-2 h-4 w-4" />Sync
+                    </Button>
                   </>
                 )}
-                <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print</Button>
+                <Button size="sm" onClick={handlePrint} className="bg-emerald-700 hover:bg-emerald-800 text-white">
+                  <Printer className="mr-2 h-4 w-4" />Print Invoice
+                </Button>
               </div>
             </DialogTitle>
           </DialogHeader>
           {detail?.invoice && (
-            <div className="space-y-6 rounded-lg bg-white p-4 text-slate-900 print:p-0">
-              <div className="flex items-start justify-between gap-6 border-b border-emerald-900/20 pb-4">
-                <div className="flex gap-4">
-                  {detail.company?.logo ? <img src={detail.company.logo} alt="Company logo" className="h-16 w-16 rounded object-contain" /> : <div className="flex h-16 w-16 items-center justify-center rounded bg-emerald-100 font-bold text-emerald-700">LOGO</div>}
-                  <div>
-                    <h3 className="text-xl font-bold">{detail.company?.companyName || "Company Name"}</h3>
-                    {detail.company?.companyNameAr && <p className="text-sm font-medium" dir="rtl">{detail.company.companyNameAr}</p>}
-                    <p className="text-sm text-slate-600">{detail.company?.address} {detail.company?.city}</p>
-                    <p className="text-sm text-slate-600">{detail.company?.phone} {detail.company?.email}</p>
-                    <p className="text-xs text-slate-500">VAT: {detail.company?.taxNumber || "Missing"} | CR: {detail.company?.crNumber || "Missing"}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold">TAX INVOICE</div>
-                  <div className="text-sm font-semibold" dir="rtl">فاتورة ضريبية</div>
-                  <div className="font-mono text-sm">{detail.invoice.invoiceNumber}</div>
-                  <div className="text-sm text-slate-600">{detail.invoice.date}</div>
-                  {detail.invoice.invoiceType === "zatca" && <div className="mt-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700"><QrCode className="mr-1 h-3 w-3" />Saudi ZATCA Ready</div>}
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-lg border p-3">
-                  <div className="text-xs font-semibold uppercase text-slate-500">Bill To</div>
-                  <div className="font-semibold">{detail.customer?.name}</div>
-                  <div className="text-sm text-slate-600">{detail.customer?.address || detail.customer?.city}</div>
-                  <div className="text-sm text-slate-600">{detail.customer?.phone || detail.customer?.email}</div>
-                  <div className="text-xs text-slate-500">Customer VAT/Tax: {detail.customer?.taxNumber || "Not provided"}</div>
-                </div>
-                <div className="rounded-lg border p-3 text-sm">
-                  <div className="grid grid-cols-2 gap-2">
-                    <span className="text-slate-500">Invoice Type</span><span className="text-right capitalize">{detail.invoice.invoiceType}</span>
-                    <span className="text-slate-500">Currency</span><span className="text-right">{detail.company?.defaultCurrency || "SAR"}</span>
-                    <span className="text-slate-500">VAT % / ضريبة</span><span className="text-right">{detail.invoice.taxPercent}%</span>
-                    <span className="text-slate-500">ZATCA Status</span><span className="text-right">{detail.invoice.zatcaStatus || "N/A"}</span>
-                    <span className="text-slate-500">Place of Supply</span><span className="text-right">{detail.company?.country || "Saudi Arabia"}</span>
-                  </div>
-                </div>
-              </div>
-
-              <Table>
-                <TableHeader><TableRow><TableHead>Description / الوصف</TableHead><TableHead className="text-right">Qty</TableHead><TableHead className="text-right">Unit</TableHead><TableHead className="text-right">VAT %</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {detail.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell className="text-right">{item.quantity}</TableCell>
-                      <TableCell className="text-right">{Number(item.unitPrice).toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{item.taxPercent}%</TableCell>
-                      <TableCell className="text-right">{Number(item.totalAmount).toLocaleString()}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              <div className="grid gap-4 md:grid-cols-[1fr_260px]">
-                <div className="rounded-lg border p-3 text-sm text-slate-600">
-                  <div className="font-semibold text-slate-800">Terms</div>
-                  <p>{detail.invoice.terms || detail.company?.invoiceTerms || "Thank you for your business."}</p>
-                  {detail.invoice.zatcaQrCode && <p className="mt-2 text-xs">ZATCA TLV QR payload is stored with this invoice for Saudi VAT compliance readiness.</p>}
-                </div>
-                <div className="space-y-3">
-                  <div className="rounded-lg border p-3 text-sm">
-                    <div className="flex justify-between"><span>Subtotal</span><span>{Number(detail.invoice.subTotal).toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span>VAT</span><span>{Number(detail.invoice.taxAmount).toLocaleString()}</span></div>
-                    <div className="mt-2 flex justify-between border-t pt-2 text-lg font-bold"><span>Total</span><span>{Number(detail.invoice.totalAmount).toLocaleString()}</span></div>
-                  </div>
-                  {qrDataUrl && (
-                    <div className="rounded-lg border p-3 text-center">
-                      <img src={qrDataUrl} alt="ZATCA QR code" className="mx-auto h-40 w-40 bg-white" />
-                      <div className="mt-2 text-xs font-medium text-slate-600">ZATCA QR / رمز الاستجابة</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <SaudiInvoicePrint
+              ref={printRef}
+              invoice={{
+                invoiceNumber:  detail.invoice.invoiceNumber,
+                date:           detail.invoice.date,
+                dueDate:        detail.invoice.dueDate ?? undefined,
+                invoiceType:    detail.invoice.invoiceType,
+                taxPercent:     detail.invoice.taxPercent,
+                subTotal:       detail.invoice.subTotal,
+                taxAmount:      detail.invoice.taxAmount,
+                totalAmount:    detail.invoice.totalAmount,
+                paidAmount:     detail.invoice.paidAmount,
+                status:         detail.invoice.status,
+                zatcaStatus:    detail.invoice.zatcaStatus ?? undefined,
+                zatcaQrCode:    detail.invoice.zatcaQrCode ?? undefined,
+                notes:          detail.invoice.notes ?? undefined,
+                terms:          detail.invoice.terms ?? undefined,
+                hash:           detail.invoice.invoiceHash ?? undefined,
+              }}
+              company={{
+                companyName:     detail.company?.companyName,
+                companyNameAr:   detail.company?.companyNameAr ?? undefined,
+                address:         detail.company?.address ?? undefined,
+                city:            detail.company?.city ?? undefined,
+                country:         detail.company?.country ?? undefined,
+                phone:           detail.company?.phone ?? undefined,
+                email:           detail.company?.email ?? undefined,
+                taxNumber:       detail.company?.taxNumber ?? undefined,
+                crNumber:        detail.company?.crNumber ?? undefined,
+                logo:            detail.company?.logo ?? undefined,
+                defaultCurrency: detail.company?.defaultCurrency ?? "SAR",
+                invoiceTerms:    detail.company?.invoiceTerms ?? undefined,
+              }}
+              customer={{
+                name:       detail.customer?.name ?? undefined,
+                nameAr:     undefined,
+                address:    detail.customer?.address ?? detail.customer?.city ?? undefined,
+                city:       detail.customer?.city ?? undefined,
+                phone:      detail.customer?.phone ?? undefined,
+                email:      detail.customer?.email ?? undefined,
+                taxNumber:  detail.customer?.taxNumber ?? undefined,
+              }}
+              items={(detail.items ?? []).map((it: any) => ({
+                id:          it.id,
+                description: it.description,
+                quantity:    it.quantity,
+                unitPrice:   it.unitPrice,
+                taxPercent:  it.taxPercent,
+                totalAmount: it.totalAmount,
+              }))}
+            />
           )}
         </DialogContent>
       </Dialog>

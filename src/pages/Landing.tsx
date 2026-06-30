@@ -20,11 +20,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CountryDetectionBanner } from "@/components/CountryDetectionBanner";
 import { ModuleCard3D } from "@/components/ModuleCard3D";
+import ThreeBackground from "@/components/ThreeBackground";
+import { ScrollReveal } from "@/components/ScrollReveal";
 import { Link } from "react-router";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/providers/trpc";
 import {
-  ArrowRight, ChevronDown, X, Menu, Languages, Rocket, Store, ShoppingCart,
+  ArrowRight, ChevronDown, X, Menu, Languages, Store, ShoppingCart,
   ShoppingBag, Package, Search, Target, Users, Wallet, FileText, BarChart3,
   Briefcase, CreditCard, CheckCircle2, FolderKanban, Factory, Warehouse,
   Monitor, Image, HeadphonesIcon, Mail, MessageSquare, Award, CalendarCheck,
@@ -545,7 +547,8 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-green-950 to-slate-950" dir={dir}>
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-green-950 to-slate-950 relative" dir={dir}>
+      <ThreeBackground />
       {/* Announcement Bar */}
       {!announcementDismissed && (
         <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-emerald-700 via-green-600 to-emerald-700 text-white text-xs sm:text-sm">
@@ -601,9 +604,6 @@ export default function Landing() {
               <Button asChild variant="outline" size="sm" className="border-white/10 text-white hover:bg-white/10 hover:text-white">
                 <Link to="/login">{t("Free Demo", "\u062a\u062c\u0631\u0628\u0629 \u0645\u062c\u0627\u0646\u064a\u0629")}</Link>
               </Button>
-              <Button asChild size="sm" className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-0 shadow-lg shadow-emerald-500/20">
-                <Link to="/app"><Rocket className="h-4 w-4" />{t("Open ERP", "\u0627\u0641\u062a\u062d ERP")}</Link>
-              </Button>
             </div>
 
             <div className="flex lg:hidden items-center gap-2">
@@ -639,9 +639,6 @@ export default function Landing() {
                     </Link>
                     <Link to="/login" className="px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition-all text-sm" onClick={() => setMobileMenuOpen(false)}>
                       {t("Free Demo", "\u062a\u062c\u0631\u0628\u0629 \u0645\u062c\u0627\u0646\u064a\u0629")}
-                    </Link>
-                    <Link to="/app" className="mt-2 px-4 py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium text-center" onClick={() => setMobileMenuOpen(false)}>
-                      <Rocket className="h-4 w-4 inline mr-2" />{t("Open ERP", "\u0627\u0641\u062a\u062d ERP")}
                     </Link>
                   </div>
                 </SheetContent>
@@ -685,14 +682,11 @@ export default function Landing() {
                 )}
               </p>
               <div className="flex flex-col sm:flex-row items-center gap-3 justify-center lg:justify-start">
-                <Button asChild size="lg" className="gap-2 text-base px-8 py-6 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-0 shadow-lg shadow-emerald-500/20">
-                  <Link to="/app"><Rocket className="h-5 w-5" />{t("Open ERP", "\u0627\u0641\u062a\u062d ERP")}</Link>
-                </Button>
                 <Button variant="outline" size="lg" className="gap-2 text-base px-8 py-6 border-white/20 text-white hover:bg-white/5 hover:text-white">
-                  <Play className="h-5 w-5" />{t("Watch Demo", "\u0634\u0627\u0647\u062f \u0627\u0644\u0639\u0631\u0636")}
+                  <Play className="h-5 w-5" />{t("Watch Demo", "\u0634\u0627\u0647\u062f \u0639\u0631\u0636")}
                 </Button>
                 <Button variant="ghost" size="lg" onClick={() => scrollTo("modules")} className="gap-2 text-base px-6 py-6 text-slate-300 hover:text-white">
-                  {t("Explore Modules", "\u0627\u0633\u062a\u0639\u0631\u0636 \u0627\u0644\u0648\u062d\u062f\u0627\u062a")}<ChevronDown className="h-4 w-4" />
+                  {t("Explore Modules", "\u0627\u0633\u0639\u0631\u0636 \u0627\u0644\u0648\u062d\u062f\u0627\u062a")}<ChevronDown className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -720,6 +714,7 @@ export default function Landing() {
       {/* FEATURES SECTION */}
       <section id="features" className="py-20 sm:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <ScrollReveal>
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-3 py-1">
               <Sparkles className="h-3.5 w-3.5 mr-1" />{t("Core Features", "\u0627\u0644\u0645\u064a\u0632\u0627\u062a \u0627\u0644\u0623\u0633\u0627\u0633\u064a\u0629")}
@@ -729,11 +724,13 @@ export default function Landing() {
               {t("From accounting to manufacturing — manage all operations in one place.", "\u0645\u0646 \u0627\u0644\u0645\u062d\u0627\u0633\u0628\u0629 \u0625\u0644\u0649 \u0627\u0644\u062a\u0635\u0646\u064a\u0639 — \u0623\u062f\u0631 \u062c\u0645\u064a\u0639 \u0627\u0644\u0639\u0645\u0644\u064a\u0627\u062a \u0641\u064a \u0645\u0643\u0627\u0646 \u0648\u0627\u062d\u062f.")}
             </p>
           </div>
+          </ScrollReveal>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((f) => {
+            {features.map((f, idx) => {
               const content = featureContent[f.key];
               return (
-                <Card key={f.key} className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300 group">
+                <ScrollReveal key={f.key} delay={idx * 100} direction="up">
+                <Card className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-300 group">
                   <CardHeader>
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-2 ${f.color} bg-opacity-20`}>
                       <f.icon className="h-6 w-6" />
@@ -746,6 +743,7 @@ export default function Landing() {
                     </CardDescription>
                   </CardContent>
                 </Card>
+                </ScrollReveal>
               );
             })}
           </div>
@@ -753,6 +751,7 @@ export default function Landing() {
       </section>
 
       {/* POS SECTION */}
+      <ScrollReveal direction="none">
       <section className="py-20 sm:py-28 bg-gradient-to-br from-emerald-950/50 to-green-950/50 border-y border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -792,9 +791,12 @@ export default function Landing() {
           </div>
         </div>
       </section>
+      </ScrollReveal>
       {/* 3D MODULE GRID */}
+      <ScrollReveal direction="none">
       <section id="modules" className="py-20 sm:py-28 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <ScrollReveal>
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-emerald-500/10 text-emerald-300 border-emerald-500/20 px-3 py-1">
               <Layers className="h-3.5 w-3.5 mr-1" />{t("100+ Modules", "100+ \u0648\u062d\u062f\u0629")}
@@ -806,6 +808,7 @@ export default function Landing() {
               {t("Everything you need to run your business in one platform", "\u0643\u0644 \u0645\u0627 \u062a\u062d\u062a\u0627\u062c\u0647 \u0644\u0625\u062f\u0627\u0631\u0629 \u0623\u0639\u0645\u0627\u0644\u0643 \u0641\u064a \u0645\u0646\u0635\u0629 \u0648\u0627\u062d\u062f\u0629")}
             </p>
           </div>
+          </ScrollReveal>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {modules.map((mod) => (
               <ModuleCard3D
@@ -825,6 +828,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* COMPETITOR COMPARISON */}
       <section id="comparison" className="py-20 sm:py-28 bg-white/[0.02] border-y border-white/5">
@@ -942,6 +946,7 @@ export default function Landing() {
         </div>
       </section>
       {/* GLOBAL TAX COMPLIANCE */}
+      <ScrollReveal direction="none">
       <section id="tax" className="py-20 sm:py-28 bg-gradient-to-br from-green-950 via-emerald-950 to-slate-950 border-y border-white/5 relative overflow-hidden">
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-10 left-10 w-40 h-40 border border-emerald-400/20 rounded-full" />
@@ -1055,6 +1060,7 @@ export default function Landing() {
           </p>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* MULTI-COUNTRY FEATURES */}
       <section className="py-20 sm:py-28">
@@ -1088,6 +1094,7 @@ export default function Landing() {
         </div>
       </section>
       {/* PRICING */}
+      <ScrollReveal direction="none">
       <section id="pricing" className="py-20 sm:py-28 bg-white/[0.02] border-y border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -1149,6 +1156,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* LAUNCH COUNTER */}
       <section className="py-20 sm:py-28 bg-gradient-to-br from-emerald-900/30 to-green-950/30">
@@ -1183,6 +1191,7 @@ export default function Landing() {
       </section>
 
       {/* TESTIMONIALS */}
+      <ScrollReveal direction="none">
       <section className="py-20 sm:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -1233,7 +1242,9 @@ export default function Landing() {
           </Carousel>
         </div>
       </section>
+      </ScrollReveal>
       {/* FAQ */}
+      <ScrollReveal direction="none">
       <section id="faq" className="py-20 sm:py-28 bg-white/[0.02] border-y border-white/5">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -1256,6 +1267,7 @@ export default function Landing() {
           </Accordion>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* CONTACT / SUPPORT */}
       <section id="contact" className="py-20 sm:py-28">

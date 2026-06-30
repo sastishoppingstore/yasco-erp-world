@@ -3,6 +3,7 @@ import {
   serial,
   varchar,
   text,
+  time,
   timestamp,
   bigint,
   int,
@@ -1241,6 +1242,56 @@ export const documents = mysqlTable("documents", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const documentAccessLogs = mysqlTable("document_access_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  documentId: bigint("document_id", { mode: "number", unsigned: true }).notNull(),
+  action: varchar("action", { length: 50 }).notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  userAgent: varchar("user_agent", { length: 500 }),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("doc_access_tenant_idx").on(table.tenantId),
+  index("doc_access_doc_idx").on(table.tenantId, table.documentId),
+]);
+
+export const eSignatureRequests = mysqlTable("e_signature_requests", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  documentId: bigint("document_id", { mode: "number", unsigned: true }).notNull(),
+  requestedBy: bigint("requested_by", { mode: "number", unsigned: true }).notNull(),
+  signerId: bigint("signer_id", { mode: "number", unsigned: true }),
+  signerEmail: varchar("signer_email", { length: 320 }),
+  signerName: varchar("signer_name", { length: 255 }),
+  signatureType: mysqlEnum("signature_type", ["draw", "type", "upload", "biometric"]).default("draw").notNull(),
+  status: mysqlEnum("status", ["pending", "signed", "declined", "expired"]).default("pending").notNull(),
+  message: text("message"),
+  signatureData: text("signature_data"),
+  signedAt: timestamp("signed_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("esig_req_tenant_idx").on(table.tenantId),
+  index("esig_req_doc_idx").on(table.tenantId, table.documentId),
+  index("esig_req_signer_idx").on(table.tenantId, table.signerId!),
+]);
+
+export const eSignatureLogs = mysqlTable("e_signature_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  signatureRequestId: bigint("signature_request_id", { mode: "number", unsigned: true }).notNull(),
+  eventType: varchar("event_type", { length: 50 }).notNull(),
+  metadata: text("metadata"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: varchar("user_agent", { length: 500 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("esig_log_tenant_idx").on(table.tenantId),
+  index("esig_log_req_idx").on(table.signatureRequestId),
+]);
+
 // =====================================================
 // 15. SETTINGS & CONFIG
 // =====================================================
@@ -2462,3 +2513,4295 @@ export const invoiceTaxSettings = mysqlTable("invoice_tax_settings", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
 });
+
+// =====================================================
+// 40. POS VERTICALS - Restaurant
+// =====================================================
+
+export const floorPlans = mysqlTable("floor_plans", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  nameAr: varchar("name_ar", { length: 255 }),
+  width: int("width").default(800).notNull(),
+  height: int("height").default(600).notNull(),
+  backgroundImage: text("background_image"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("floor_plans_tenant_idx").on(table.tenantId),
+]);
+
+export const restaurantTables = mysqlTable("restaurant_tables", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  floorPlanId: bigint("floor_plan_id", { mode: "number", unsigned: true }).notNull(),
+  tableNumber: varchar("table_number", { length: 20 }).notNull(),
+  name: varchar("name", { length: 255 }),
+  nameAr: varchar("name_ar", { length: 255 }),
+  capacity: int("capacity").default(4).notNull(),
+  shape: mysqlEnum("shape", ["rectangle", "circle", "square"]).default("rectangle").notNull(),
+  posX: int("pos_x").default(0).notNull(),
+  posY: int("pos_y").default(0).notNull(),
+  width: int("width").default(80).notNull(),
+  height: int("height").default(60).notNull(),
+  rotation: int("rotation").default(0).notNull(),
+  status: mysqlEnum("status", ["vacant", "occupied", "ordered", "served", "paid", "reserved", "cleaning"]).default("vacant").notNull(),
+  waiterId: bigint("waiter_id", { mode: "number", unsigned: true }),
+  currentOrderId: bigint("current_order_id", { mode: "number", unsigned: true }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("restaurant_tables_plan_idx").on(table.floorPlanId),
+  index("restaurant_tables_status_idx").on(table.tenantId, table.status),
+]);
+
+export const tableOrders = mysqlTable("table_orders", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  restaurantTableId: bigint("restaurant_table_id", { mode: "number", unsigned: true }).notNull(),
+  waiterId: bigint("waiter_id", { mode: "number", unsigned: true }),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }),
+  guestCount: int("guest_count").default(1).notNull(),
+  orderNumber: varchar("order_number", { length: 50 }).notNull(),
+  status: mysqlEnum("status", ["open", "in_progress", "served", "partial", "completed", "cancelled", "transferred"]).default("open").notNull(),
+  orderType: mysqlEnum("order_type", ["dine_in", "takeaway", "delivery"]).default("dine_in").notNull(),
+  splitFromId: bigint("split_from_id", { mode: "number", unsigned: true }),
+  transferredToTableId: bigint("transferred_to_table_id", { mode: "number", unsigned: true }),
+  serviceChargePercent: decimal("service_charge_percent", { precision: 5, scale: 2 }).default("0"),
+  serviceChargeAmount: decimal("service_charge_amount", { precision: 18, scale: 4 }).default("0"),
+  subtotal: decimal("subtotal", { precision: 18, scale: 4 }).default("0"),
+  discountAmount: decimal("discount_amount", { precision: 18, scale: 4 }).default("0"),
+  taxAmount: decimal("tax_amount", { precision: 18, scale: 4 }).default("0"),
+  totalAmount: decimal("total_amount", { precision: 18, scale: 4 }).default("0"),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("table_orders_table_idx").on(table.restaurantTableId),
+  index("table_orders_status_idx").on(table.tenantId, table.status),
+]);
+
+export const kdsStations = mysqlTable("kds_stations", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  nameAr: varchar("name_ar", { length: 255 }),
+  stationType: mysqlEnum("station_type", ["kitchen", "bar", "grill", "salad", "pizza", "dessert", "other"]).default("kitchen").notNull(),
+  printerName: varchar("printer_name", { length: 255 }),
+  isActive: boolean("is_active").default(true),
+  sortOrder: int("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("kds_stations_tenant_idx").on(table.tenantId),
+]);
+
+export const kdsStationProducts = mysqlTable("kds_station_products", {
+  id: serial("id").primaryKey(),
+  stationId: bigint("station_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueIdx: uniqueIndex("kds_station_products_unique").on(table.stationId, table.productId),
+}));
+
+export const kotTickets = mysqlTable("kot_tickets", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  tableOrderId: bigint("table_order_id", { mode: "number", unsigned: true }),
+  restaurantTableId: bigint("restaurant_table_id", { mode: "number", unsigned: true }),
+  stationId: bigint("station_id", { mode: "number", unsigned: true }).notNull(),
+  kotNumber: varchar("kot_number", { length: 50 }).notNull(),
+  course: mysqlEnum("course", ["appetizer", "main", "dessert", "drinks", "other"]).default("main").notNull(),
+  courseSequence: int("course_sequence").default(0).notNull(),
+  priority: mysqlEnum("priority", ["normal", "rush", "vip"]).default("normal").notNull(),
+  status: mysqlEnum("status", ["pending", "preparing", "ready", "served", "cancelled"]).default("pending").notNull(),
+  printed: boolean("printed").default(false),
+  printCount: int("print_count").default(0),
+  preparedBy: bigint("prepared_by", { mode: "number", unsigned: true }),
+  readyAt: timestamp("ready_at"),
+  servedAt: timestamp("served_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("kot_tickets_order_idx").on(table.tableOrderId),
+  index("kot_tickets_station_idx").on(table.stationId, table.status),
+]);
+
+export const kotTicketItems = mysqlTable("kot_ticket_items", {
+  id: serial("id").primaryKey(),
+  kotTicketId: bigint("kot_ticket_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  productName: varchar("product_name", { length: 255 }).notNull(),
+  quantity: int("quantity").notNull(),
+  modifiers: json("modifiers"),
+  instructions: text("instructions"),
+  status: mysqlEnum("status", ["pending", "preparing", "ready", "served", "cancelled", "held"]).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const orderCourses = mysqlTable("order_courses", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  tableOrderId: bigint("table_order_id", { mode: "number", unsigned: true }).notNull(),
+  course: mysqlEnum("course", ["appetizer", "main", "dessert", "drinks", "other"]).default("main").notNull(),
+  sequence: int("sequence").default(0).notNull(),
+  timingMinutes: int("timing_minutes").default(0).notNull(),
+  status: mysqlEnum("status", ["pending", "preparing", "ready", "served", "cancelled"]).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const orderItemModifiers = mysqlTable("order_item_modifiers", {
+  id: serial("id").primaryKey(),
+  orderItemId: bigint("order_item_id", { mode: "number", unsigned: true }),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  modifierGroup: varchar("modifier_group", { length: 100 }).notNull(),
+  modifierName: varchar("modifier_name", { length: 255 }).notNull(),
+  modifierNameAr: varchar("modifier_name_ar", { length: 255 }),
+  priceAdjustment: decimal("price_adjustment", { precision: 18, scale: 4 }).default("0"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// =====================================================
+// 41. POS VERTICALS - Pharmacy
+// =====================================================
+
+export const prescriptions = mysqlTable("prescriptions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  prescriptionNumber: varchar("prescription_number", { length: 50 }).notNull(),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }),
+  doctorName: varchar("doctor_name", { length: 255 }),
+  doctorLicense: varchar("doctor_license", { length: 100 }),
+  clinicName: varchar("clinic_name", { length: 255 }),
+  diagnosis: text("diagnosis"),
+  dateIssued: date("date_issued", { mode: "string" }).notNull(),
+  dateExpires: date("date_expires", { mode: "string" }),
+  isControlledSubstance: boolean("is_controlled_substance").default(false),
+  controlledSubstanceLicense: varchar("controlled_substance_license", { length: 100 }),
+  status: mysqlEnum("status", ["active", "dispensed", "partial", "expired", "cancelled"]).default("active").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("prescriptions_tenant_idx").on(table.tenantId),
+  index("prescriptions_customer_idx").on(table.customerId),
+]);
+
+export const prescriptionItems = mysqlTable("prescription_items", {
+  id: serial("id").primaryKey(),
+  prescriptionId: bigint("prescription_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  dosage: varchar("dosage", { length: 255 }),
+  frequency: varchar("frequency", { length: 255 }),
+  durationDays: int("duration_days"),
+  quantityPrescribed: int("quantity_prescribed").notNull(),
+  quantityDispensed: int("quantity_dispensed").default(0).notNull(),
+  instructions: text("instructions"),
+  isControlled: boolean("is_controlled").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const controlledSubstanceLog = mysqlTable("controlled_substance_log", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  batchNumber: varchar("batch_number", { length: 100 }),
+  prescriptionId: bigint("prescription_id", { mode: "number", unsigned: true }),
+  patientName: varchar("patient_name", { length: 255 }).notNull(),
+  patientIdNumber: varchar("patient_id_number", { length: 100 }),
+  doctorName: varchar("doctor_name", { length: 255 }),
+  quantityDispensed: int("quantity_dispensed").notNull(),
+  balanceBefore: int("balance_before").notNull(),
+  balanceAfter: int("balance_after").notNull(),
+  dispensedBy: bigint("dispensed_by", { mode: "number", unsigned: true }).notNull(),
+  witnessedBy: bigint("witnessed_by", { mode: "number", unsigned: true }),
+  dispensedAt: timestamp("dispensed_at").defaultNow().notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("controlled_substance_tenant_idx").on(table.tenantId),
+]);
+
+export const insuranceCompanies = mysqlTable("insurance_companies", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  nameAr: varchar("name_ar", { length: 255 }),
+  code: varchar("code", { length: 50 }),
+  contractNumber: varchar("contract_number", { length: 100 }),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }).default("0"),
+  coveragePercent: decimal("coverage_percent", { precision: 5, scale: 2 }).default("100"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insuranceClaims = mysqlTable("insurance_claims", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  claimNumber: varchar("claim_number", { length: 50 }).notNull(),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }),
+  insuranceCompanyId: bigint("insurance_company_id", { mode: "number", unsigned: true }).notNull(),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }).notNull(),
+  policyNumber: varchar("policy_number", { length: 100 }),
+  memberId: varchar("member_id", { length: 100 }),
+  coPayAmount: decimal("co_pay_amount", { precision: 18, scale: 4 }).default("0"),
+  insuredAmount: decimal("insured_amount", { precision: 18, scale: 4 }).default("0"),
+  claimAmount: decimal("claim_amount", { precision: 18, scale: 4 }).default("0"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "paid", "partial"]).default("pending").notNull(),
+  submittedAt: timestamp("submitted_at"),
+  approvedAt: timestamp("approved_at"),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("insurance_claims_tenant_idx").on(table.tenantId),
+]);
+
+export const drugInteractions = mysqlTable("drug_interactions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  productIdA: bigint("product_id_a", { mode: "number", unsigned: true }).notNull(),
+  productIdB: bigint("product_id_b", { mode: "number", unsigned: true }).notNull(),
+  severity: mysqlEnum("severity", ["mild", "moderate", "severe", "contraindicated"]).default("moderate").notNull(),
+  description: text("description"),
+  descriptionAr: text("description_ar"),
+  recommendation: text("recommendation"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueIdx: uniqueIndex("drug_interaction_pair_unique").on(table.productIdA, table.productIdB),
+  tenantIdx: index("drug_interactions_tenant_idx").on(table.tenantId),
+}));
+
+export const sfdaSerialNumbers = mysqlTable("sfda_serial_numbers", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  batchNumber: varchar("batch_number", { length: 100 }),
+  serialNumber: varchar("serial_number", { length: 255 }).notNull(),
+  expiryDate: date("expiry_date", { mode: "string" }),
+  status: mysqlEnum("status", ["available", "sold", "returned", "expired", "destroyed"]).default("available").notNull(),
+  soldAt: timestamp("sold_at"),
+  invoiceItemId: bigint("invoice_item_id", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueIdx: uniqueIndex("sfda_serial_numbers_unique").on(table.serialNumber),
+  productIdx: index("sfda_serial_product_idx").on(table.productId),
+}));
+
+// =====================================================
+// 42. POS VERTICALS - Shared: Loyalty
+// =====================================================
+
+export const loyaltyPrograms = mysqlTable("loyalty_programs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  nameAr: varchar("name_ar", { length: 255 }),
+  pointsPerCurrency: decimal("points_per_currency", { precision: 10, scale: 2 }).default("1").notNull(),
+  currencyPerPoint: decimal("currency_per_point", { precision: 10, scale: 2 }).default("0.01").notNull(),
+  pointExpiryDays: int("point_expiry_days").default(365),
+  minRedeemPoints: int("min_redeem_points").default(0),
+  maxRedeemPercent: decimal("max_redeem_percent", { precision: 5, scale: 2 }).default("100"),
+  tierConfig: json("tier_config"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("loyalty_programs_tenant_idx").on(table.tenantId),
+]);
+
+export const loyaltyCards = mysqlTable("loyalty_cards", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  programId: bigint("program_id", { mode: "number", unsigned: true }).notNull(),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }).notNull(),
+  cardNumber: varchar("card_number", { length: 100 }).notNull(),
+  tier: varchar("tier", { length: 50 }).default("standard"),
+  totalPoints: decimal("total_points", { precision: 18, scale: 4 }).default("0"),
+  lifetimePoints: decimal("lifetime_points", { precision: 18, scale: 4 }).default("0"),
+  lifetimeSpend: decimal("lifetime_spend", { precision: 18, scale: 4 }).default("0"),
+  currentBalance: decimal("current_balance", { precision: 18, scale: 4 }).default("0"),
+  enrolledAt: timestamp("enrolled_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => ({
+  uniqueIdx: uniqueIndex("loyalty_cards_number_unique").on(table.cardNumber),
+  customerIdx: index("loyalty_cards_customer_idx").on(table.customerId),
+  programIdx: index("loyalty_cards_program_idx").on(table.programId),
+}));
+
+export const loyaltyTransactions = mysqlTable("loyalty_transactions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  cardId: bigint("card_id", { mode: "number", unsigned: true }).notNull(),
+  transactionType: mysqlEnum("transaction_type", ["earn", "redeem", "adjust", "expire", "transfer"]).notNull(),
+  points: decimal("points", { precision: 18, scale: 4 }).notNull(),
+  balanceBefore: decimal("balance_before", { precision: 18, scale: 4 }).notNull(),
+  balanceAfter: decimal("balance_after", { precision: 18, scale: 4 }).notNull(),
+  referenceType: varchar("reference_type", { length: 100 }),
+  referenceId: bigint("reference_id", { mode: "number", unsigned: true }),
+  description: text("description"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("loyalty_transactions_card_idx").on(table.cardId),
+]);
+
+// =====================================================
+// 43. POS VERTICALS - Shared: Gift Cards
+// =====================================================
+
+export const giftCards = mysqlTable("gift_cards", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  cardNumber: varchar("card_number", { length: 100 }).notNull(),
+  pin: varchar("pin", { length: 10 }),
+  initialBalance: decimal("initial_balance", { precision: 18, scale: 4 }).notNull(),
+  currentBalance: decimal("current_balance", { precision: 18, scale: 4 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("SAR").notNull(),
+  issuerCustomerId: bigint("issuer_customer_id", { mode: "number", unsigned: true }),
+  recipientEmail: varchar("recipient_email", { length: 320 }),
+  recipientName: varchar("recipient_name", { length: 255 }),
+  message: text("message"),
+  expiresAt: timestamp("expires_at"),
+  status: mysqlEnum("status", ["active", "redeemed", "expired", "cancelled"]).default("active").notNull(),
+  issuedBy: bigint("issued_by", { mode: "number", unsigned: true }),
+  issuedAt: timestamp("issued_at").defaultNow().notNull(),
+  redeemedAt: timestamp("redeemed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => ({
+  uniqueIdx: uniqueIndex("gift_cards_number_unique").on(table.cardNumber),
+  tenantIdx: index("gift_cards_tenant_idx").on(table.tenantId),
+}));
+
+export const giftCardTransactions = mysqlTable("gift_card_transactions", {
+  id: serial("id").primaryKey(),
+  giftCardId: bigint("gift_card_id", { mode: "number", unsigned: true }).notNull(),
+  transactionType: mysqlEnum("transaction_type", ["issue", "redeem", "top_up", "refund", "expire"]).notNull(),
+  amount: decimal("amount", { precision: 18, scale: 4 }).notNull(),
+  balanceBefore: decimal("balance_before", { precision: 18, scale: 4 }).notNull(),
+  balanceAfter: decimal("balance_after", { precision: 18, scale: 4 }).notNull(),
+  referenceType: varchar("reference_type", { length: 100 }),
+  referenceId: bigint("reference_id", { mode: "number", unsigned: true }),
+  description: text("description"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// =====================================================
+// 44. POS VERTICALS - Shared: Shift/Till
+// =====================================================
+
+export const posShifts = mysqlTable("pos_shifts", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull(),
+  sessionId: bigint("session_id", { mode: "number", unsigned: true }),
+  shiftNumber: varchar("shift_number", { length: 50 }).notNull(),
+  openingBalance: decimal("opening_balance", { precision: 18, scale: 4 }).default("0").notNull(),
+  closingExpected: decimal("closing_expected", { precision: 18, scale: 4 }).default("0"),
+  closingActual: decimal("closing_actual", { precision: 18, scale: 4 }).default("0"),
+  cashSales: decimal("cash_sales", { precision: 18, scale: 4 }).default("0"),
+  cardSales: decimal("card_sales", { precision: 18, scale: 4 }).default("0"),
+  transferSales: decimal("transfer_sales", { precision: 18, scale: 4 }).default("0"),
+  totalSales: decimal("total_sales", { precision: 18, scale: 4 }).default("0"),
+  cashIn: decimal("cash_in", { precision: 18, scale: 4 }).default("0"),
+  cashOut: decimal("cash_out", { precision: 18, scale: 4 }).default("0"),
+  difference: decimal("difference", { precision: 18, scale: 4 }).default("0"),
+  status: mysqlEnum("status", ["open", "closed", "paused"]).default("open").notNull(),
+  openedAt: timestamp("opened_at").defaultNow().notNull(),
+  closedAt: timestamp("closed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("pos_shifts_tenant_idx").on(table.tenantId),
+  index("pos_shifts_user_idx").on(table.userId, table.status),
+]);
+
+export const cashDrawerLogs = mysqlTable("cash_drawer_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  shiftId: bigint("shift_id", { mode: "number", unsigned: true }),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull(),
+  action: mysqlEnum("action", ["opening", "sale", "cash_in", "cash_out", "payout", "refund", "loan", "pickup", "closing"]).notNull(),
+  amount: decimal("amount", { precision: 18, scale: 4 }).notNull(),
+  balanceBefore: decimal("balance_before", { precision: 18, scale: 4 }).notNull(),
+  balanceAfter: decimal("balance_after", { precision: 18, scale: 4 }).notNull(),
+  referenceType: varchar("reference_type", { length: 100 }),
+  referenceId: bigint("reference_id", { mode: "number", unsigned: true }),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("cash_drawer_logs_shift_idx").on(table.shiftId),
+]);
+
+// =====================================================
+// 45. POS VERTICALS - Wholesale: Pricing
+// =====================================================
+
+export const priceTiers = mysqlTable("price_tiers", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  nameAr: varchar("name_ar", { length: 255 }),
+  tierType: mysqlEnum("tier_type", ["quantity_break", "customer_group", "trade_discount"]).default("quantity_break").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("price_tiers_tenant_idx").on(table.tenantId),
+]);
+
+export const priceTierBreaks = mysqlTable("price_tier_breaks", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  priceTierId: bigint("price_tier_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }),
+  categoryId: bigint("category_id", { mode: "number", unsigned: true }),
+  minQuantity: int("min_quantity").default(1).notNull(),
+  maxQuantity: int("max_quantity"),
+  unitPrice: decimal("unit_price", { precision: 18, scale: 4 }).notNull(),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }).default("0"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const customerPriceTiers = mysqlTable("customer_price_tiers", {
+  id: serial("id").primaryKey(),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }).notNull(),
+  priceTierId: bigint("price_tier_id", { mode: "number", unsigned: true }).notNull(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueIdx: uniqueIndex("customer_price_tiers_unique").on(table.customerId, table.priceTierId),
+}));
+
+// =====================================================
+// 46. POS VERTICALS - Shared: EMV & Payment
+// =====================================================
+
+export const emvTransactions = mysqlTable("emv_transactions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }),
+  transactionId: varchar("transaction_id", { length: 255 }),
+  terminalId: varchar("terminal_id", { length: 100 }),
+  cardType: varchar("card_type", { length: 50 }),
+  cardLastFour: varchar("card_last_four", { length: 10 }),
+  amount: decimal("amount", { precision: 18, scale: 4 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("SAR").notNull(),
+  authCode: varchar("auth_code", { length: 50 }),
+  referenceNumber: varchar("reference_number", { length: 100 }),
+  status: mysqlEnum("status", ["pending", "approved", "declined", "failed", "refunded", "voided"]).default("pending").notNull(),
+  responseCode: varchar("response_code", { length: 20 }),
+  responseMessage: text("response_message"),
+  requestPayload: json("request_payload"),
+  responsePayload: json("response_payload"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("emv_transactions_invoice_idx").on(table.invoiceId),
+]);
+
+export const paymentSplits = mysqlTable("payment_splits", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }).notNull(),
+  paymentMethod: mysqlEnum("payment_method", ["cash", "card", "transfer", "cheque", "wallet", "loyalty", "gift_card", "credit", "multiple"]).notNull(),
+  amount: decimal("amount", { precision: 18, scale: 4 }).notNull(),
+  reference: varchar("reference", { length: 255 }),
+  emvTransactionId: bigint("emv_transaction_id", { mode: "number", unsigned: true }),
+  giftCardId: bigint("gift_card_id", { mode: "number", unsigned: true }),
+  loyaltyPointsUsed: decimal("loyalty_points_used", { precision: 18, scale: 4 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("payment_splits_invoice_idx").on(table.invoiceId),
+]);
+
+// =====================================================
+// 47. POS VERTICALS - QR Ordering
+// =====================================================
+
+export const qrOrderSessions = mysqlTable("qr_order_sessions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  restaurantTableId: bigint("restaurant_table_id", { mode: "number", unsigned: true }),
+  sessionToken: varchar("session_token", { length: 255 }).notNull().unique(),
+  deviceId: varchar("device_id", { length: 255 }),
+  status: mysqlEnum("status", ["active", "ordered", "paid", "expired", "cancelled"]).default("active").notNull(),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("qr_order_sessions_table_idx").on(table.restaurantTableId),
+]);
+
+// =====================================================
+// 40. HEALTHCARE VERTICAL
+// =====================================================
+
+export const patients = mysqlTable("patients", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  patientNumber: varchar("patient_number", { length: 50 }).notNull(),
+  firstName: varchar("first_name", { length: 255 }).notNull(),
+  lastName: varchar("last_name", { length: 255 }).notNull(),
+  dateOfBirth: date("date_of_birth", { mode: "string" }),
+  gender: mysqlEnum("gender", ["male", "female", "other"]),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 50 }),
+  mobile: varchar("mobile", { length: 50 }),
+  address: text("address"),
+  bloodGroup: varchar("blood_group", { length: 10 }),
+  allergies: text("allergies"),
+  medicalHistory: text("medical_history"),
+  emergencyContactName: varchar("emergency_contact_name", { length: 255 }),
+  emergencyContactPhone: varchar("emergency_contact_phone", { length: 50 }),
+  nationalId: varchar("national_id", { length: 100 }),
+  insuranceProvider: varchar("insurance_provider", { length: 255 }),
+  insurancePolicyNumber: varchar("insurance_policy_number", { length: 100 }),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("patients_tenant_idx").on(table.tenantId),
+  index("patients_phone_idx").on(table.phone),
+]);
+
+export const appointments = mysqlTable("appointments", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  patientId: bigint("patient_id", { mode: "number", unsigned: true }).notNull(),
+  doctorId: bigint("doctor_id", { mode: "number", unsigned: true }),
+  appointmentNumber: varchar("appointment_number", { length: 50 }).notNull(),
+  appointmentDate: date("appointment_date", { mode: "string" }).notNull(),
+  startTime: varchar("start_time", { length: 10 }).notNull(),
+  endTime: varchar("end_time", { length: 10 }).notNull(),
+  appointmentType: mysqlEnum("appointment_type", ["consultation", "follow_up", "emergency", "checkup", "procedure", "vaccination"]).default("consultation").notNull(),
+  status: mysqlEnum("status", ["scheduled", "checked_in", "in_progress", "completed", "cancelled", "no_show", "rescheduled"]).default("scheduled").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("appointments_tenant_idx").on(table.tenantId),
+  index("appointments_date_idx").on(table.tenantId, table.appointmentDate),
+  index("appointments_patient_idx").on(table.patientId),
+]);
+
+export const doctorRosters = mysqlTable("doctor_rosters", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }).notNull(),
+  specialization: varchar("specialization", { length: 255 }),
+  licenseNumber: varchar("license_number", { length: 100 }),
+  consultationFee: decimal("consultation_fee", { precision: 18, scale: 4 }).default("0").notNull(),
+  maxPatientsPerDay: int("max_patients_per_day").default(20),
+  workingDays: json("working_days"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("doctor_rosters_tenant_idx").on(table.tenantId),
+]);
+
+export const insuranceClaimsHealthcare = mysqlTable("insurance_claims_healthcare", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  patientId: bigint("patient_id", { mode: "number", unsigned: true }).notNull(),
+  claimNumber: varchar("claim_number", { length: 50 }).notNull(),
+  insuranceProvider: varchar("insurance_provider", { length: 255 }).notNull(),
+  policyNumber: varchar("policy_number", { length: 100 }),
+  claimAmount: decimal("claim_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  approvedAmount: decimal("approved_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  status: mysqlEnum("status", ["draft", "submitted", "approved", "rejected", "paid", "partial"]).default("draft").notNull(),
+  submissionDate: date("submission_date", { mode: "string" }),
+  approvalDate: date("approval_date", { mode: "string" }),
+  diagnosis: text("diagnosis"),
+  treatment: text("treatment"),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("insurance_claims_hc_tenant_idx").on(table.tenantId),
+]);
+
+export const labOrders = mysqlTable("lab_orders", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  patientId: bigint("patient_id", { mode: "number", unsigned: true }).notNull(),
+  orderNumber: varchar("order_number", { length: 50 }).notNull(),
+  testName: varchar("test_name", { length: 255 }).notNull(),
+  orderedBy: bigint("ordered_by", { mode: "number", unsigned: true }),
+  orderDate: date("order_date", { mode: "string" }).notNull(),
+  resultDate: date("result_date", { mode: "string" }),
+  result: text("result"),
+  status: mysqlEnum("status", ["pending", "collected", "processing", "completed", "cancelled"]).default("pending").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("lab_orders_tenant_idx").on(table.tenantId),
+]);
+
+export const pharmacyIntegration = mysqlTable("pharmacy_integration", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  patientId: bigint("patient_id", { mode: "number", unsigned: true }).notNull(),
+  appointmentId: bigint("appointment_id", { mode: "number", unsigned: true }),
+  prescriptionNumber: varchar("prescription_number", { length: 50 }).notNull(),
+  medicationName: varchar("medication_name", { length: 255 }).notNull(),
+  dosage: varchar("dosage", { length: 100 }),
+  frequency: varchar("frequency", { length: 100 }),
+  durationDays: int("duration_days"),
+  quantity: int("quantity").notNull(),
+  refills: int("refills").default(0),
+  status: mysqlEnum("status", ["prescribed", "dispensed", "partial", "cancelled"]).default("prescribed").notNull(),
+  prescribedBy: bigint("prescribed_by", { mode: "number", unsigned: true }),
+  dispensedAt: timestamp("dispensed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("pharmacy_integration_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 41. EDUCATION VERTICAL
+// =====================================================
+
+export const students = mysqlTable("students", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  studentNumber: varchar("student_number", { length: 50 }).notNull(),
+  firstName: varchar("first_name", { length: 255 }).notNull(),
+  lastName: varchar("last_name", { length: 255 }).notNull(),
+  dateOfBirth: date("date_of_birth", { mode: "string" }),
+  gender: mysqlEnum("gender", ["male", "female"]),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 50 }),
+  address: text("address"),
+  guardianName: varchar("guardian_name", { length: 255 }),
+  guardianPhone: varchar("guardian_phone", { length: 50 }),
+  guardianEmail: varchar("guardian_email", { length: 320 }),
+  grade: varchar("grade", { length: 50 }),
+  section: varchar("section", { length: 50 }),
+  academicYear: varchar("academic_year", { length: 20 }),
+  enrollmentDate: date("enrollment_date", { mode: "string" }),
+  status: mysqlEnum("status", ["active", "transferred", "graduated", "expelled", "withdrawn"]).default("active").notNull(),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("students_tenant_idx").on(table.tenantId),
+]);
+
+export const admissions = mysqlTable("admissions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  admissionNumber: varchar("admission_number", { length: 50 }).notNull(),
+  firstName: varchar("first_name", { length: 255 }).notNull(),
+  lastName: varchar("last_name", { length: 255 }).notNull(),
+  dateOfBirth: date("date_of_birth", { mode: "string" }),
+  gender: mysqlEnum("gender", ["male", "female"]),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 50 }),
+  address: text("address"),
+  guardianName: varchar("guardian_name", { length: 255 }),
+  guardianPhone: varchar("guardian_phone", { length: 50 }),
+  guardianEmail: varchar("guardian_email", { length: 320 }),
+  applyingForGrade: varchar("applying_for_grade", { length: 50 }),
+  previousSchool: varchar("previous_school", { length: 255 }),
+  academicYear: varchar("academic_year", { length: 20 }),
+  status: mysqlEnum("status", ["inquiry", "applied", "interviewed", "accepted", "rejected", "enrolled", "waitlisted"]).default("inquiry").notNull(),
+  interviewDate: date("interview_date", { mode: "string" }),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("admissions_tenant_idx").on(table.tenantId),
+]);
+
+export const feeStructures = mysqlTable("fee_structures", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  grade: varchar("grade", { length: 50 }),
+  academicYear: varchar("academic_year", { length: 20 }),
+  tuitionFee: decimal("tuition_fee", { precision: 18, scale: 4 }).default("0").notNull(),
+  admissionFee: decimal("admission_fee", { precision: 18, scale: 4 }).default("0").notNull(),
+  libraryFee: decimal("library_fee", { precision: 18, scale: 4 }).default("0").notNull(),
+  sportsFee: decimal("sports_fee", { precision: 18, scale: 4 }).default("0").notNull(),
+  transportFee: decimal("transport_fee", { precision: 18, scale: 4 }).default("0").notNull(),
+  otherFee: decimal("other_fee", { precision: 18, scale: 4 }).default("0").notNull(),
+  totalFee: decimal("total_fee", { precision: 18, scale: 4 }).default("0").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("fee_structures_tenant_idx").on(table.tenantId),
+]);
+
+export const studentFeeInvoices = mysqlTable("student_fee_invoices", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  studentId: bigint("student_id", { mode: "number", unsigned: true }).notNull(),
+  feeStructureId: bigint("fee_structure_id", { mode: "number", unsigned: true }),
+  invoiceNumber: varchar("invoice_number", { length: 50 }).notNull(),
+  term: varchar("term", { length: 50 }),
+  amount: decimal("amount", { precision: 18, scale: 4 }).notNull(),
+  paidAmount: decimal("paid_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  dueDate: date("due_date", { mode: "string" }),
+  status: mysqlEnum("status", ["pending", "partial", "paid", "overdue", "cancelled"]).default("pending").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("student_fee_invoices_tenant_idx").on(table.tenantId),
+]);
+
+export const classTimetables = mysqlTable("class_timetables", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  grade: varchar("grade", { length: 50 }),
+  section: varchar("section", { length: 50 }),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  teacherId: bigint("teacher_id", { mode: "number", unsigned: true }),
+  dayOfWeek: mysqlEnum("day_of_week", ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]).notNull(),
+  startTime: varchar("start_time", { length: 10 }).notNull(),
+  endTime: varchar("end_time", { length: 10 }).notNull(),
+  roomNumber: varchar("room_number", { length: 50 }),
+  academicYear: varchar("academic_year", { length: 20 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("class_timetables_tenant_idx").on(table.tenantId),
+]);
+
+export const studentAttendance = mysqlTable("student_attendance", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  studentId: bigint("student_id", { mode: "number", unsigned: true }).notNull(),
+  date: date("date", { mode: "string" }).notNull(),
+  status: mysqlEnum("status", ["present", "absent", "late", "excused", "holiday"]).default("present").notNull(),
+  remarks: text("remarks"),
+  markedBy: bigint("marked_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("student_attendance_tenant_idx").on(table.tenantId),
+  index("student_attendance_student_idx").on(table.studentId),
+  index("student_attendance_date_idx").on(table.tenantId, table.date),
+]);
+
+export const reportCards = mysqlTable("report_cards", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  studentId: bigint("student_id", { mode: "number", unsigned: true }).notNull(),
+  academicYear: varchar("academic_year", { length: 20 }).notNull(),
+  term: varchar("term", { length: 50 }).notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  score: decimal("score", { precision: 8, scale: 2 }),
+  grade: varchar("grade", { length: 10 }),
+  remarks: text("remarks"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("report_cards_tenant_idx").on(table.tenantId),
+  index("report_cards_student_idx").on(table.studentId),
+]);
+
+// =====================================================
+// 42. HOTEL VERTICAL
+// =====================================================
+
+export const roomTypes = mysqlTable("room_types", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  nameAr: varchar("name_ar", { length: 255 }),
+  description: text("description"),
+  basePrice: decimal("base_price", { precision: 18, scale: 4 }).notNull(),
+  maxOccupancy: int("max_occupancy").default(2),
+  numberOfRooms: int("number_of_rooms").default(1),
+  amenities: json("amenities"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("room_types_tenant_idx").on(table.tenantId),
+]);
+
+export const roomInventory = mysqlTable("room_inventory", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  roomTypeId: bigint("room_type_id", { mode: "number", unsigned: true }).notNull(),
+  roomNumber: varchar("room_number", { length: 50 }).notNull(),
+  floor: varchar("floor", { length: 50 }),
+  status: mysqlEnum("status", ["available", "occupied", "maintenance", "reserved", "cleaning"]).default("available").notNull(),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("room_inventory_tenant_idx").on(table.tenantId),
+  index("room_inventory_type_idx").on(table.roomTypeId),
+]);
+
+export const hotelBookings = mysqlTable("hotel_bookings", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  bookingNumber: varchar("booking_number", { length: 50 }).notNull(),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }),
+  roomTypeId: bigint("room_type_id", { mode: "number", unsigned: true }).notNull(),
+  roomId: bigint("room_id", { mode: "number", unsigned: true }),
+  checkIn: date("check_in", { mode: "string" }).notNull(),
+  checkOut: date("check_out", { mode: "string" }).notNull(),
+  adults: int("adults").default(1),
+  children: int("children").default(0),
+  nightlyRate: decimal("nightly_rate", { precision: 18, scale: 4 }).notNull(),
+  totalNights: int("total_nights").notNull(),
+  subtotal: decimal("subtotal", { precision: 18, scale: 4 }).default("0").notNull(),
+  taxAmount: decimal("tax_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  totalAmount: decimal("total_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  paidAmount: decimal("paid_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  source: mysqlEnum("source", ["direct", "booking.com", "expedia", "agoda", "travel_agency", "other"]).default("direct").notNull(),
+  channelBookingId: varchar("channel_booking_id", { length: 255 }),
+  status: mysqlEnum("status", ["pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show"]).default("pending").notNull(),
+  specialRequests: text("special_requests"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("hotel_bookings_tenant_idx").on(table.tenantId),
+  index("hotel_bookings_dates_idx").on(table.tenantId, table.checkIn, table.checkOut),
+  index("hotel_bookings_source_idx").on(table.source),
+]);
+
+export const bookingCalendar = mysqlTable("booking_calendar", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  roomId: bigint("room_id", { mode: "number", unsigned: true }).notNull(),
+  date: date("date", { mode: "string" }).notNull(),
+  status: mysqlEnum("status", ["available", "booked", "maintenance", "blocked"]).default("available").notNull(),
+  bookingId: bigint("booking_id", { mode: "number", unsigned: true }),
+  rateOverride: decimal("rate_override", { precision: 18, scale: 4 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("booking_calendar_tenant_idx").on(table.tenantId),
+  index("booking_calendar_room_date_idx").on(table.roomId, table.date),
+]);
+
+// =====================================================
+// 48. SAUDI HR COMPLIANCE ENGINE
+// =====================================================
+
+export const gosiRateTables = mysqlTable("gosi_rate_tables", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  effectiveFrom: date("effective_from", { mode: "string" }).notNull(),
+  effectiveTo: date("effective_to", { mode: "string" }),
+  systemType: mysqlEnum("system_type", ["new", "old"]).default("new").notNull(),
+  employeeAnnuitiesRate: decimal("employee_annuities_rate", { precision: 5, scale: 4 }).default("0.0950").notNull(),
+  employerAnnuitiesRate: decimal("employer_annuities_rate", { precision: 5, scale: 4 }).default("0.0950").notNull(),
+  employerHazardsRate: decimal("employer_hazards_rate", { precision: 5, scale: 4 }).default("0.0200").notNull(),
+  employeeUnemploymentRate: decimal("employee_unemployment_rate", { precision: 5, scale: 4 }).default("0.0075").notNull(),
+  employerUnemploymentRate: decimal("employer_unemployment_rate", { precision: 5, scale: 4 }).default("0.0075").notNull(),
+  contributionCap: decimal("contribution_cap", { precision: 18, scale: 4 }).default("45000.0000").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("gosi_rates_tenant_idx").on(table.tenantId),
+  index("gosi_rates_effective_idx").on(table.effectiveFrom, table.effectiveTo),
+]);
+
+export const gosiRegistrations = mysqlTable("gosi_registrations", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }).notNull(),
+  gosiNumber: varchar("gosi_number", { length: 50 }),
+  isSubscriber: boolean("is_subscriber").default(true),
+  registrationDate: date("registration_date", { mode: "string" }),
+  systemType: mysqlEnum("system_type", ["new", "old"]).default("new"),
+  contributionCap: decimal("contribution_cap", { precision: 18, scale: 4 }).default("45000.0000"),
+  lastCalculatedAt: timestamp("last_calculated_at"),
+  lastContribution: decimal("last_contribution", { precision: 18, scale: 4 }),
+  needsUpdate: boolean("needs_update").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => ({
+  uniqueIdx: uniqueIndex("gosi_reg_emp_idx").on(table.tenantId, table.employeeId),
+  employeeIdx: index("gosi_reg_employee_idx").on(table.employeeId),
+}));
+
+export const gosiSubmissionLogs = mysqlTable("gosi_submission_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  periodMonth: int("period_month").notNull(),
+  periodYear: int("period_year").notNull(),
+  totalEmployeeShare: decimal("total_employee_share", { precision: 18, scale: 4 }).default("0").notNull(),
+  totalEmployerShare: decimal("total_employer_share", { precision: 18, scale: 4 }).default("0").notNull(),
+  totalContributions: decimal("total_contributions", { precision: 18, scale: 4 }).default("0").notNull(),
+  employeeCount: int("employee_count").default(0).notNull(),
+  submissionDate: timestamp("submission_date"),
+  status: mysqlEnum("status", ["draft", "submitted", "acknowledged", "failed"]).default("draft").notNull(),
+  referenceNumber: varchar("reference_number", { length: 100 }),
+  submissionFile: text("submission_file"),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("gosi_sub_tenant_idx").on(table.tenantId, table.periodYear, table.periodMonth),
+]);
+
+export const wpsSubmissions = mysqlTable("wps_submissions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  payrollPeriodId: bigint("payroll_period_id", { mode: "number", unsigned: true }).notNull(),
+  submissionDate: date("submission_date", { mode: "string" }).notNull(),
+  bankFormat: varchar("bank_format", { length: 50 }).notNull().default("sarie"),
+  totalAmount: decimal("total_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  employeeCount: int("employee_count").default(0).notNull(),
+  complianceRate: decimal("compliance_rate", { precision: 5, scale: 2 }),
+  fileContent: text("file_content"),
+  fileName: varchar("file_name", { length: 255 }),
+  status: mysqlEnum("status", ["draft", "submitted", "acknowledged", "rejected"]).default("draft").notNull(),
+  referenceNumber: varchar("reference_number", { length: 100 }),
+  submittedAt: timestamp("submitted_at"),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("wps_tenant_idx").on(table.tenantId, table.payrollPeriodId),
+]);
+
+export const wpsExceptions = mysqlTable("wps_exceptions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }).notNull(),
+  payrollPeriodId: bigint("payroll_period_id", { mode: "number", unsigned: true }).notNull(),
+  exceptionType: mysqlEnum("exception_type", ["unpaid_leave", "disciplinary_deduction", "bank_account_change", "other"]).notNull(),
+  amount: decimal("amount", { precision: 18, scale: 4 }).default("0"),
+  reason: text("reason"),
+  approvedBy: bigint("approved_by", { mode: "number", unsigned: true }),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("wps_exc_tenant_idx").on(table.tenantId, table.payrollPeriodId),
+]);
+
+export const qiwaContracts = mysqlTable("qiwa_contracts", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }).notNull(),
+  qiwaContractId: varchar("qiwa_contract_id", { length: 100 }),
+  contractType: mysqlEnum("contract_type", ["full_time", "part_time", "temporary", "probation"]).default("full_time"),
+  basicSalary: decimal("basic_salary", { precision: 18, scale: 4 }).default("0"),
+  housingAllowance: decimal("housing_allowance", { precision: 18, scale: 4 }).default("0"),
+  transportAllowance: decimal("transport_allowance", { precision: 18, scale: 4 }).default("0"),
+  otherAllowances: decimal("other_allowances", { precision: 18, scale: 4 }).default("0"),
+  totalSalary: decimal("total_salary", { precision: 18, scale: 4 }).default("0"),
+  startDate: date("start_date", { mode: "string" }),
+  endDate: date("end_date", { mode: "string" }),
+  lastSyncedAt: timestamp("last_synced_at"),
+  isMatched: boolean("is_matched").default(true),
+  mismatchDetails: text("mismatch_details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => ({
+  uniqueIdx: uniqueIndex("qiwa_contract_emp_idx").on(table.tenantId, table.employeeId),
+}));
+
+export const qiwaComparisonLogs = mysqlTable("qiwa_comparison_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }),
+  comparisonType: mysqlEnum("comparison_type", ["salary", "allowance", "contract", "all"]).notNull(),
+  expectedValue: text("expected_value"),
+  actualValue: text("actual_value"),
+  difference: varchar("difference", { length: 255 }),
+  isMatched: boolean("is_matched").default(true),
+  checkedAt: timestamp("checked_at").defaultNow().notNull(),
+}, (table) => [
+  index("qiwa_log_tenant_idx").on(table.tenantId),
+]);
+
+export const iqamaRecords = mysqlTable("iqama_records", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }).notNull(),
+  iqamaNumber: varchar("iqama_number", { length: 50 }).notNull(),
+  passportNumber: varchar("passport_number", { length: 50 }),
+  issuanceDate: date("issuance_date", { mode: "string" }),
+  expiryDate: date("expiry_date", { mode: "string" }).notNull(),
+  renewalDate: date("renewal_date", { mode: "string" }),
+  profession: varchar("profession", { length: 255 }),
+  sponsorName: varchar("sponsor_name", { length: 255 }),
+  borderNumber: varchar("border_number", { length: 50 }),
+  status: mysqlEnum("status", ["active", "expired", "renewed", "cancelled"]).default("active").notNull(),
+  lastSyncedAt: timestamp("last_synced_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("iqama_tenant_idx").on(table.tenantId, table.employeeId),
+  index("iqama_expiry_idx").on(table.expiryDate),
+  index("iqama_number_idx").on(table.iqamaNumber),
+]);
+
+export const nitaqatSnapshots = mysqlTable("nitaqat_snapshots", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  snapshotDate: date("snapshot_date", { mode: "string" }).notNull(),
+  totalSaudis: int("total_saudis").default(0).notNull(),
+  totalExpats: int("total_expats").default(0).notNull(),
+  saudiRatio: decimal("saudi_ratio", { precision: 5, scale: 4 }).default("0").notNull(),
+  category: mysqlEnum("category", ["platinum", "green", "yellow", "red"]),
+  targetRatio: decimal("target_ratio", { precision: 5, scale: 4 }),
+  forecastRatio: decimal("forecast_ratio", { precision: 5, scale: 4 }),
+  whatIfHireSaudi: int("what_if_hire_saudi").default(0),
+  whatIfHireExpat: int("what_if_hire_expat").default(0),
+  whatIfFireSaudi: int("what_if_fire_saudi").default(0),
+  whatIfFireExpat: int("what_if_fire_expat").default(0),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("nitaqat_tenant_idx").on(table.tenantId, table.snapshotDate),
+]);
+
+export const eosbAccruals = mysqlTable("eosb_accruals", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }).notNull(),
+  periodStart: date("period_start", { mode: "string" }).notNull(),
+  periodEnd: date("period_end", { mode: "string" }).notNull(),
+  serviceYears: decimal("service_years", { precision: 10, scale: 4 }).default("0").notNull(),
+  accrualRate: decimal("accrual_rate", { precision: 5, scale: 4 }).default("0.5000").notNull(),
+  accrualAmount: decimal("accrual_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  runningTotal: decimal("running_total", { precision: 18, scale: 4 }).default("0").notNull(),
+  lastBasicSalary: decimal("last_basic_salary", { precision: 18, scale: 4 }).default("0").notNull(),
+  isHijri: boolean("is_hijri").default(true),
+  journalEntryId: bigint("journal_entry_id", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("eosb_tenant_idx").on(table.tenantId, table.employeeId),
+  index("eosb_period_idx").on(table.periodStart, table.periodEnd),
+]);
+
+export const biometricTemplates = mysqlTable("biometric_templates", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }).notNull(),
+  templateType: mysqlEnum("template_type", ["face", "fingerprint", "voice"]).notNull(),
+  templateHash: varchar("template_hash", { length: 255 }).notNull(),
+  templateDataEncrypted: text("template_data_encrypted").notNull(),
+  encryptionIv: varchar("encryption_iv", { length: 64 }).notNull(),
+  encryptionTag: varchar("encryption_tag", { length: 64 }).notNull(),
+  deviceId: varchar("device_id", { length: 100 }),
+  isActive: boolean("is_active").default(true),
+  enrolledAt: timestamp("enrolled_at").defaultNow().notNull(),
+  lastUsedAt: timestamp("last_used_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("bio_tenant_idx").on(table.tenantId, table.employeeId),
+  index("bio_device_idx").on(table.deviceId),
+]);
+
+export const biometricConsentRecords = mysqlTable("biometric_consent_records", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }).notNull(),
+  consentType: mysqlEnum("consent_type", ["face", "fingerprint", "voice", "gps_location", "all"]).notNull(),
+  isConsented: boolean("is_consented").default(true),
+  consentDate: timestamp("consent_date").defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at"),
+  ipAddress: varchar("ip_address", { length: 50 }),
+  userAgent: text("user_agent"),
+  lawfulBasis: varchar("lawful_basis", { length: 255 }).default("explicit_consent").notNull(),
+  purposeDescription: text("purpose_description"),
+  retentionPeriodDays: int("retention_period_days").default(90),
+  dataDeletedAt: timestamp("data_deleted_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("bio_consent_tenant_idx").on(table.tenantId, table.employeeId),
+]);
+
+export const biometricAccessLogs = mysqlTable("biometric_access_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  templateId: bigint("template_id", { mode: "number", unsigned: true }),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }),
+  action: mysqlEnum("action", ["enroll", "verify", "identify", "view", "export", "delete", "update"]).notNull(),
+  accessedBy: bigint("accessed_by", { mode: "number", unsigned: true }).notNull(),
+  ipAddress: varchar("ip_address", { length: 50 }),
+  userAgent: text("user_agent"),
+  isAllowed: boolean("is_allowed").default(true),
+  reason: varchar("reason", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("bio_access_tenant_idx").on(table.tenantId),
+  index("bio_access_employee_idx").on(table.employeeId),
+]);
+
+export const pdplDataSubjectRequests = mysqlTable("pdpl_data_subject_requests", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }).notNull(),
+  requestType: mysqlEnum("request_type", ["access", "rectification", "erasure", "restrict", "portability", "objection", "withdraw_consent"]).notNull(),
+  requestDetails: text("request_details"),
+  status: mysqlEnum("status", ["pending", "in_progress", "completed", "rejected"]).default("pending").notNull(),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  responseSummary: text("response_summary"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("pdpl_tenant_idx").on(table.tenantId, table.employeeId),
+]);
+
+export const housekeepingSchedule = mysqlTable("housekeeping_schedule", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  roomId: bigint("room_id", { mode: "number", unsigned: true }).notNull(),
+  assignedTo: bigint("assigned_to", { mode: "number", unsigned: true }),
+  date: date("date", { mode: "string" }).notNull(),
+  taskType: mysqlEnum("task_type", ["daily_clean", "tidy_up", "deep_clean", "turnover", "inspection", "repair"]).default("daily_clean").notNull(),
+  status: mysqlEnum("status", ["pending", "in_progress", "completed", "skipped", "issue_reported"]).default("pending").notNull(),
+  notes: text("notes"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("housekeeping_tenant_idx").on(table.tenantId),
+  index("housekeeping_date_idx").on(table.tenantId, table.date),
+]);
+
+export const folioCharges = mysqlTable("folio_charges", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  bookingId: bigint("booking_id", { mode: "number", unsigned: true }).notNull(),
+  chargeType: mysqlEnum("charge_type", ["room", "restaurant", "minibar", "laundry", "spa", "transport", "other"]).default("other").notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  amount: decimal("amount", { precision: 18, scale: 4 }).notNull(),
+  quantity: int("quantity").default(1),
+  totalAmount: decimal("total_amount", { precision: 18, scale: 4 }).notNull(),
+  chargeDate: date("charge_date", { mode: "string" }).notNull(),
+  postedToInvoice: boolean("posted_to_invoice").default(false),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("folio_charges_tenant_idx").on(table.tenantId),
+  index("folio_charges_booking_idx").on(table.bookingId),
+]);
+
+// =====================================================
+// 43. CONSTRUCTION VERTICAL
+// =====================================================
+
+export const constructionProjects = mysqlTable("construction_projects", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectCode: varchar("project_code", { length: 50 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  projectManagerId: bigint("project_manager_id", { mode: "number", unsigned: true }),
+  location: varchar("location", { length: 255 }),
+  startDate: date("start_date", { mode: "string" }),
+  endDate: date("end_date", { mode: "string" }),
+  contractValue: decimal("contract_value", { precision: 18, scale: 4 }).default("0").notNull(),
+  budget: decimal("budget", { precision: 18, scale: 4 }).default("0").notNull(),
+  actualCost: decimal("actual_cost", { precision: 18, scale: 4 }).default("0").notNull(),
+  progress: int("progress").default(0),
+  status: mysqlEnum("status", ["planning", "tendering", "active", "on_hold", "completed", "cancelled"]).default("planning").notNull(),
+  projectType: mysqlEnum("project_type", ["residential", "commercial", "industrial", "infrastructure", "renovation"]).default("residential").notNull(),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("construction_projects_tenant_idx").on(table.tenantId),
+]);
+
+export const subcontractors = mysqlTable("subcontractors", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  code: varchar("code", { length: 50 }),
+  name: varchar("name", { length: 255 }).notNull(),
+  contactPerson: varchar("contact_person", { length: 255 }),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 50 }),
+  trade: varchar("trade", { length: 255 }),
+  licenseNumber: varchar("license_number", { length: 100 }),
+  contractAmount: decimal("contract_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  paidAmount: decimal("paid_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  retentionPercent: decimal("retention_percent", { precision: 5, scale: 2 }).default("10").notNull(),
+  retentionAmount: decimal("retention_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("subcontractors_tenant_idx").on(table.tenantId),
+]);
+
+export const subcontractorProjects = mysqlTable("subcontractor_projects", {
+  id: serial("id").primaryKey(),
+  subcontractorId: bigint("subcontractor_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  scope: text("scope"),
+  contractAmount: decimal("contract_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  startDate: date("start_date", { mode: "string" }),
+  endDate: date("end_date", { mode: "string" }),
+  status: mysqlEnum("status", ["pending", "active", "completed", "terminated"]).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const equipmentTracking = mysqlTable("equipment_tracking", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  equipmentCode: varchar("equipment_code", { length: 50 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  assetId: bigint("asset_id", { mode: "number", unsigned: true }),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }),
+  type: varchar("type", { length: 100 }),
+  hourlyRate: decimal("hourly_rate", { precision: 18, scale: 4 }).default("0").notNull(),
+  dailyRate: decimal("daily_rate", { precision: 18, scale: 4 }).default("0").notNull(),
+  status: mysqlEnum("status", ["available", "in_use", "maintenance", "retired"]).default("available").notNull(),
+  hoursUsed: decimal("hours_used", { precision: 10, scale: 2 }).default("0").notNull(),
+  location: varchar("location", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("equipment_tracking_tenant_idx").on(table.tenantId),
+]);
+
+export const progressBilling = mysqlTable("progress_billing", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceNumber: varchar("invoice_number", { length: 50 }).notNull(),
+  milestoneName: varchar("milestone_name", { length: 255 }),
+  billingPeriod: varchar("billing_period", { length: 50 }),
+  percentageComplete: decimal("percentage_complete", { precision: 5, scale: 2 }).default("0").notNull(),
+  billedAmount: decimal("billed_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  paidAmount: decimal("paid_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  retentionPercent: decimal("retention_percent", { precision: 5, scale: 2 }).default("10").notNull(),
+  retentionAmount: decimal("retention_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  dueDate: date("due_date", { mode: "string" }),
+  status: mysqlEnum("status", ["draft", "submitted", "approved", "paid", "partial", "disputed"]).default("draft").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("progress_billing_tenant_idx").on(table.tenantId),
+]);
+
+export const retentionAccounts = mysqlTable("retention_accounts", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  subcontractorId: bigint("subcontractor_id", { mode: "number", unsigned: true }),
+  totalRetention: decimal("total_retention", { precision: 18, scale: 4 }).default("0").notNull(),
+  releasedAmount: decimal("released_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  remainingAmount: decimal("remaining_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  expectedReleaseDate: date("expected_release_date", { mode: "string" }),
+  status: mysqlEnum("status", ["held", "partial_release", "released"]).default("held").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("retention_accounts_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 44. TRANSPORT / LOGISTICS VERTICAL
+// =====================================================
+
+export const routes = mysqlTable("routes", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  routeCode: varchar("route_code", { length: 50 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  origin: varchar("origin", { length: 255 }).notNull(),
+  destination: varchar("destination", { length: 255 }).notNull(),
+  distanceKm: decimal("distance_km", { precision: 10, scale: 2 }),
+  estimatedDuration: varchar("estimated_duration", { length: 50 }),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("routes_tenant_idx").on(table.tenantId),
+]);
+
+export const routePlanning = mysqlTable("route_planning", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  routeId: bigint("route_id", { mode: "number", unsigned: true }).notNull(),
+  vehicleId: bigint("vehicle_id", { mode: "number", unsigned: true }).notNull(),
+  driverId: bigint("driver_id", { mode: "number", unsigned: true }),
+  plannedDate: date("planned_date", { mode: "string" }).notNull(),
+  departureTime: varchar("departure_time", { length: 10 }),
+  arrivalTime: varchar("arrival_time", { length: 10 }),
+  status: mysqlEnum("status", ["planned", "in_transit", "completed", "cancelled"]).default("planned").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("route_planning_tenant_idx").on(table.tenantId),
+]);
+
+export const driverSchedules = mysqlTable("driver_schedules", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  driverId: bigint("driver_id", { mode: "number", unsigned: true }).notNull(),
+  date: date("date", { mode: "string" }).notNull(),
+  startTime: varchar("start_time", { length: 10 }),
+  endTime: varchar("end_time", { length: 10 }),
+  status: mysqlEnum("status", ["scheduled", "on_duty", "off_duty", "on_leave"]).default("scheduled").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("driver_schedules_tenant_idx").on(table.tenantId),
+]);
+
+export const shipmentTracking = mysqlTable("shipment_tracking", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  trackingNumber: varchar("tracking_number", { length: 100 }).notNull(),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }),
+  origin: varchar("origin", { length: 255 }).notNull(),
+  destination: varchar("destination", { length: 255 }).notNull(),
+  weight: decimal("weight", { precision: 10, scale: 2 }),
+  volume: decimal("volume", { precision: 10, scale: 2 }),
+  vehicleId: bigint("vehicle_id", { mode: "number", unsigned: true }),
+  driverId: bigint("driver_id", { mode: "number", unsigned: true }),
+  routeId: bigint("route_id", { mode: "number", unsigned: true }),
+  dispatchedAt: timestamp("dispatched_at"),
+  estimatedDelivery: timestamp("estimated_delivery"),
+  deliveredAt: timestamp("delivered_at"),
+  status: mysqlEnum("status", ["pending", "picked_up", "in_transit", "delivered", "exception", "cancelled"]).default("pending").notNull(),
+  lastLocation: varchar("last_location", { length: 255 }),
+  currentLatitude: decimal("current_latitude", { precision: 10, scale: 7 }),
+  currentLongitude: decimal("current_longitude", { precision: 10, scale: 7 }),
+  temperature: decimal("temperature", { precision: 5, scale: 2 }),
+  signature: text("signature"),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("shipment_tracking_tenant_idx").on(table.tenantId),
+  index("shipment_tracking_tracking_idx").on(table.trackingNumber),
+  index("shipment_tracking_status_idx").on(table.tenantId, table.status),
+]);
+
+export const fuelCostAnalytics = mysqlTable("fuel_cost_analytics", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  vehicleId: bigint("vehicle_id", { mode: "number", unsigned: true }).notNull(),
+  periodStart: date("period_start", { mode: "string" }).notNull(),
+  periodEnd: date("period_end", { mode: "string" }).notNull(),
+  totalLiters: decimal("total_liters", { precision: 12, scale: 2 }).default("0").notNull(),
+  totalCost: decimal("total_cost", { precision: 18, scale: 4 }).default("0").notNull(),
+  distanceCovered: int("distance_covered").default(0),
+  kmPerLiter: decimal("km_per_liter", { precision: 8, scale: 2 }),
+  costPerKm: decimal("cost_per_km", { precision: 10, scale: 4 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("fuel_cost_analytics_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 45. REAL ESTATE VERTICAL
+// =====================================================
+
+export const properties = mysqlTable("properties", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  propertyCode: varchar("property_code", { length: 50 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  propertyType: mysqlEnum("property_type", ["residential", "commercial", "industrial", "land", "mixed_use"]).default("residential").notNull(),
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  district: varchar("district", { length: 100 }),
+  areaSize: decimal("area_size", { precision: 12, scale: 2 }),
+  areaUnit: varchar("area_unit", { length: 20 }).default("sqm"),
+  purchaseDate: date("purchase_date", { mode: "string" }),
+  purchaseCost: decimal("purchase_cost", { precision: 18, scale: 4 }).default("0").notNull(),
+  currentValue: decimal("current_value", { precision: 18, scale: 4 }).default("0").notNull(),
+  propertyTax: decimal("property_tax", { precision: 18, scale: 4 }).default("0").notNull(),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("properties_tenant_idx").on(table.tenantId),
+]);
+
+export const propertyUnits = mysqlTable("property_units", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  propertyId: bigint("property_id", { mode: "number", unsigned: true }).notNull(),
+  unitNumber: varchar("unit_number", { length: 50 }).notNull(),
+  floor: varchar("floor", { length: 50 }),
+  bedrooms: int("bedrooms").default(0),
+  bathrooms: int("bathrooms").default(0),
+  areaSize: decimal("area_size", { precision: 12, scale: 2 }),
+  monthlyRent: decimal("monthly_rent", { precision: 18, scale: 4 }).default("0").notNull(),
+  securityDeposit: decimal("security_deposit", { precision: 18, scale: 4 }).default("0").notNull(),
+  status: mysqlEnum("status", ["vacant", "occupied", "maintenance", "reserved"]).default("vacant").notNull(),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("property_units_tenant_idx").on(table.tenantId),
+  index("property_units_property_idx").on(table.propertyId),
+]);
+
+export const leases = mysqlTable("leases", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  leaseNumber: varchar("lease_number", { length: 50 }).notNull(),
+  unitId: bigint("unit_id", { mode: "number", unsigned: true }).notNull(),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }),
+  startDate: date("start_date", { mode: "string" }).notNull(),
+  endDate: date("end_date", { mode: "string" }).notNull(),
+  monthlyRent: decimal("monthly_rent", { precision: 18, scale: 4 }).notNull(),
+  securityDeposit: decimal("security_deposit", { precision: 18, scale: 4 }).default("0").notNull(),
+  rentDueDay: int("rent_due_day").default(1),
+  leaseType: mysqlEnum("lease_type", ["residential", "commercial", "short_term", "long_term"]).default("residential").notNull(),
+  status: mysqlEnum("status", ["draft", "active", "expired", "terminated", "renewed"]).default("draft").notNull(),
+  renewalCount: int("renewal_count").default(0),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("leases_tenant_idx").on(table.tenantId),
+  index("leases_unit_idx").on(table.unitId),
+]);
+
+export const rentInvoices = mysqlTable("rent_invoices", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  leaseId: bigint("lease_id", { mode: "number", unsigned: true }).notNull(),
+  unitId: bigint("unit_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceNumber: varchar("invoice_number", { length: 50 }).notNull(),
+  periodStart: date("period_start", { mode: "string" }).notNull(),
+  periodEnd: date("period_end", { mode: "string" }).notNull(),
+  rentAmount: decimal("rent_amount", { precision: 18, scale: 4 }).notNull(),
+  lateFee: decimal("late_fee", { precision: 18, scale: 4 }).default("0").notNull(),
+  taxAmount: decimal("tax_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  totalAmount: decimal("total_amount", { precision: 18, scale: 4 }).notNull(),
+  paidAmount: decimal("paid_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  dueDate: date("due_date", { mode: "string" }).notNull(),
+  paidDate: date("paid_date", { mode: "string" }),
+  status: mysqlEnum("status", ["pending", "paid", "partial", "overdue", "cancelled"]).default("pending").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("rent_invoices_tenant_idx").on(table.tenantId),
+  index("rent_invoices_lease_idx").on(table.leaseId),
+  index("rent_invoices_status_idx").on(table.tenantId, table.status),
+]);
+
+export const maintenanceRequests = mysqlTable("maintenance_requests", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  unitId: bigint("unit_id", { mode: "number", unsigned: true }).notNull(),
+  requestedBy: bigint("requested_by", { mode: "number", unsigned: true }),
+  requestNumber: varchar("request_number", { length: 50 }).notNull(),
+  category: varchar("category", { length: 100 }),
+  description: text("description").notNull(),
+  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
+  status: mysqlEnum("status", ["reported", "assigned", "in_progress", "resolved", "closed", "cancelled"]).default("reported").notNull(),
+  assignedTo: bigint("assigned_to", { mode: "number", unsigned: true }),
+  estimatedCost: decimal("estimated_cost", { precision: 18, scale: 4 }).default("0").notNull(),
+  actualCost: decimal("actual_cost", { precision: 18, scale: 4 }).default("0").notNull(),
+  scheduledDate: date("scheduled_date", { mode: "string" }),
+  resolvedAt: timestamp("resolved_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("maintenance_requests_tenant_idx").on(table.tenantId),
+  index("maintenance_requests_status_idx").on(table.tenantId, table.status),
+]);
+
+export const commissionRecords = mysqlTable("commission_records", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  agentName: varchar("agent_name", { length: 255 }).notNull(),
+  leaseId: bigint("lease_id", { mode: "number", unsigned: true }),
+  propertyId: bigint("property_id", { mode: "number", unsigned: true }),
+  commissionType: mysqlEnum("commission_type", ["rental", "sale", "referral"]).default("rental").notNull(),
+  commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).default("0").notNull(),
+  commissionAmount: decimal("commission_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  paidAmount: decimal("paid_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  dueDate: date("due_date", { mode: "string" }),
+  status: mysqlEnum("status", ["pending", "approved", "paid", "cancelled"]).default("pending").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("commission_records_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 46. TRAVEL AGENCY VERTICAL
+// =====================================================
+
+export const travelBookings = mysqlTable("travel_bookings", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  bookingNumber: varchar("booking_number", { length: 50 }).notNull(),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }).notNull(),
+  bookingType: mysqlEnum("booking_type", ["flight", "hotel", "package", "car_rental", "insurance", "visa"]).notNull(),
+  supplierId: bigint("supplier_id", { mode: "number", unsigned: true }),
+  bookingDate: date("booking_date", { mode: "string" }).notNull(),
+  startDate: date("start_date", { mode: "string" }),
+  endDate: date("end_date", { mode: "string" }),
+  grossAmount: decimal("gross_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  commissionAmount: decimal("commission_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  netAmount: decimal("net_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  paidAmount: decimal("paid_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  currency: varchar("currency", { length: 10 }).default("SAR").notNull(),
+  source: mysqlEnum("source", ["direct", "online", "partner", "corporate"]).default("direct").notNull(),
+  status: mysqlEnum("status", ["pending", "confirmed", "cancelled", "refunded", "completed"]).default("pending").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("travel_bookings_tenant_idx").on(table.tenantId),
+  index("travel_bookings_type_idx").on(table.bookingType),
+]);
+
+export const travelSuppliers = mysqlTable("travel_suppliers", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  code: varchar("code", { length: 50 }),
+  name: varchar("name", { length: 255 }).notNull(),
+  supplierType: mysqlEnum("supplier_type", ["airline", "hotel", "car_rental", "insurance", "tour_operator", "visa", "other"]).notNull(),
+  contactPerson: varchar("contact_person", { length: 255 }),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 50 }),
+  address: text("address"),
+  commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).default("0").notNull(),
+  paymentTerms: varchar("payment_terms", { length: 255 }),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("travel_suppliers_tenant_idx").on(table.tenantId),
+]);
+
+export const itineraries = mysqlTable("itineraries", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  bookingId: bigint("booking_id", { mode: "number", unsigned: true }).notNull(),
+  day: int("day").notNull(),
+  date: date("date", { mode: "string" }),
+  activity: varchar("activity", { length: 255 }).notNull(),
+  description: text("description"),
+  location: varchar("location", { length: 255 }),
+  startTime: varchar("start_time", { length: 10 }),
+  endTime: varchar("end_time", { length: 10 }),
+  supplierId: bigint("supplier_id", { mode: "number", unsigned: true }),
+  cost: decimal("cost", { precision: 18, scale: 4 }).default("0").notNull(),
+  currency: varchar("currency", { length: 10 }).default("SAR").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("itineraries_tenant_idx").on(table.tenantId),
+  index("itineraries_booking_idx").on(table.bookingId),
+]);
+
+export const supplierReconciliation = mysqlTable("supplier_reconciliation", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  supplierId: bigint("supplier_id", { mode: "number", unsigned: true }).notNull(),
+  reconciliationNumber: varchar("reconciliation_number", { length: 50 }).notNull(),
+  periodStart: date("period_start", { mode: "string" }).notNull(),
+  periodEnd: date("period_end", { mode: "string" }).notNull(),
+  totalBookings: int("total_bookings").default(0),
+  grossAmount: decimal("gross_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  commissionAmount: decimal("commission_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  netPayable: decimal("net_payable", { precision: 18, scale: 4 }).default("0").notNull(),
+  paidAmount: decimal("paid_amount", { precision: 18, scale: 4 }).default("0").notNull(),
+  balanceDue: decimal("balance_due", { precision: 18, scale: 4 }).default("0").notNull(),
+  status: mysqlEnum("status", ["draft", "confirmed", "paid", "disputed"]).default("draft").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("supplier_reconciliation_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 47. AVIATION VERTICAL
+// =====================================================
+
+export const flights = mysqlTable("flights", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  flightNumber: varchar("flight_number", { length: 50 }).notNull(),
+  aircraftRegistration: varchar("aircraft_registration", { length: 50 }),
+  aircraftType: varchar("aircraft_type", { length: 100 }),
+  origin: varchar("origin", { length: 255 }).notNull(),
+  destination: varchar("destination", { length: 255 }).notNull(),
+  departureTime: timestamp("departure_time").notNull(),
+  arrivalTime: timestamp("arrival_time").notNull(),
+  flightDuration: int("flight_duration"),
+  totalSeats: int("total_seats").default(0),
+  bookedSeats: int("booked_seats").default(0),
+  status: mysqlEnum("status", ["scheduled", "boarding", "departed", "in_air", "landed", "cancelled", "delayed", "diverted"]).default("scheduled").notNull(),
+  delayReason: text("delay_reason"),
+  pilotId: bigint("pilot_id", { mode: "number", unsigned: true }),
+  copilotId: bigint("copilot_id", { mode: "number", unsigned: true }),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("flights_tenant_idx").on(table.tenantId),
+  index("flights_departure_idx").on(table.tenantId, table.departureTime),
+  index("flights_route_idx").on(table.origin, table.destination),
+]);
+
+export const crewCertifications = mysqlTable("crew_certifications", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }).notNull(),
+  certificationType: varchar("certification_type", { length: 255 }).notNull(),
+  certificationNumber: varchar("certification_number", { length: 100 }),
+  issuedBy: varchar("issued_by", { length: 255 }),
+  issueDate: date("issue_date", { mode: "string" }),
+  expiryDate: date("expiry_date", { mode: "string" }),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("crew_certifications_tenant_idx").on(table.tenantId),
+  index("crew_certifications_emp_idx").on(table.employeeId),
+]);
+
+export const maintenanceAirworthiness = mysqlTable("maintenance_airworthiness", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  vehicleId: bigint("vehicle_id", { mode: "number", unsigned: true }),
+  aircraftRegistration: varchar("aircraft_registration", { length: 50 }),
+  inspectionType: varchar("inspection_type", { length: 255 }).notNull(),
+  inspectionDate: date("inspection_date", { mode: "string" }).notNull(),
+  nextDueDate: date("next_due_date", { mode: "string" }),
+  airframeHours: int("airframe_hours"),
+  engineHours: int("engine_hours"),
+  performedBy: varchar("performed_by", { length: 255 }),
+  findings: text("findings"),
+  correctiveAction: text("corrective_action"),
+  status: mysqlEnum("status", ["scheduled", "in_progress", "completed", "deferred", "aog"]).default("scheduled").notNull(),
+  isAirworthy: boolean("is_airworthy").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("maintenance_airworthiness_tenant_idx").on(table.tenantId),
+]);
+
+export const partsInventorySerial = mysqlTable("parts_inventory_serial", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  partNumber: varchar("part_number", { length: 100 }).notNull(),
+  partName: varchar("part_name", { length: 255 }).notNull(),
+  serialNumber: varchar("serial_number", { length: 100 }).notNull().unique(),
+  manufacturer: varchar("manufacturer", { length: 255 }),
+  quantity: int("quantity").default(1),
+  condition: mysqlEnum("condition", ["new", "serviceable", "overhauled", "unserviceable", "scrap"]).default("new").notNull(),
+  location: varchar("location", { length: 255 }),
+  shelfLife: date("shelf_life", { mode: "string" }),
+  installationDate: date("installation_date", { mode: "string" }),
+  installedOnAircraft: varchar("installed_on_aircraft", { length: 50 }),
+  removalDate: date("removal_date", { mode: "string" }),
+  tsn: int("tsn").default(0),
+  csi: int("csi").default(0),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("parts_inventory_serial_tenant_idx").on(table.tenantId),
+  index("parts_inventory_serial_part_idx").on(table.partNumber),
+]);
+
+// =====================================================
+// 50. AI REPORTS
+// =====================================================
+
+export const aiReportTemplates = mysqlTable("ai_report_templates", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  naturalLanguageQuery: text("natural_language_query").notNull(),
+  parsedIntent: varchar("parsed_intent", { length: 100 }),
+  generatedSql: text("generated_sql"),
+  resultCache: json("result_cache"),
+  chartType: varchar("chart_type", { length: 50 }).default("table"),
+  isFavorite: boolean("is_favorite").default(false),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("ai_report_templates_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 51. AI FORECASTING
+// =====================================================
+
+export const aiForecastResults = mysqlTable("ai_forecast_results", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  forecastType: varchar("forecast_type", { length: 50 }).notNull(),
+  entityType: varchar("entity_type", { length: 50 }),
+  entityId: bigint("entity_id", { mode: "number", unsigned: true }),
+  parameters: json("parameters"),
+  historicalData: json("historical_data"),
+  forecastData: json("forecast_data"),
+  confidenceInterval: json("confidence_interval"),
+  seasonalPatterns: json("seasonal_patterns"),
+  reorderPoint: int("reorder_point"),
+  periodStart: date("period_start", { mode: "string" }),
+  periodEnd: date("period_end", { mode: "string" }),
+  accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }),
+  status: varchar("status", { length: 50 }).default("completed"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("ai_forecast_tenant_idx").on(table.tenantId),
+  index("ai_forecast_type_idx").on(table.tenantId, table.forecastType),
+]);
+
+// =====================================================
+// 52. AI CHATBOT SESSIONS
+// =====================================================
+
+export const aiChatbotSessions = mysqlTable("ai_chatbot_sessions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }),
+  sessionId: varchar("session_id", { length: 100 }).notNull(),
+  channel: varchar("channel", { length: 50 }).default("portal"),
+  language: varchar("language", { length: 10 }).default("en"),
+  customerName: varchar("customer_name", { length: 255 }),
+  customerEmail: varchar("customer_email", { length: 320 }),
+  customerPhone: varchar("customer_phone", { length: 50 }),
+  context: json("context"),
+  ticketId: bigint("ticket_id", { mode: "number", unsigned: true }),
+  rating: int("rating"),
+  feedback: text("feedback"),
+  status: varchar("status", { length: 50 }).default("active"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("ai_chatbot_session_tenant_idx").on(table.tenantId),
+  index("ai_chatbot_session_sid_idx").on(table.sessionId),
+]);
+
+// =====================================================
+// 53. AI AUTOMATION RULES
+// =====================================================
+
+export const aiAutomationRules = mysqlTable("ai_automation_rules", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  ruleType: varchar("rule_type", { length: 50 }).notNull(),
+  description: text("description"),
+  configuration: json("configuration"),
+  aiSuggested: boolean("ai_suggested").default(false),
+  aiConfidence: decimal("ai_confidence", { precision: 5, scale: 2 }),
+  isActive: boolean("is_active").default(true),
+  lastRunAt: timestamp("last_run_at"),
+  runCount: int("run_count").default(0),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("ai_automation_tenant_idx").on(table.tenantId),
+  index("ai_automation_type_idx").on(table.tenantId, table.ruleType),
+]);
+
+export const aiAutomationSuggestions = mysqlTable("ai_automation_suggestions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  ruleType: varchar("rule_type", { length: 50 }).notNull(),
+  sourceEntityType: varchar("source_entity_type", { length: 100 }),
+  sourceEntityId: bigint("source_entity_id", { mode: "number", unsigned: true }),
+  suggestedAction: json("suggested_action"),
+  confidence: decimal("confidence", { precision: 5, scale: 2 }),
+  status: varchar("status", { length: 50 }).default("pending"),
+  appliedBy: bigint("applied_by", { mode: "number", unsigned: true }),
+  appliedAt: timestamp("applied_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("ai_automation_sugg_tenant_idx").on(table.tenantId),
+  index("ai_automation_sugg_status_idx").on(table.tenantId, table.status),
+]);
+
+// =====================================================
+// 54. BI DATA WAREHOUSE
+// =====================================================
+
+export const biDataWarehouseTables = mysqlTable("bi_data_warehouse_tables", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  tableName: varchar("table_name", { length: 100 }).notNull(),
+  displayName: varchar("display_name", { length: 255 }),
+  description: text("description"),
+  sourceQuery: text("source_query"),
+  refreshFrequency: varchar("refresh_frequency", { length: 50 }).default("daily"),
+  lastRefreshedAt: timestamp("last_refreshed_at"),
+  nextScheduledRefresh: timestamp("next_scheduled_refresh"),
+  rowCount: int("row_count").default(0),
+  retentionDays: int("retention_days").default(365),
+  isActive: boolean("is_active").default(true),
+  config: json("config"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("bi_dw_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 55. BI METRICS
+// =====================================================
+
+export const biMetricsDefinitions = mysqlTable("bi_metrics_definitions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  metricKey: varchar("metric_key", { length: 100 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  nameAr: varchar("name_ar", { length: 255 }),
+  description: text("description"),
+  category: varchar("category", { length: 100 }),
+  unit: varchar("unit", { length: 50 }),
+  calculationType: varchar("calculation_type", { length: 50 }).default("sql"),
+  calculationSql: text("calculation_sql"),
+  sourceTable: varchar("source_table", { length: 100 }),
+  dimensions: json("dimensions"),
+  comparisonPeriods: json("comparison_periods"),
+  isPrecomputed: boolean("is_precomputed").default(false),
+  isActive: boolean("is_active").default(true),
+  sortOrder: int("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("bi_metrics_definitions_key_unique").on(table.tenantId, table.metricKey),
+  index("bi_metrics_tenant_idx").on(table.tenantId),
+  index("bi_metrics_category_idx").on(table.tenantId, table.category),
+]);
+
+// =====================================================
+// 56. DASHBOARDS
+// =====================================================
+
+export const dashboards = mysqlTable("dashboards", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  nameAr: varchar("name_ar", { length: 255 }),
+  description: text("description"),
+  layout: json("layout"),
+  templateKey: varchar("template_key", { length: 100 }),
+  isTemplate: boolean("is_template").default(false),
+  isDefault: boolean("is_default").default(false),
+  isShared: boolean("is_shared").default(false),
+  roles: json("roles"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("dashboards_tenant_idx").on(table.tenantId),
+  index("dashboards_template_idx").on(table.tenantId, table.templateKey),
+]);
+
+export const dashboardWidgets = mysqlTable("dashboard_widgets", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  dashboardId: bigint("dashboard_id", { mode: "number", unsigned: true }).notNull(),
+  widgetType: varchar("widget_type", { length: 50 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  titleAr: varchar("title_ar", { length: 255 }),
+  dataSource: json("data_source"),
+  visualConfig: json("visual_config"),
+  positionX: int("position_x").default(0),
+  positionY: int("position_y").default(0),
+  width: int("width").default(4),
+  height: int("height").default(3),
+  isVisible: boolean("is_visible").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("dw_dashboard_idx").on(table.tenantId, table.dashboardId),
+]);
+
+// =====================================================
+// 57. REPORT TEMPLATES & SCHEDULES
+// =====================================================
+
+export const reportTemplates = mysqlTable("report_templates", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  module: varchar("module", { length: 100 }),
+  columnsConfig: json("columns_config"),
+  filtersConfig: json("filters_config"),
+  sortConfig: json("sort_config"),
+  groupConfig: json("group_config"),
+  aggregations: json("aggregations"),
+  chartConfig: json("chart_config"),
+  isFavorite: boolean("is_favorite").default(false),
+  isPublic: boolean("is_public").default(false),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("report_templates_tenant_idx").on(table.tenantId),
+  index("report_templates_module_idx").on(table.tenantId, table.module),
+]);
+
+export const reportSchedules = mysqlTable("report_schedules", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  reportTemplateId: bigint("report_template_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  frequency: varchar("frequency", { length: 50 }).notNull(),
+  cronExpression: varchar("cron_expression", { length: 100 }),
+  dayOfWeek: int("day_of_week"),
+  dayOfMonth: int("day_of_month"),
+  timeOfDay: varchar("time_of_day", { length: 10 }).default("08:00"),
+  format: varchar("format", { length: 50 }).default("pdf"),
+  recipientEmails: json("recipient_emails"),
+  lastSentAt: timestamp("last_sent_at"),
+  nextRunAt: timestamp("next_run_at"),
+  isActive: boolean("is_active").default(true),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("report_schedules_tenant_idx").on(table.tenantId),
+  index("report_schedules_next_run_idx").on(table.nextRunAt),
+]);
+
+// =====================================================
+// 58. WORKFLOWS
+// =====================================================
+
+export const workflows = mysqlTable("workflows", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  entityType: varchar("entity_type", { length: 100 }),
+  triggerType: varchar("trigger_type", { length: 50 }).notNull(),
+  triggerConfig: json("trigger_config"),
+  isActive: boolean("is_active").default(true),
+  version: int("version").default(1),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("workflows_tenant_idx").on(table.tenantId),
+  index("workflows_entity_idx").on(table.tenantId, table.entityType),
+  index("workflows_trigger_idx").on(table.tenantId, table.triggerType),
+]);
+
+export const workflowSteps = mysqlTable("workflow_steps", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  workflowId: bigint("workflow_id", { mode: "number", unsigned: true }).notNull(),
+  stepOrder: int("step_order").notNull(),
+  stepType: varchar("step_type", { length: 50 }).notNull(),
+  stepConfig: json("step_config"),
+  conditions: json("conditions"),
+  approvalConfig: json("approval_config"),
+  isParallel: boolean("is_parallel").default(false),
+  timeoutMinutes: int("timeout_minutes"),
+  escalationConfig: json("escalation_config"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("workflow_steps_workflow_idx").on(table.tenantId, table.workflowId),
+]);
+
+export const workflowApprovals = mysqlTable("workflow_approvals", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  workflowId: bigint("workflow_id", { mode: "number", unsigned: true }).notNull(),
+  workflowStepId: bigint("workflow_step_id", { mode: "number", unsigned: true }),
+  entityType: varchar("entity_type", { length: 100 }),
+  entityId: bigint("entity_id", { mode: "number", unsigned: true }),
+  requestedBy: bigint("requested_by", { mode: "number", unsigned: true }),
+  assignedTo: json("assigned_to"),
+  status: varchar("status", { length: 50 }).default("pending"),
+  approvedBy: bigint("approved_by", { mode: "number", unsigned: true }),
+  approvedAt: timestamp("approved_at"),
+  rejectionReason: text("rejection_reason"),
+  priority: int("priority").default(0),
+  dueAt: timestamp("due_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("workflow_approvals_tenant_idx").on(table.tenantId),
+  index("workflow_approvals_status_idx").on(table.tenantId, table.status),
+  index("workflow_approvals_entity_idx").on(table.entityType, table.entityId),
+]);
+
+export const workflowLogs = mysqlTable("workflow_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  workflowId: bigint("workflow_id", { mode: "number", unsigned: true }),
+  workflowStepId: bigint("workflow_step_id", { mode: "number", unsigned: true }),
+  entityType: varchar("entity_type", { length: 100 }),
+  entityId: bigint("entity_id", { mode: "number", unsigned: true }),
+  action: varchar("action", { length: 100 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull(),
+  message: text("message"),
+  inputData: json("input_data"),
+  outputData: json("output_data"),
+  executionTimeMs: int("execution_time_ms"),
+  triggeredBy: bigint("triggered_by", { mode: "number", unsigned: true }),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("workflow_logs_tenant_idx").on(table.tenantId),
+  index("workflow_logs_workflow_idx").on(table.tenantId, table.workflowId),
+  index("workflow_logs_entity_idx").on(table.entityType, table.entityId),
+  index("workflow_logs_created_idx").on(table.tenantId, table.createdAt),
+]);
+
+// =====================================================
+// 59. QUALITY CONTROL
+// =====================================================
+
+export const qualityInspectionTemplates = mysqlTable("quality_inspection_templates", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  appliesTo: mysqlEnum("applies_to", ["incoming_material", "in_process", "final", "outgoing"]).default("incoming_material").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("qc_templates_tenant_idx").on(table.tenantId),
+]);
+
+export const qualityInspectionTemplateLines = mysqlTable("quality_inspection_template_lines", {
+  id: serial("id").primaryKey(),
+  templateId: bigint("template_id", { mode: "number", unsigned: true }).notNull(),
+  checkpointName: varchar("checkpoint_name", { length: 255 }).notNull(),
+  checkpointType: mysqlEnum("checkpoint_type", ["visual", "dimensional", "functional", "chemical", "microbiological", "other"]).default("visual").notNull(),
+  specificationMin: decimal("specification_min", { precision: 18, scale: 4 }),
+  specificationMax: decimal("specification_max", { precision: 18, scale: 4 }),
+  specificationText: text("specification_text"),
+  isCritical: boolean("is_critical").default(false),
+  sortOrder: int("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("qc_template_lines_template_idx").on(table.templateId),
+]);
+
+export const qualityInspections = mysqlTable("quality_inspections", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  templateId: bigint("template_id", { mode: "number", unsigned: true }).notNull(),
+  referenceType: mysqlEnum("reference_type", ["purchase_order", "goods_receipt", "work_order", "production_order", "sales_order", "other"]).notNull(),
+  referenceId: bigint("reference_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }),
+  batchNumber: varchar("batch_number", { length: 100 }),
+  inspectionDate: date("inspection_date", { mode: "string" }).notNull(),
+  inspectedBy: bigint("inspected_by", { mode: "number", unsigned: true }),
+  overallResult: mysqlEnum("overall_result", ["pass", "fail", "rework", "pending"]).default("pending").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("qc_inspections_tenant_idx").on(table.tenantId),
+  index("qc_inspections_ref_idx").on(table.tenantId, table.referenceType, table.referenceId),
+  index("qc_inspections_product_idx").on(table.tenantId, table.productId),
+]);
+
+export const qualityInspectionLines = mysqlTable("quality_inspection_lines", {
+  id: serial("id").primaryKey(),
+  inspectionId: bigint("inspection_id", { mode: "number", unsigned: true }).notNull(),
+  templateLineId: bigint("template_line_id", { mode: "number", unsigned: true }).notNull(),
+  resultValue: varchar("result_value", { length: 255 }),
+  resultStatus: mysqlEnum("result_status", ["pass", "fail", "na"]).default("na").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("qc_inspection_lines_inspection_idx").on(table.inspectionId),
+]);
+
+export const nonConformanceReports = mysqlTable("non_conformance_reports", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  ncrNumber: varchar("ncr_number", { length: 100 }).notNull(),
+  inspectionId: bigint("inspection_id", { mode: "number", unsigned: true }),
+  referenceType: mysqlEnum("reference_type", ["purchase_order", "goods_receipt", "work_order", "production_order", "sales_order", "other"]).notNull(),
+  referenceId: bigint("reference_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }),
+  batchNumber: varchar("batch_number", { length: 100 }),
+  description: text("description").notNull(),
+  severity: mysqlEnum("severity", ["minor", "major", "critical"]).default("minor").notNull(),
+  status: mysqlEnum("status", ["open", "under_review", "resolved", "closed"]).default("open").notNull(),
+  rootCause: text("root_cause"),
+  resolution: text("resolution"),
+  resolvedBy: bigint("resolved_by", { mode: "number", unsigned: true }),
+  resolvedAt: timestamp("resolved_at"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("ncr_tenant_idx").on(table.tenantId),
+  index("ncr_status_idx").on(table.tenantId, table.status),
+]);
+
+export const correctivePreventiveActions = mysqlTable("corrective_preventive_actions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  ncrId: bigint("ncr_id", { mode: "number", unsigned: true }).notNull(),
+  actionType: mysqlEnum("action_type", ["corrective", "preventive"]).notNull(),
+  description: text("description").notNull(),
+  assignedTo: bigint("assigned_to", { mode: "number", unsigned: true }),
+  dueDate: date("due_date", { mode: "string" }),
+  status: mysqlEnum("status", ["open", "in_progress", "completed", "verified", "cancelled"]).default("open").notNull(),
+  verificationNotes: text("verification_notes"),
+  verifiedBy: bigint("verified_by", { mode: "number", unsigned: true }),
+  verifiedAt: timestamp("verified_at"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("capa_tenant_idx").on(table.tenantId),
+  index("capa_ncr_idx").on(table.ncrId),
+]);
+
+export const batchQualityRecords = mysqlTable("batch_quality_records", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  batchNumber: varchar("batch_number", { length: 100 }).notNull(),
+  inspectionId: bigint("inspection_id", { mode: "number", unsigned: true }),
+  ncrId: bigint("ncr_id", { mode: "number", unsigned: true }),
+  result: mysqlEnum("result", ["pass", "fail", "rework", "quarantine"]).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("batch_quality_tenant_idx").on(table.tenantId),
+  index("batch_quality_product_idx").on(table.tenantId, table.productId, table.batchNumber),
+]);
+
+export const qualityBlockedStocks = mysqlTable("quality_blocked_stocks", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  warehouseId: bigint("warehouse_id", { mode: "number", unsigned: true }).notNull(),
+  batchNumber: varchar("batch_number", { length: 100 }),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).notNull(),
+  reason: mysqlEnum("reason", ["qc_fail", "ncr_open", "capa_pending", "quarantine", "hold"]).notNull(),
+  inspectionId: bigint("inspection_id", { mode: "number", unsigned: true }),
+  ncrId: bigint("ncr_id", { mode: "number", unsigned: true }),
+  isReleased: boolean("is_released").default(false),
+  releasedBy: bigint("released_by", { mode: "number", unsigned: true }),
+  releasedAt: timestamp("released_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("qc_blocked_tenant_idx").on(table.tenantId),
+  index("qc_blocked_product_idx").on(table.tenantId, table.productId, table.warehouseId),
+]);
+
+// =====================================================
+// 60. ZATCA OFFLINE QUEUE
+// =====================================================
+
+export const zatcaOfflineQueue = mysqlTable("zatca_offline_queue", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  invoiceId: bigint("invoice_id", { mode: "number", unsigned: true }).notNull(),
+  action: mysqlEnum("action", ["clearance", "reporting"]).notNull(),
+  uuid: varchar("uuid", { length: 255 }).notNull(),
+  xmlPayload: text("xml_payload").notNull(),
+  signedXml: text("signed_xml"),
+  invoiceHash: varchar("invoice_hash", { length: 255 }),
+  previousInvoiceHash: varchar("previous_invoice_hash", { length: 255 }),
+  status: mysqlEnum("status", ["pending", "submitted", "cleared", "rejected", "retrying"]).default("pending").notNull(),
+  retryCount: int("retry_count").default(0),
+  lastError: text("last_error"),
+  zatcaResponse: text("zatca_response"),
+  submittedAt: timestamp("submitted_at"),
+  clearedAt: timestamp("cleared_at"),
+  nextRetryAt: timestamp("next_retry_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("zatca_queue_tenant_idx").on(table.tenantId),
+  index("zatca_queue_status_idx").on(table.tenantId, table.status),
+  index("zatca_queue_invoice_idx").on(table.tenantId, table.invoiceId),
+]);
+
+// =====================================================
+// 61. CONSTRUCTION ENHANCEMENTS
+// =====================================================
+
+export const wbsItems = mysqlTable("wbs_items", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  parentId: bigint("parent_id", { mode: "number", unsigned: true }),
+  code: varchar("code", { length: 50 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  level: int("level").notNull(),
+  description: text("description"),
+  plannedStartDate: date("planned_start_date", { mode: "string" }),
+  plannedEndDate: date("planned_end_date", { mode: "string" }),
+  actualStartDate: date("actual_start_date", { mode: "string" }),
+  actualEndDate: date("actual_end_date", { mode: "string" }),
+  plannedCost: decimal("planned_cost", { precision: 18, scale: 4 }),
+  actualCost: decimal("actual_cost", { precision: 18, scale: 4 }),
+  progressPercent: int("progress_percent").default(0),
+  weightPercent: decimal("weight_percent", { precision: 5, scale: 2 }).default("0"),
+  status: mysqlEnum("status", ["planned", "in_progress", "completed", "delayed", "cancelled"]).default("planned").notNull(),
+  responsiblePersonId: bigint("responsible_person_id", { mode: "number", unsigned: true }),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("wbs_items_tenant_idx").on(table.tenantId),
+  index("wbs_items_project_idx").on(table.tenantId, table.projectId),
+  index("wbs_items_parent_idx").on(table.tenantId, table.parentId),
+]);
+
+export const boqItems = mysqlTable("boq_items", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  wbsId: bigint("wbs_id", { mode: "number", unsigned: true }),
+  itemCode: varchar("item_code", { length: 50 }).notNull(),
+  description: text("description").notNull(),
+  unit: varchar("unit", { length: 50 }).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).notNull(),
+  unitRate: decimal("unit_rate", { precision: 18, scale: 4 }).notNull(),
+  totalAmount: decimal("total_amount", { precision: 18, scale: 4 }).notNull(),
+  wastagePercent: decimal("wastage_percent", { precision: 5, scale: 2 }).default("0"),
+  materialCost: decimal("material_cost", { precision: 18, scale: 4 }),
+  laborCost: decimal("labor_cost", { precision: 18, scale: 4 }),
+  equipmentCost: decimal("equipment_cost", { precision: 18, scale: 4 }),
+  directCost: decimal("direct_cost", { precision: 18, scale: 4 }),
+  indirectCost: decimal("indirect_cost", { precision: 18, scale: 4 }),
+  profitMargin: decimal("profit_margin", { precision: 5, scale: 2 }),
+  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("15"),
+  status: mysqlEnum("status", ["estimated", "approved", "revised", "completed"]).default("estimated").notNull(),
+  section: varchar("section", { length: 100 }),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("boq_items_tenant_idx").on(table.tenantId),
+  index("boq_items_project_idx").on(table.tenantId, table.projectId),
+  index("boq_items_wbs_idx").on(table.tenantId, table.wbsId),
+]);
+
+export const constructionContracts = mysqlTable("construction_contracts", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  contractNumber: varchar("contract_number", { length: 100 }).notNull(),
+  contractType: mysqlEnum("contract_type", ["lump_sum", "cost_plus", "unit_price", "design_build", "turnkey"]).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  clientId: bigint("client_id", { mode: "number", unsigned: true }),
+  contractorId: bigint("contractor_id", { mode: "number", unsigned: true }),
+  startDate: date("start_date", { mode: "string" }),
+  endDate: date("end_date", { mode: "string" }),
+  contractDate: date("contract_date", { mode: "string" }),
+  contractValue: decimal("contract_value", { precision: 18, scale: 4 }).default("0").notNull(),
+  currency: varchar("currency", { length: 3 }).default("SAR"),
+  paymentTerms: text("payment_terms"),
+  liquidatedDamagesPercent: decimal("liquidated_damages_percent", { precision: 5, scale: 2 }).default("0"),
+  warrantyPeriodMonths: int("warranty_period_months").default(12),
+  retentionPercent: decimal("retention_percent", { precision: 5, scale: 2 }).default("10"),
+  advancePaymentPercent: decimal("advance_payment_percent", { precision: 5, scale: 2 }).default("0"),
+  advancePaymentAmount: decimal("advance_payment_amount", { precision: 18, scale: 4 }).default("0"),
+  insuranceRequired: boolean("insurance_required").default(true),
+  insuranceAmount: decimal("insurance_amount", { precision: 18, scale: 4 }),
+  performanceBondPercent: decimal("performance_bond_percent", { precision: 5, scale: 2 }).default("5"),
+  performanceBondAmount: decimal("performance_bond_amount", { precision: 18, scale: 4 }),
+  status: mysqlEnum("status", ["draft", "signed", "active", "amended", "completed", "terminated"]).default("draft").notNull(),
+  signedByClient: boolean("signed_by_client"),
+  signedByContractor: boolean("signed_by_contractor"),
+  signedAt: timestamp("signed_at"),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("construction_contracts_tenant_idx").on(table.tenantId),
+  index("construction_contracts_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const variationOrders = mysqlTable("variation_orders", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }),
+  voNumber: varchar("vo_number", { length: 50 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  reason: mysqlEnum("reason", ["change_in_scope", "design_change", "omission", "additional_work", "regulatory", "other"]).notNull(),
+  changeType: mysqlEnum("change_type", ["addition", "deduction", "omission"]).notNull(),
+  status: mysqlEnum("status", ["draft", "submitted", "approved", "rejected", "implemented"]).default("draft").notNull(),
+  originalValue: decimal("original_value", { precision: 18, scale: 4 }).default("0").notNull(),
+  changeValue: decimal("change_value", { precision: 18, scale: 4 }).default("0").notNull(),
+  revisedValue: decimal("revised_value", { precision: 18, scale: 4 }).default("0").notNull(),
+  impactOnTime: int("impact_on_time"),
+  impactOnCost: decimal("impact_on_cost", { precision: 18, scale: 4 }),
+  approvedBy: varchar("approved_by", { length: 255 }),
+  approvedDate: date("approved_date", { mode: "string" }),
+  submittedBy: bigint("submitted_by", { mode: "number", unsigned: true }),
+  approvedByUserId: bigint("approved_by_user_id", { mode: "number", unsigned: true }),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("variation_orders_tenant_idx").on(table.tenantId),
+  index("variation_orders_project_idx").on(table.tenantId, table.projectId),
+  index("variation_orders_contract_idx").on(table.tenantId, table.contractId),
+]);
+
+export const advancePayments = mysqlTable("advance_payments", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }),
+  paymentNumber: varchar("payment_number", { length: 50 }).notNull(),
+  paymentType: mysqlEnum("payment_type", ["advance", "mobilization", "progress", "retention_release"]).notNull(),
+  amount: decimal("amount", { precision: 18, scale: 4 }).notNull(),
+  paidAmount: decimal("paid_amount", { precision: 18, scale: 4 }).default("0"),
+  requestDate: date("request_date", { mode: "string" }),
+  paidDate: date("paid_date", { mode: "string" }),
+  recoveryMethod: mysqlEnum("recovery_method", ["deduction_from_bills", "direct_payment"]),
+  recoveryPercent: decimal("recovery_percent", { precision: 5, scale: 2 }),
+  recoveryInstallments: int("recovery_installments"),
+  installmentAmount: decimal("installment_amount", { precision: 18, scale: 4 }),
+  remainingAmount: decimal("remaining_amount", { precision: 18, scale: 4 }),
+  status: mysqlEnum("status", ["requested", "approved", "paid", "fully_recovered", "cancelled"]).default("requested").notNull(),
+  bankGuaranteeNumber: varchar("bank_guarantee_number", { length: 100 }),
+  bankName: varchar("bank_name", { length: 255 }),
+  guaranteeExpiryDate: date("guarantee_expiry_date", { mode: "string" }),
+  guaranteeAmount: decimal("guarantee_amount", { precision: 18, scale: 4 }),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("advance_payments_tenant_idx").on(table.tenantId),
+  index("advance_payments_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const cvrReports = mysqlTable("cvr_reports", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  reportNumber: varchar("report_number", { length: 50 }).notNull(),
+  periodStart: date("period_start", { mode: "string" }),
+  periodEnd: date("period_end", { mode: "string" }),
+  approvedVariations: decimal("approved_variations", { precision: 18, scale: 4 }).default("0"),
+  pendingVariations: decimal("pending_variations", { precision: 18, scale: 4 }).default("0"),
+  originalContractValue: decimal("original_contract_value", { precision: 18, scale: 4 }),
+  revisedContractValue: decimal("revised_contract_value", { precision: 18, scale: 4 }),
+  workCompletedValue: decimal("work_completed_value", { precision: 18, scale: 4 }),
+  workRemainingValue: decimal("work_remaining_value", { precision: 18, scale: 4 }),
+  certifiedAmount: decimal("certified_amount", { precision: 18, scale: 4 }),
+  amountsRetention: decimal("amounts_retention", { precision: 18, scale: 4 }),
+  amountsPaid: decimal("amounts_paid", { precision: 18, scale: 4 }),
+  amountsOutstanding: decimal("amounts_outstanding", { precision: 18, scale: 4 }),
+  totalCostToDate: decimal("total_cost_to_date", { precision: 18, scale: 4 }),
+  estimatedFinalCost: decimal("estimated_final_cost", { precision: 18, scale: 4 }),
+  forecastProfitLoss: decimal("forecast_profit_loss", { precision: 18, scale: 4 }),
+  status: mysqlEnum("status", ["draft", "reviewed", "approved"]).default("draft").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("cvr_reports_tenant_idx").on(table.tenantId),
+  index("cvr_reports_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const decennialLiability = mysqlTable("decennial_liability", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }).notNull(),
+  liabilityPeriodYears: int("liability_period_years").default(10),
+  startDate: date("start_date", { mode: "string" }),
+  endDate: date("end_date", { mode: "string" }),
+  insurancePolicyNumber: varchar("insurance_policy_number", { length: 100 }),
+  insuranceProvider: varchar("insurance_provider", { length: 255 }),
+  insuranceAmount: decimal("insurance_amount", { precision: 18, scale: 4 }),
+  coverageDetails: text("coverage_details"),
+  decennialCertificate: varchar("decennial_certificate", { length: 255 }),
+  status: mysqlEnum("status", ["active", "expired", "claimed"]).default("active").notNull(),
+  lastInspectionDate: date("last_inspection_date", { mode: "string" }),
+  nextInspectionDate: date("next_inspection_date", { mode: "string" }),
+  claimsRaised: int("claims_raised").default(0),
+  claimsAmount: decimal("claims_amount", { precision: 18, scale: 4 }).default("0"),
+  resolvedClaimsAmount: decimal("resolved_claims_amount", { precision: 18, scale: 4 }).default("0"),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("decennial_liability_tenant_idx").on(table.tenantId),
+  index("decennial_liability_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const siteDailyReports = mysqlTable("site_daily_reports", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  reportDate: date("report_date", { mode: "string" }).notNull(),
+  reportNumber: varchar("report_number", { length: 50 }).notNull(),
+  weatherCondition: varchar("weather_condition", { length: 100 }),
+  temperature: decimal("temperature", { precision: 5, scale: 2 }),
+  workDescription: text("work_description"),
+  laborCount: int("labor_count"),
+  supervisorName: varchar("supervisor_name", { length: 255 }),
+  equipmentUsed: text("equipment_used"),
+  materialsReceived: text("materials_received"),
+  materialsUsed: text("materials_used"),
+  workCompleted: text("work_completed"),
+  workInProgress: text("work_in_progress"),
+  issuesEncountered: text("issues_encountered"),
+  safetyIncidents: text("safety_incidents"),
+  visitors: text("visitors"),
+  photos: json("photos"),
+  status: mysqlEnum("status", ["draft", "submitted", "approved"]).default("draft").notNull(),
+  submittedBy: bigint("submitted_by", { mode: "number", unsigned: true }),
+  approvedBy: bigint("approved_by", { mode: "number", unsigned: true }),
+  approvedAt: timestamp("approved_at"),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("site_daily_reports_tenant_idx").on(table.tenantId),
+  index("site_daily_reports_project_idx").on(table.tenantId, table.projectId),
+  index("site_daily_reports_date_idx").on(table.tenantId, table.reportDate),
+]);
+
+export const subcontractorPayments = mysqlTable("subcontractor_payments", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  subcontractorId: bigint("subcontractor_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  paymentNumber: varchar("payment_number", { length: 50 }).notNull(),
+  paymentDate: date("payment_date", { mode: "string" }),
+  invoiceReference: varchar("invoice_reference", { length: 100 }),
+  grossAmount: decimal("gross_amount", { precision: 18, scale: 4 }).notNull(),
+  retentionDeducted: decimal("retention_deducted", { precision: 18, scale: 4 }),
+  advanceRecovery: decimal("advance_recovery", { precision: 18, scale: 4 }),
+  penalties: decimal("penalties", { precision: 18, scale: 4 }).default("0"),
+  otherDeductions: decimal("other_deductions", { precision: 18, scale: 4 }).default("0"),
+  netAmount: decimal("net_amount", { precision: 18, scale: 4 }).notNull(),
+  paidAmount: decimal("paid_amount", { precision: 18, scale: 4 }).default("0"),
+  paymentMethod: mysqlEnum("payment_method", ["bank_transfer", "cheque", "cash"]),
+  bankReference: varchar("bank_reference", { length: 100 }),
+  status: mysqlEnum("status", ["pending", "approved", "paid", "cancelled"]).default("pending").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("subcontractor_payments_tenant_idx").on(table.tenantId),
+  index("subcontractor_payments_sub_idx").on(table.tenantId, table.subcontractorId),
+  index("subcontractor_payments_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const sbcCompliance = mysqlTable("sbc_compliance", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  sbcCode: varchar("sbc_code", { length: 50 }).notNull(),
+  description: text("description"),
+  complianceRequired: boolean("compliance_required").default(true),
+  complianceStatus: mysqlEnum("compliance_status", ["compliant", "non_compliant", "not_applicable", "pending_review"]).default("pending_review").notNull(),
+  inspectorName: varchar("inspector_name", { length: 255 }),
+  inspectionDate: date("inspection_date", { mode: "string" }),
+  certificateNumber: varchar("certificate_number", { length: 100 }),
+  certificateExpiryDate: date("certificate_expiry_date", { mode: "string" }),
+  nonComplianceNotes: text("non_compliance_notes"),
+  correctiveActions: text("corrective_actions"),
+  correctiveActionDate: date("corrective_action_date", { mode: "string" }),
+  status: mysqlEnum("status", ["active", "expired"]).default("active").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("sbc_compliance_tenant_idx").on(table.tenantId),
+  index("sbc_compliance_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const scaClassification = mysqlTable("sca_classification", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  entityName: varchar("entity_name", { length: 255 }).notNull(),
+  entityType: mysqlEnum("entity_type", ["contractor", "consultant", "supplier"]).notNull(),
+  scaRegistrationNumber: varchar("sca_registration_number", { length: 100 }),
+  classificationGrade: mysqlEnum("classification_grade", ["first", "second", "third", "fourth", "fifth"]),
+  specialization: varchar("specialization", { length: 255 }),
+  maxProjectValue: decimal("max_project_value", { precision: 18, scale: 4 }),
+  expiryDate: date("expiry_date", { mode: "string" }),
+  status: mysqlEnum("status", ["active", "suspended", "expired"]).default("active").notNull(),
+  verificationStatus: mysqlEnum("verification_status", ["unverified", "verified", "rejected"]).default("unverified").notNull(),
+  verifiedAt: timestamp("verified_at"),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("sca_classification_tenant_idx").on(table.tenantId),
+]);
+
+export const gtplCompliance = mysqlTable("gtpl_compliance", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  tenderReference: varchar("tender_reference", { length: 100 }),
+  etimadReference: varchar("etimad_reference", { length: 100 }),
+  governmentEntity: varchar("government_entity", { length: 255 }),
+  listedOnEtimad: boolean("listed_on_etimad").default(false),
+  saudizationRequired: boolean("saudization_required").default(true),
+  saudizationPercent: decimal("saudization_percent", { precision: 5, scale: 2 }),
+  localContentPercent: decimal("local_content_percent", { precision: 5, scale: 2 }),
+  icvScore: decimal("icv_score", { precision: 5, scale: 2 }),
+  complianceStatus: mysqlEnum("compliance_status", ["compliant", "non_compliant", "in_progress", "not_required"]).default("in_progress").notNull(),
+  lastReviewedDate: date("last_reviewed_date", { mode: "string" }),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("gtpl_compliance_tenant_idx").on(table.tenantId),
+  index("gtpl_compliance_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const hseCommittees = mysqlTable("hse_committees", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  committeeName: varchar("committee_name", { length: 255 }).notNull(),
+  formationDate: date("formation_date", { mode: "string" }),
+  expiryDate: date("expiry_date", { mode: "string" }),
+  members: json("members"),
+  chairperson: varchar("chairperson", { length: 255 }),
+  meetingFrequency: varchar("meeting_frequency", { length: 100 }),
+  lastMeetingDate: date("last_meeting_date", { mode: "string" }),
+  nextMeetingDate: date("next_meeting_date", { mode: "string" }),
+  status: mysqlEnum("status", ["active", "dissolved"]).default("active").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("hse_committees_tenant_idx").on(table.tenantId),
+  index("hse_committees_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const heatStressRecords = mysqlTable("heat_stress_records", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  date: date("date", { mode: "string" }).notNull(),
+  temperature: decimal("temperature", { precision: 5, scale: 2 }),
+  humidity: decimal("humidity", { precision: 5, scale: 2 }),
+  heatIndex: decimal("heat_index", { precision: 5, scale: 2 }),
+  workRestRegime: varchar("work_rest_regime", { length: 100 }),
+  breaksProvided: boolean("breaks_provided"),
+  waterAvailable: boolean("water_available"),
+  shadeAvailable: boolean("shade_available"),
+  incidentsReported: int("incidents_reported").default(0),
+  supervisorName: varchar("supervisor_name", { length: 255 }),
+  status: mysqlEnum("status", ["compliant", "non_compliant", "partial"]).default("compliant").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("heat_stress_records_tenant_idx").on(table.tenantId),
+  index("heat_stress_records_project_idx").on(table.tenantId, table.projectId),
+  index("heat_stress_records_date_idx").on(table.tenantId, table.date),
+]);
+
+export const engineeringSaudization = mysqlTable("engineering_saudization", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  saudiEngineerCount: int("saudi_engineer_count"),
+  totalEngineerCount: int("total_engineer_count"),
+  saudiRatio: decimal("saudi_ratio", { precision: 5, scale: 2 }),
+  requiredRatio: decimal("required_ratio", { precision: 5, scale: 2 }).default("0.25"),
+  saudiSupervisorName: varchar("saudi_supervisor_name", { length: 255 }),
+  saudiSupervisorId: bigint("saudi_supervisor_id", { mode: "number", unsigned: true }),
+  licenseNumber: varchar("license_number", { length: 100 }),
+  licenseExpiryDate: date("license_expiry_date", { mode: "string" }),
+  shrhStatus: mysqlEnum("shrh_status", ["compliant", "non_compliant", "pending"]).default("pending").notNull(),
+  lastAuditDate: date("last_audit_date", { mode: "string" }),
+  nextAuditDate: date("next_audit_date", { mode: "string" }),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("engineering_saudization_tenant_idx").on(table.tenantId),
+  index("engineering_saudization_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const safetyTraining = mysqlTable("safety_training", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }),
+  trainingName: varchar("training_name", { length: 255 }).notNull(),
+  trainingProvider: varchar("training_provider", { length: 255 }),
+  trainingDate: date("training_date", { mode: "string" }),
+  expiryDate: date("expiry_date", { mode: "string" }),
+  certificateNumber: varchar("certificate_number", { length: 100 }),
+  certificateFile: varchar("certificate_file", { length: 255 }),
+  trainingType: mysqlEnum("training_type", ["induction", "specialized", "refresher", "emergency"]),
+  status: mysqlEnum("status", ["completed", "expired", "pending"]).default("pending").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("safety_training_tenant_idx").on(table.tenantId),
+  index("safety_training_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const ppeIssuance = mysqlTable("ppe_issuance", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  employeeId: bigint("employee_id", { mode: "number", unsigned: true }),
+  ppeType: mysqlEnum("ppe_type", ["helmet", "vest", "gloves", "goggles", "harness", "earplug", "mask", "boots", "full_body"]).notNull(),
+  quantity: int("quantity"),
+  issueDate: date("issue_date", { mode: "string" }),
+  expiryDate: date("expiry_date", { mode: "string" }),
+  issuedBy: varchar("issued_by", { length: 255 }),
+  condition_: varchar("condition_", { length: 100 }),
+  returned: boolean("returned").default(false),
+  returnDate: date("return_date", { mode: "string" }),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("ppe_issuance_tenant_idx").on(table.tenantId),
+  index("ppe_issuance_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const equipmentSchedule = mysqlTable("equipment_schedule", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  equipmentId: bigint("equipment_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  operatorName: varchar("operator_name", { length: 255 }),
+  purpose: text("purpose"),
+  status: mysqlEnum("status", ["scheduled", "in_use", "completed", "cancelled"]).default("scheduled").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("equipment_schedule_tenant_idx").on(table.tenantId),
+  index("equipment_schedule_equipment_idx").on(table.tenantId, table.equipmentId),
+  index("equipment_schedule_project_idx").on(table.tenantId, table.projectId),
+]);
+
+export const materialRequirements = mysqlTable("material_requirements", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  projectId: bigint("project_id", { mode: "number", unsigned: true }).notNull(),
+  wbsId: bigint("wbs_id", { mode: "number", unsigned: true }),
+  boqItemId: bigint("boq_item_id", { mode: "number", unsigned: true }),
+  productId: bigint("product_id", { mode: "number", unsigned: true }),
+  materialName: varchar("material_name", { length: 255 }).notNull(),
+  specification: text("specification"),
+  requiredQuantity: decimal("required_quantity", { precision: 18, scale: 4 }).notNull(),
+  unit: varchar("unit", { length: 50 }).notNull(),
+  quantityOrdered: decimal("quantity_ordered", { precision: 18, scale: 4 }).default("0"),
+  quantityReceived: decimal("quantity_received", { precision: 18, scale: 4 }).default("0"),
+  quantityConsumed: decimal("quantity_consumed", { precision: 18, scale: 4 }).default("0"),
+  requiredDate: date("required_date", { mode: "string" }),
+  deliveryDate: date("delivery_date", { mode: "string" }),
+  status: mysqlEnum("status", ["planned", "ordered", "partial", "received", "consumed"]).default("planned").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("material_requirements_tenant_idx").on(table.tenantId),
+  index("material_requirements_project_idx").on(table.tenantId, table.projectId),
+]);
+
+// =====================================================
+// 62. SYNC ENGINE TABLES (ENHANCED)
+// =====================================================
+
+export const syncStats = mysqlTable("sync_stats", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  deviceId: varchar("device_id", { length: 100 }),
+  totalPushes: int("total_pushes").default(0).notNull(),
+  totalPulls: int("total_pulls").default(0).notNull(),
+  successfulPushes: int("successful_pushes").default(0).notNull(),
+  failedPushes: int("failed_pushes").default(0).notNull(),
+  successfulPulls: int("successful_pulls").default(0).notNull(),
+  failedPulls: int("failed_pulls").default(0).notNull(),
+  conflictsResolved: int("conflicts_resolved").default(0).notNull(),
+  avgSyncDurationMs: int("avg_sync_duration_ms").default(0).notNull(),
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("sync_stats_tenant_idx").on(table.tenantId),
+]);
+
+export const syncQueue = mysqlTable("sync_queue", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  deviceId: varchar("device_id", { length: 100 }),
+  entityType: varchar("entity_type", { length: 100 }).notNull(),
+  entityId: varchar("entity_id", { length: 100 }),
+  action: mysqlEnum("action", ["create", "update", "delete"]).notNull(),
+  payload: json("payload"),
+  version: int("version").default(1),
+  localUuid: varchar("local_uuid", { length: 255 }),
+  status: mysqlEnum("status", ["pending", "synced", "failed", "conflict"]).default("pending").notNull(),
+  errorMessage: text("error_message"),
+  retryCount: int("retry_count").default(0),
+  syncedAt: timestamp("synced_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("sync_queue_tenant_idx").on(table.tenantId),
+  index("sync_queue_status_idx").on(table.status),
+]);
+
+export const conflictResolutions = mysqlTable("conflict_resolutions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  deviceId: varchar("device_id", { length: 100 }),
+  entityType: varchar("entity_type", { length: 100 }).notNull(),
+  entityId: varchar("entity_id", { length: 100 }),
+  localVersion: int("local_version").default(0),
+  serverVersion: int("server_version").default(0),
+  localPayload: json("local_payload"),
+  serverPayload: json("server_payload"),
+  resolution: mysqlEnum("resolution", ["local_wins", "server_wins", "manual", "merged"]).default("server_wins").notNull(),
+  resolvedBy: bigint("resolved_by", { mode: "number", unsigned: true }),
+  resolvedAt: timestamp("resolved_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("conflict_resolutions_tenant_idx").on(table.tenantId),
+]);
+
+export const offlineOperations = mysqlTable("offline_operations", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  deviceId: varchar("device_id", { length: 100 }),
+  operationType: varchar("operation_type", { length: 100 }).notNull(),
+  entityType: varchar("entity_type", { length: 100 }).notNull(),
+  entityId: varchar("entity_id", { length: 100 }),
+  payload: json("payload"),
+  status: mysqlEnum("status", ["pending", "synced", "failed"]).default("pending").notNull(),
+  localCreatedAt: timestamp("local_created_at"),
+  syncedAt: timestamp("synced_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("offline_operations_tenant_idx").on(table.tenantId),
+  index("offline_operations_status_idx").on(table.status),
+]);
+
+// =====================================================
+// 64. MRP II
+// =====================================================
+
+export const masterProductionSchedules = mysqlTable("master_production_schedules", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  scheduleDate: date("schedule_date", { mode: "string" }).notNull(),
+  plannedQuantity: decimal("planned_quantity", { precision: 18, scale: 4 }).notNull(),
+  confirmedQuantity: decimal("confirmed_quantity", { precision: 18, scale: 4 }).default("0").notNull(),
+  availableToPromise: decimal("available_to_promise", { precision: 18, scale: 4 }).default("0").notNull(),
+  demandSource: mysqlEnum("demand_source", ["forecast", "sales_order", "safety_stock", "manual"]).notNull(),
+  status: mysqlEnum("status", ["planned", "firmed", "closed"]).default("planned").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("mps_tenant_idx").on(table.tenantId),
+]);
+
+export const capacityResources = mysqlTable("capacity_resources", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  resourceCode: varchar("resource_code", { length: 50 }).notNull(),
+  resourceName: varchar("resource_name", { length: 255 }).notNull(),
+  resourceType: mysqlEnum("resource_type", ["machine", "labor", "workstation", "work_center"]).notNull(),
+  departmentId: bigint("department_id", { mode: "number", unsigned: true }),
+  availableHours: decimal("available_hours", { precision: 10, scale: 2 }).default("0").notNull(),
+  efficiencyPercent: decimal("efficiency_percent", { precision: 5, scale: 2 }).default("100").notNull(),
+  utilizationPercent: decimal("utilization_percent", { precision: 5, scale: 2 }).default("0").notNull(),
+  calendarId: bigint("calendar_id", { mode: "number", unsigned: true }),
+  costPerHour: decimal("cost_per_hour", { precision: 18, scale: 4 }).default("0").notNull(),
+  status: mysqlEnum("status", ["active", "inactive", "maintenance"]).default("active").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("cr_tenant_idx").on(table.tenantId),
+]);
+
+export const roughCutCapacityPlans = mysqlTable("rough_cut_capacity_plans", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  resourceId: bigint("resource_id", { mode: "number", unsigned: true }).notNull(),
+  periodStart: date("period_start", { mode: "string" }).notNull(),
+  periodEnd: date("period_end", { mode: "string" }).notNull(),
+  availableCapacity: decimal("available_capacity", { precision: 18, scale: 4 }).default("0").notNull(),
+  requiredCapacity: decimal("required_capacity", { precision: 18, scale: 4 }).default("0").notNull(),
+  overloadPercent: decimal("overload_percent", { precision: 5, scale: 2 }).default("0").notNull(),
+  status: mysqlEnum("status", ["draft", "confirmed", "adjusted"]).default("draft").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("rccp_tenant_idx").on(table.tenantId),
+]);
+
+export const mrpDemands = mysqlTable("mrp_demands", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  demandType: mysqlEnum("demand_type", ["independent", "dependent"]).notNull(),
+  sourceType: mysqlEnum("source_type", ["forecast", "sales_order", "service", "mps"]).notNull(),
+  sourceId: varchar("source_id", { length: 100 }),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).notNull(),
+  dueDate: date("due_date", { mode: "string" }).notNull(),
+  status: mysqlEnum("status", ["open", "partially_fulfilled", "fulfilled", "cancelled"]).default("open").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("mrp_demands_tenant_idx").on(table.tenantId),
+]);
+
+export const mrpRuns = mysqlTable("mrp_runs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  runDate: timestamp("run_date").defaultNow().notNull(),
+  horizonStart: date("horizon_start", { mode: "string" }).notNull(),
+  horizonEnd: date("horizon_end", { mode: "string" }).notNull(),
+  status: mysqlEnum("status", ["running", "completed", "failed"]).default("running").notNull(),
+  actionMessages: text("action_messages"),
+  executionTimeMs: int("execution_time_ms"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("mrp_runs_tenant_idx").on(table.tenantId),
+]);
+
+export const mrpPlannedOrders = mysqlTable("mrp_planned_orders", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  orderType: mysqlEnum("order_type", ["purchase", "manufacture", "transfer"]).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).notNull(),
+  releaseDate: date("release_date", { mode: "string" }),
+  dueDate: date("due_date", { mode: "string" }).notNull(),
+  status: mysqlEnum("status", ["planned", "released", "completed", "cancelled"]).default("planned").notNull(),
+  parentPlanId: bigint("parent_plan_id", { mode: "number", unsigned: true }),
+  mrpRunId: bigint("mrp_run_id", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("mrp_po_tenant_idx").on(table.tenantId),
+]);
+
+export const mrpNetRequirements = mysqlTable("mrp_net_requirements", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  periodStart: date("period_start", { mode: "string" }).notNull(),
+  periodEnd: date("period_end", { mode: "string" }).notNull(),
+  grossRequirement: decimal("gross_requirement", { precision: 18, scale: 4 }).default("0").notNull(),
+  scheduledReceipts: decimal("scheduled_receipts", { precision: 18, scale: 4 }).default("0").notNull(),
+  projectedOnHand: decimal("projected_on_hand", { precision: 18, scale: 4 }).default("0").notNull(),
+  netRequirement: decimal("net_requirement", { precision: 18, scale: 4 }).default("0").notNull(),
+  plannedOrderReceipt: decimal("planned_order_receipt", { precision: 18, scale: 4 }).default("0").notNull(),
+  plannedOrderRelease: decimal("planned_order_release", { precision: 18, scale: 4 }).default("0").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("mrp_nr_tenant_idx").on(table.tenantId),
+]);
+
+export const peggingRecords = mysqlTable("pegging_records", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  demandId: bigint("demand_id", { mode: "number", unsigned: true }).notNull(),
+  orderId: bigint("order_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).notNull(),
+  mrpRunId: bigint("mrp_run_id", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("pegging_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 65. WMS
+// =====================================================
+
+export const warehouseZones = mysqlTable("warehouse_zones", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  warehouseId: bigint("warehouse_id", { mode: "number", unsigned: true }).notNull(),
+  zoneCode: varchar("zone_code", { length: 50 }).notNull(),
+  zoneName: varchar("zone_name", { length: 255 }).notNull(),
+  zoneType: mysqlEnum("zone_type", ["storage", "picking", "putaway", "shipping", "receiving", "quarantine"]).notNull(),
+  capacity: decimal("capacity", { precision: 18, scale: 4 }).default("0").notNull(),
+  usedCapacity: decimal("used_capacity", { precision: 18, scale: 4 }).default("0").notNull(),
+  colorCode: varchar("color_code", { length: 20 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("wz_tenant_idx").on(table.tenantId),
+]);
+
+export const storageLocations = mysqlTable("storage_locations", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  warehouseId: bigint("warehouse_id", { mode: "number", unsigned: true }).notNull(),
+  zoneId: bigint("zone_id", { mode: "number", unsigned: true }),
+  locationCode: varchar("location_code", { length: 50 }).notNull(),
+  locationType: mysqlEnum("location_type", ["rack", "floor", "bulk", "shelf", "bin", "drawer"]).notNull(),
+  aisle: varchar("aisle", { length: 50 }),
+  rack: varchar("rack", { length: 50 }),
+  shelf: varchar("shelf", { length: 50 }),
+  bin: varchar("bin", { length: 50 }),
+  capacity: decimal("capacity", { precision: 18, scale: 4 }).default("0").notNull(),
+  usedCapacity: decimal("used_capacity", { precision: 18, scale: 4 }).default("0").notNull(),
+  weightCapacity: decimal("weight_capacity", { precision: 10, scale: 2 }),
+  heightCm: decimal("height_cm", { precision: 10, scale: 2 }),
+  lengthCm: decimal("length_cm", { precision: 10, scale: 2 }),
+  widthCm: decimal("width_cm", { precision: 10, scale: 2 }),
+  isReserved: boolean("is_reserved").default(false),
+  isBlocked: boolean("is_blocked").default(false),
+  status: mysqlEnum("status", ["available", "occupied", "blocked", "reserved"]).default("available").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("sl_tenant_idx").on(table.tenantId),
+]);
+
+export const storageBins = mysqlTable("storage_bins", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  locationId: bigint("location_id", { mode: "number", unsigned: true }).notNull(),
+  binCode: varchar("bin_code", { length: 50 }),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).default("0").notNull(),
+  lotNumber: varchar("lot_number", { length: 100 }),
+  serialNumber: varchar("serial_number", { length: 100 }),
+  expiryDate: date("expiry_date", { mode: "string" }),
+  putawayDate: date("putaway_date", { mode: "string" }),
+  status: mysqlEnum("status", ["available", "allocated", "picked", "blocked"]).default("available").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("sb_tenant_idx").on(table.tenantId),
+]);
+
+export const putawayRules = mysqlTable("putaway_rules", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  ruleName: varchar("rule_name", { length: 255 }).notNull(),
+  priority: int("priority").default(0).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }),
+  productCategoryId: bigint("product_category_id", { mode: "number", unsigned: true }),
+  warehouseId: bigint("warehouse_id", { mode: "number", unsigned: true }).notNull(),
+  zoneId: bigint("zone_id", { mode: "number", unsigned: true }),
+  strategy: mysqlEnum("strategy", ["fixed", "first_empty", "near_expiry", "fifo", "random", "last_location"]).notNull(),
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("pr_tenant_idx").on(table.tenantId),
+]);
+
+export const putawayTasks = mysqlTable("putaway_tasks", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  taskNumber: varchar("task_number", { length: 50 }).notNull(),
+  sourceType: mysqlEnum("source_type", ["purchase", "return", "transfer_in", "manufacturing"]).notNull(),
+  sourceId: bigint("source_id", { mode: "number", unsigned: true }),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).notNull(),
+  fromLocationId: bigint("from_location_id", { mode: "number", unsigned: true }),
+  toLocationId: bigint("to_location_id", { mode: "number", unsigned: true }),
+  assignedTo: bigint("assigned_to", { mode: "number", unsigned: true }),
+  status: mysqlEnum("status", ["pending", "in_progress", "completed", "cancelled"]).default("pending").notNull(),
+  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("pt_tenant_idx").on(table.tenantId),
+]);
+
+export const pickingRules = mysqlTable("picking_rules", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  ruleName: varchar("rule_name", { length: 255 }).notNull(),
+  priority: int("priority").default(0).notNull(),
+  strategy: mysqlEnum("strategy", ["fifo", "fefo", "lifo", "zone", "batch", "wave"]).notNull(),
+  waveSize: int("wave_size"),
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("pkr_tenant_idx").on(table.tenantId),
+]);
+
+export const pickingTasks = mysqlTable("picking_tasks", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  taskNumber: varchar("task_number", { length: 50 }).notNull(),
+  sourceType: mysqlEnum("source_type", ["sales_order", "transfer_out", "manufacturing_issue"]).notNull(),
+  sourceId: bigint("source_id", { mode: "number", unsigned: true }),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).notNull(),
+  fromLocationId: bigint("from_location_id", { mode: "number", unsigned: true }),
+  toLocationId: bigint("to_location_id", { mode: "number", unsigned: true }),
+  assignedTo: bigint("assigned_to", { mode: "number", unsigned: true }),
+  status: mysqlEnum("status", ["pending", "in_progress", "completed", "cancelled"]).default("pending").notNull(),
+  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("pkt_tenant_idx").on(table.tenantId),
+]);
+
+export const wavePicking = mysqlTable("wave_picking", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  waveNumber: varchar("wave_number", { length: 50 }).notNull(),
+  waveType: mysqlEnum("wave_type", ["single_order", "multi_order", "zone"]).notNull(),
+  orderIds: json("order_ids"),
+  totalItems: int("total_items").default(0),
+  status: mysqlEnum("status", ["created", "released", "picking", "completed"]).default("created").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("wp_tenant_idx").on(table.tenantId),
+]);
+
+export const cycleCountSchedules = mysqlTable("cycle_count_schedules", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  warehouseId: bigint("warehouse_id", { mode: "number", unsigned: true }).notNull(),
+  zoneId: bigint("zone_id", { mode: "number", unsigned: true }),
+  countDate: date("count_date", { mode: "string" }).notNull(),
+  frequency: mysqlEnum("frequency", ["daily", "weekly", "monthly", "quarterly", "annually"]).notNull(),
+  status: mysqlEnum("status", ["scheduled", "in_progress", "completed"]).default("scheduled").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("ccs_tenant_idx").on(table.tenantId),
+]);
+
+export const cycleCountEntries = mysqlTable("cycle_count_entries", {
+  id: serial("id").primaryKey(),
+  scheduleId: bigint("schedule_id", { mode: "number", unsigned: true }).notNull(),
+  locationId: bigint("location_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  expectedQuantity: decimal("expected_quantity", { precision: 18, scale: 4 }).default("0").notNull(),
+  actualQuantity: decimal("actual_quantity", { precision: 18, scale: 4 }).default("0").notNull(),
+  variance: decimal("variance", { precision: 18, scale: 4 }).default("0").notNull(),
+  varianceReason: mysqlEnum("variance_reason", ["mispick", "putaway_error", "damage", "theft", "system_error", "other"]),
+  countedBy: bigint("counted_by", { mode: "number", unsigned: true }),
+  countDate: timestamp("count_date").defaultNow().notNull(),
+  status: mysqlEnum("status", ["open", "verified", "adjusted"]).default("open").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("cce_schedule_idx").on(table.scheduleId),
+]);
+
+export const inventoryAdjustmentReasons = mysqlTable("inventory_adjustment_reasons", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  reasonCode: varchar("reason_code", { length: 50 }).notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  category: mysqlEnum("category", ["damage", "loss", "theft", "breakage", "expiry", "count_error", "return", "quality"]).notNull(),
+  requiresApproval: boolean("requires_approval").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("iar_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 66. SCM
+// =====================================================
+
+export const supplierEvaluations = mysqlTable("supplier_evaluations", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  supplierId: bigint("supplier_id", { mode: "number", unsigned: true }).notNull(),
+  evaluationDate: date("evaluation_date", { mode: "string" }).notNull(),
+  evaluatorId: bigint("evaluator_id", { mode: "number", unsigned: true }),
+  qualityScore: decimal("quality_score", { precision: 5, scale: 2 }).default("0").notNull(),
+  deliveryScore: decimal("delivery_score", { precision: 5, scale: 2 }).default("0").notNull(),
+  priceScore: decimal("price_score", { precision: 5, scale: 2 }).default("0").notNull(),
+  serviceScore: decimal("service_score", { precision: 5, scale: 2 }).default("0").notNull(),
+  overallScore: decimal("overall_score", { precision: 5, scale: 2 }).default("0").notNull(),
+  category: mysqlEnum("category", ["excellent", "good", "average", "poor"]).default("average").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("se_tenant_idx").on(table.tenantId),
+]);
+
+export const supplierContracts = mysqlTable("supplier_contracts", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  supplierId: bigint("supplier_id", { mode: "number", unsigned: true }).notNull(),
+  contractNumber: varchar("contract_number", { length: 50 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  startDate: date("start_date", { mode: "string" }).notNull(),
+  endDate: date("end_date", { mode: "string" }),
+  terms: text("terms"),
+  value: decimal("value", { precision: 18, scale: 4 }).default("0").notNull(),
+  currency: varchar("currency", { length: 10 }).default("SAR").notNull(),
+  status: mysqlEnum("status", ["draft", "active", "expired", "terminated", "renewed"]).default("draft").notNull(),
+  renewalReminderDays: int("renewal_reminder_days").default(30),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("sc_tenant_idx").on(table.tenantId),
+]);
+
+export const rfqHeaders = mysqlTable("rfq_headers", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  rfqNumber: varchar("rfq_number", { length: 50 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  deadlineDate: date("deadline_date", { mode: "string" }).notNull(),
+  expectedDeliveryDate: date("expected_delivery_date", { mode: "string" }),
+  buyerId: bigint("buyer_id", { mode: "number", unsigned: true }),
+  currency: varchar("currency", { length: 10 }).default("SAR").notNull(),
+  status: mysqlEnum("status", ["draft", "sent", "received", "evaluated", "closed", "cancelled"]).default("draft").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("rfq_tenant_idx").on(table.tenantId),
+]);
+
+export const rfqItems = mysqlTable("rfq_items", {
+  id: serial("id").primaryKey(),
+  rfqId: bigint("rfq_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }),
+  productName: varchar("product_name", { length: 255 }).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).notNull(),
+  unit: varchar("unit", { length: 50 }),
+  targetPrice: decimal("target_price", { precision: 18, scale: 4 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const rfqSupplierQuotes = mysqlTable("rfq_supplier_quotes", {
+  id: serial("id").primaryKey(),
+  rfqId: bigint("rfq_id", { mode: "number", unsigned: true }).notNull(),
+  supplierId: bigint("supplier_id", { mode: "number", unsigned: true }).notNull(),
+  submittedDate: timestamp("submitted_date").defaultNow().notNull(),
+  validUntil: date("valid_until", { mode: "string" }),
+  deliveryDate: date("delivery_date", { mode: "string" }),
+  paymentTerms: varchar("payment_terms", { length: 255 }),
+  notes: text("notes"),
+  status: mysqlEnum("status", ["draft", "submitted", "withdrawn"]).default("draft").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const rfqQuoteLines = mysqlTable("rfq_quote_lines", {
+  id: serial("id").primaryKey(),
+  quoteId: bigint("quote_id", { mode: "number", unsigned: true }).notNull(),
+  rfqItemId: bigint("rfq_item_id", { mode: "number", unsigned: true }).notNull(),
+  unitPrice: decimal("unit_price", { precision: 18, scale: 4 }).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).notNull(),
+  totalPrice: decimal("total_price", { precision: 18, scale: 4 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("SAR").notNull(),
+  deliveryDate: date("delivery_date", { mode: "string" }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const bidComparisons = mysqlTable("bid_comparisons", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  rfqId: bigint("rfq_id", { mode: "number", unsigned: true }).notNull(),
+  comparisonDate: date("comparison_date", { mode: "string" }).notNull(),
+  preparedBy: bigint("prepared_by", { mode: "number", unsigned: true }),
+  criteria: json("criteria"),
+  summary: text("summary"),
+  recommendedSupplierId: bigint("recommended_supplier_id", { mode: "number", unsigned: true }),
+  status: mysqlEnum("status", ["draft", "approved"]).default("draft").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("bc_tenant_idx").on(table.tenantId),
+]);
+
+export const supplierPortalUsers = mysqlTable("supplier_portal_users", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  supplierId: bigint("supplier_id", { mode: "number", unsigned: true }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 50 }),
+  isActive: boolean("is_active").default(true),
+  lastLogin: timestamp("last_login"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("spu_tenant_idx").on(table.tenantId),
+]);
+
+export const supplierRfqResponses = mysqlTable("supplier_rfq_responses", {
+  id: serial("id").primaryKey(),
+  supplierId: bigint("supplier_id", { mode: "number", unsigned: true }).notNull(),
+  rfqId: bigint("rfq_id", { mode: "number", unsigned: true }).notNull(),
+  respondedAt: timestamp("responded_at").defaultNow().notNull(),
+  responseType: mysqlEnum("response_type", ["quoted", "declined", "no_bid"]).notNull(),
+  notes: text("notes"),
+});
+
+export const supplierPerformanceMetrics = mysqlTable("supplier_performance_metrics", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  supplierId: bigint("supplier_id", { mode: "number", unsigned: true }).notNull(),
+  periodStart: date("period_start", { mode: "string" }).notNull(),
+  periodEnd: date("period_end", { mode: "string" }).notNull(),
+  onTimeDeliveryRate: decimal("on_time_delivery_rate", { precision: 5, scale: 2 }).default("0").notNull(),
+  qualityAcceptanceRate: decimal("quality_acceptance_rate", { precision: 5, scale: 2 }).default("0").notNull(),
+  fillRate: decimal("fill_rate", { precision: 5, scale: 2 }).default("0").notNull(),
+  leadTimeDays: decimal("lead_time_days", { precision: 5, scale: 2 }).default("0").notNull(),
+  returnRate: decimal("return_rate", { precision: 5, scale: 2 }).default("0").notNull(),
+  priceCompetitiveness: decimal("price_competitiveness", { precision: 5, scale: 2 }).default("0").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("spm_tenant_idx").on(table.tenantId),
+]);
+
+export const consignmentInventory = mysqlTable("consignment_inventory", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  supplierId: bigint("supplier_id", { mode: "number", unsigned: true }).notNull(),
+  productId: bigint("product_id", { mode: "number", unsigned: true }).notNull(),
+  warehouseId: bigint("warehouse_id", { mode: "number", unsigned: true }).notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 4 }).default("0").notNull(),
+  agreedMinLevel: decimal("agreed_min_level", { precision: 18, scale: 4 }).default("0").notNull(),
+  agreedMaxLevel: decimal("agreed_max_level", { precision: 18, scale: 4 }).default("0").notNull(),
+  unitCost: decimal("unit_cost", { precision: 18, scale: 4 }).default("0").notNull(),
+  lastConsumptionDate: date("last_consumption_date", { mode: "string" }),
+  status: mysqlEnum("status", ["active", "suspended"]).default("active").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("ci_tenant_idx").on(table.tenantId),
+]);
+
+// =====================================================
+// 63. MULTI-COMPANY CONSOLIDATION
+// =====================================================
+
+export const consolidationGroups = mysqlTable("consolidation_groups", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  fiscalYearId: bigint("fiscal_year_id", { mode: "number", unsigned: true }),
+  baseCurrency: varchar("base_currency", { length: 10 }).default("SAR").notNull(),
+  consolidationMethod: mysqlEnum("consolidation_method", ["equity", "proportionate", "acquisition"]).default("equity").notNull(),
+  eliminationMethod: mysqlEnum("elimination_method", ["line_by_line", "proportional"]).default("line_by_line").notNull(),
+  status: mysqlEnum("status", ["draft", "in_progress", "completed"]).default("draft").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("cons_groups_tenant_idx").on(table.tenantId),
+]);
+
+export type ConsolidationGroup = typeof consolidationGroups.$inferSelect;
+export type InsertConsolidationGroup = typeof consolidationGroups.$inferInsert;
+
+export const consolidationGroupCompanies = mysqlTable("consolidation_group_companies", {
+  id: serial("id").primaryKey(),
+  groupId: bigint("group_id", { mode: "number", unsigned: true }).notNull(),
+  companyId: bigint("company_id", { mode: "number", unsigned: true }).notNull(),
+  ownershipPercent: decimal("ownership_percent", { precision: 18, scale: 4 }).default("100.0000").notNull(),
+  consolidationDate: date("consolidation_date"),
+  isExcluded: boolean("is_excluded").default(false),
+  notes: text("notes"),
+}, (table) => [
+  index("cons_group_companies_group_idx").on(table.groupId),
+]);
+
+export type ConsolidationGroupCompany = typeof consolidationGroupCompanies.$inferSelect;
+export type InsertConsolidationGroupCompany = typeof consolidationGroupCompanies.$inferInsert;
+
+export const consolidationEntries = mysqlTable("consolidation_entries", {
+  id: serial("id").primaryKey(),
+  groupId: bigint("group_id", { mode: "number", unsigned: true }).notNull(),
+  periodStart: date("period_start"),
+  periodEnd: date("period_end"),
+  entryType: mysqlEnum("entry_type", ["elimination", "reclassification", "adjustment", "translation"]).notNull(),
+  description: text("description"),
+  amount: decimal("amount", { precision: 18, scale: 2 }).default("0").notNull(),
+  accountId: bigint("account_id", { mode: "number", unsigned: true }),
+  companyId: bigint("company_id", { mode: "number", unsigned: true }),
+  currency: varchar("currency", { length: 10 }).default("SAR"),
+  exchangeRate: decimal("exchange_rate", { precision: 18, scale: 6 }).default("1.000000"),
+  status: mysqlEnum("status", ["draft", "posted", "reversed"]).default("draft").notNull(),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("cons_entries_group_idx").on(table.groupId),
+]);
+
+export type ConsolidationEntry = typeof consolidationEntries.$inferSelect;
+export type InsertConsolidationEntry = typeof consolidationEntries.$inferInsert;
+
+export const consolidationEliminations = mysqlTable("consolidation_eliminations", {
+  id: serial("id").primaryKey(),
+  groupId: bigint("group_id", { mode: "number", unsigned: true }).notNull(),
+  entryType: mysqlEnum("entry_type", ["interco_revenue", "interco_expense", "interco_receivable", "interco_payable", "interco_dividend", "investment"]).notNull(),
+  sourceCompanyId: bigint("source_company_id", { mode: "number", unsigned: true }),
+  targetCompanyId: bigint("target_company_id", { mode: "number", unsigned: true }),
+  accountId: bigint("account_id", { mode: "number", unsigned: true }),
+  amount: decimal("amount", { precision: 18, scale: 2 }).default("0").notNull(),
+  eliminationMethod: mysqlEnum("elimination_method", ["line_by_line", "proportional"]).default("line_by_line"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("cons_eliminations_group_idx").on(table.groupId),
+]);
+
+export type ConsolidationElimination = typeof consolidationEliminations.$inferSelect;
+export type InsertConsolidationElimination = typeof consolidationEliminations.$inferInsert;
+
+export const intercompanyTransactions = mysqlTable("intercompany_transactions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  transactionNumber: varchar("transaction_number", { length: 100 }).notNull(),
+  transactionDate: date("transaction_date").notNull(),
+  sourceCompanyId: bigint("source_company_id", { mode: "number", unsigned: true }).notNull(),
+  targetCompanyId: bigint("target_company_id", { mode: "number", unsigned: true }).notNull(),
+  transactionType: mysqlEnum("transaction_type", ["sale", "purchase", "loan", "dividend", "expense"]).notNull(),
+  referenceNumber: varchar("reference_number", { length: 100 }),
+  totalAmount: decimal("total_amount", { precision: 18, scale: 2 }).default("0").notNull(),
+  currency: varchar("currency", { length: 10 }).default("SAR"),
+  exchangeRate: decimal("exchange_rate", { precision: 18, scale: 6 }).default("1.000000"),
+  description: text("description"),
+  status: mysqlEnum("status", ["draft", "posted", "reconciled"]).default("draft").notNull(),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("interco_tx_tenant_idx").on(table.tenantId),
+]);
+
+export type IntercompanyTransaction = typeof intercompanyTransactions.$inferSelect;
+export type InsertIntercompanyTransaction = typeof intercompanyTransactions.$inferInsert;
+
+export const intercompanyReconciliations = mysqlTable("intercompany_reconciliations", {
+  id: serial("id").primaryKey(),
+  intercompanyTransactionId: bigint("intercompany_transaction_id", { mode: "number", unsigned: true }).notNull(),
+  sourceCompanyId: bigint("source_company_id", { mode: "number", unsigned: true }),
+  targetCompanyId: bigint("target_company_id", { mode: "number", unsigned: true }),
+  sourceAmount: decimal("source_amount", { precision: 18, scale: 2 }).default("0"),
+  targetAmount: decimal("target_amount", { precision: 18, scale: 2 }).default("0"),
+  difference: decimal("difference", { precision: 18, scale: 2 }).default("0"),
+  reconciledAt: timestamp("reconciled_at").defaultNow().notNull(),
+  reconciledBy: bigint("reconciled_by", { mode: "number", unsigned: true }),
+});
+
+export type IntercompanyReconciliation = typeof intercompanyReconciliations.$inferSelect;
+export type InsertIntercompanyReconciliation = typeof intercompanyReconciliations.$inferInsert;
+
+// =====================================================
+// 64. IFRS 16 - LEASE ACCOUNTING
+// =====================================================
+
+export const leaseContracts = mysqlTable("lease_contracts", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  leaseCode: varchar("lease_code", { length: 100 }).notNull(),
+  description: text("description"),
+  lessorName: varchar("lessor_name", { length: 255 }).notNull(),
+  leaseType: mysqlEnum("lease_type", ["operating", "finance"]).notNull(),
+  assetId: bigint("asset_id", { mode: "number", unsigned: true }),
+  assetCategory: varchar("asset_category", { length: 100 }),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  leaseTermMonths: int("lease_term_months").notNull(),
+  rentalPaymentAmount: decimal("rental_payment_amount", { precision: 18, scale: 2 }).default("0").notNull(),
+  paymentFrequency: mysqlEnum("payment_frequency", ["monthly", "quarterly", "semi_annual", "annual"]).default("monthly").notNull(),
+  paymentDay: int("payment_day").default(1),
+  currency: varchar("currency", { length: 10 }).default("SAR"),
+  discountRate: decimal("discount_rate", { precision: 10, scale: 6 }).default("0").notNull(),
+  incentiveAmount: decimal("incentive_amount", { precision: 18, scale: 2 }).default("0"),
+  initialDirectCosts: decimal("initial_direct_costs", { precision: 18, scale: 2 }).default("0"),
+  residualValueGuarantee: decimal("residual_value_guarantee", { precision: 18, scale: 2 }).default("0"),
+  purchaseOption: boolean("purchase_option").default(false),
+  purchaseOptionAmount: decimal("purchase_option_amount", { precision: 18, scale: 2 }).default("0"),
+  renewalOption: boolean("renewal_option").default(false),
+  renewalTermMonths: int("renewal_term_months"),
+  terminationOption: boolean("termination_option").default(false),
+  terminationPenaltyAmount: decimal("termination_penalty_amount", { precision: 18, scale: 2 }).default("0"),
+  rightOfUseAsset: decimal("right_of_use_asset", { precision: 18, scale: 2 }).default("0"),
+  leaseLiability: decimal("lease_liability", { precision: 18, scale: 2 }).default("0"),
+  accumulatedDepreciation: decimal("accumulated_depreciation", { precision: 18, scale: 2 }).default("0"),
+  interestRate: mysqlEnum("interest_rate", ["implicit", "incremental"]).default("incremental"),
+  status: mysqlEnum("status", ["active", "expired", "terminated", "amended"]).default("active").notNull(),
+  notes: text("notes"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("lease_contracts_tenant_idx").on(table.tenantId),
+]);
+
+export type LeaseContract = typeof leaseContracts.$inferSelect;
+export type InsertLeaseContract = typeof leaseContracts.$inferInsert;
+
+export const leasePaymentSchedules = mysqlTable("lease_payment_schedules", {
+  id: serial("id").primaryKey(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }).notNull(),
+  paymentDate: date("payment_date").notNull(),
+  paymentAmount: decimal("payment_amount", { precision: 18, scale: 2 }).default("0").notNull(),
+  principalPortion: decimal("principal_portion", { precision: 18, scale: 2 }).default("0"),
+  interestPortion: decimal("interest_portion", { precision: 18, scale: 2 }).default("0"),
+  outstandingBalance: decimal("outstanding_balance", { precision: 18, scale: 2 }).default("0"),
+  paymentStatus: mysqlEnum("payment_status", ["pending", "paid", "overdue"]).default("pending").notNull(),
+  paidDate: date("paid_date"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("lease_pay_sched_contract_idx").on(table.contractId),
+]);
+
+export type LeasePaymentSchedule = typeof leasePaymentSchedules.$inferSelect;
+export type InsertLeasePaymentSchedule = typeof leasePaymentSchedules.$inferInsert;
+
+export const leaseModifications = mysqlTable("lease_modifications", {
+  id: serial("id").primaryKey(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }).notNull(),
+  modificationDate: date("modification_date").notNull(),
+  modificationType: mysqlEnum("modification_type", ["extension", "termination", "rent_revision", "asset_change"]).notNull(),
+  description: text("description"),
+  oldPaymentAmount: decimal("old_payment_amount", { precision: 18, scale: 2 }).default("0"),
+  newPaymentAmount: decimal("new_payment_amount", { precision: 18, scale: 2 }).default("0"),
+  oldDiscountRate: decimal("old_discount_rate", { precision: 10, scale: 6 }).default("0"),
+  newDiscountRate: decimal("new_discount_rate", { precision: 10, scale: 6 }).default("0"),
+  oldLeaseTerm: int("old_lease_term"),
+  newLeaseTerm: int("new_lease_term"),
+  gainLossAmount: decimal("gain_loss_amount", { precision: 18, scale: 2 }).default("0"),
+  effectiveDate: date("effective_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("lease_mods_contract_idx").on(table.contractId),
+]);
+
+export type LeaseModification = typeof leaseModifications.$inferSelect;
+export type InsertLeaseModification = typeof leaseModifications.$inferInsert;
+
+export const rightOfUseAssets = mysqlTable("right_of_use_assets", {
+  id: serial("id").primaryKey(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }).notNull(),
+  assetCode: varchar("asset_code", { length: 100 }),
+  assetName: varchar("asset_name", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }),
+  cost: decimal("cost", { precision: 18, scale: 2 }).default("0"),
+  accumulatedDepreciation: decimal("accumulated_depreciation", { precision: 18, scale: 2 }).default("0"),
+  depreciationMethod: mysqlEnum("depreciation_method", ["straight_line", "declining"]).default("straight_line"),
+  usefulLifeMonths: int("useful_life_months"),
+  depreciationStartDate: date("depreciation_start_date"),
+  netBookValue: decimal("net_book_value", { precision: 18, scale: 2 }).default("0"),
+  impairmentLoss: decimal("impairment_loss", { precision: 18, scale: 2 }).default("0"),
+  status: mysqlEnum("status", ["active", "fully_depreciated", "disposed"]).default("active").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("rou_assets_contract_idx").on(table.contractId),
+]);
+
+export type RightOfUseAsset = typeof rightOfUseAssets.$inferSelect;
+export type InsertRightOfUseAsset = typeof rightOfUseAssets.$inferInsert;
+
+// =====================================================
+// 65. IFRS 15 - REVENUE RECOGNITION
+// =====================================================
+
+export const performanceObligations = mysqlTable("performance_obligations", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }),
+  obligationName: varchar("obligation_name", { length: 255 }).notNull(),
+  description: text("description"),
+  obligationType: mysqlEnum("obligation_type", ["good", "service", "software", "support", "construction"]).notNull(),
+  performanceTiming: mysqlEnum("performance_timing", ["point_in_time", "over_time"]).notNull(),
+  transactionPrice: decimal("transaction_price", { precision: 18, scale: 2 }).default("0"),
+  standalonePrice: decimal("standalone_price", { precision: 18, scale: 2 }).default("0"),
+  allocatedAmount: decimal("allocated_amount", { precision: 18, scale: 2 }).default("0"),
+  recognitionMethod: mysqlEnum("recognition_method", ["output", "input", "straight_line"]).default("straight_line"),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  completionPercent: decimal("completion_percent", { precision: 8, scale: 4 }).default("0"),
+  status: mysqlEnum("status", ["identified", "satisfied", "partially_satisfied", "cancelled"]).default("identified").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("perf_obl_tenant_idx").on(table.tenantId),
+]);
+
+export type PerformanceObligation = typeof performanceObligations.$inferSelect;
+export type InsertPerformanceObligation = typeof performanceObligations.$inferInsert;
+
+export const contractAssets = mysqlTable("contract_assets", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }),
+  obligationId: bigint("obligation_id", { mode: "number", unsigned: true }),
+  assetType: mysqlEnum("asset_type", ["contract_asset", "receivable", "unbilled_receivable"]).notNull(),
+  amount: decimal("amount", { precision: 18, scale: 2 }).default("0"),
+  recognizedRevenue: decimal("recognized_revenue", { precision: 18, scale: 2 }).default("0"),
+  billingAmount: decimal("billing_amount", { precision: 18, scale: 2 }).default("0"),
+  receivedAmount: decimal("received_amount", { precision: 18, scale: 2 }).default("0"),
+  status: mysqlEnum("status", ["pending", "recognized", "billed", "collected"]).default("pending").notNull(),
+  date: date("date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("contract_assets_tenant_idx").on(table.tenantId),
+]);
+
+export type ContractAsset = typeof contractAssets.$inferSelect;
+export type InsertContractAsset = typeof contractAssets.$inferInsert;
+
+export const contractLiabilities = mysqlTable("contract_liabilities", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }),
+  obligationId: bigint("obligation_id", { mode: "number", unsigned: true }),
+  liabilityType: mysqlEnum("liability_type", ["deferred_revenue", "advance_billing", "refund_liability"]).notNull(),
+  amount: decimal("amount", { precision: 18, scale: 2 }).default("0"),
+  recognizedAmount: decimal("recognized_amount", { precision: 18, scale: 2 }).default("0"),
+  remainingAmount: decimal("remaining_amount", { precision: 18, scale: 2 }).default("0"),
+  status: mysqlEnum("status", ["unearned", "partially_recognized", "fully_recognized"]).default("unearned").notNull(),
+  date: date("date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("contract_liab_tenant_idx").on(table.tenantId),
+]);
+
+export type ContractLiability = typeof contractLiabilities.$inferSelect;
+export type InsertContractLiability = typeof contractLiabilities.$inferInsert;
+
+export const revenueRecognitionSchedules = mysqlTable("revenue_recognition_schedules", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }),
+  obligationId: bigint("obligation_id", { mode: "number", unsigned: true }),
+  scheduledDate: date("scheduled_date").notNull(),
+  recognizedAmount: decimal("recognized_amount", { precision: 18, scale: 2 }).default("0"),
+  cumulativeAmount: decimal("cumulative_amount", { precision: 18, scale: 2 }).default("0"),
+  recognitionMethod: mysqlEnum("recognition_method", ["output", "input", "straight_line"]).default("straight_line"),
+  status: mysqlEnum("status", ["scheduled", "recognized", "skipped"]).default("scheduled").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("rev_rec_sched_tenant_idx").on(table.tenantId),
+]);
+
+export type RevenueRecognitionSchedule = typeof revenueRecognitionSchedules.$inferSelect;
+export type InsertRevenueRecognitionSchedule = typeof revenueRecognitionSchedules.$inferInsert;
+
+export const contractModifications = mysqlTable("contract_modifications", {
+  id: serial("id").primaryKey(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }),
+  modificationType: mysqlEnum("modification_type", ["change_order", "extension", "termination", "discount"]).notNull(),
+  description: text("description"),
+  preModificationPrice: decimal("pre_modification_price", { precision: 18, scale: 2 }).default("0"),
+  postModificationPrice: decimal("post_modification_price", { precision: 18, scale: 2 }).default("0"),
+  effectType: mysqlEnum("effect_type", ["prospective", "cumulative"]).default("prospective"),
+  effectiveDate: date("effective_date"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ContractModification = typeof contractModifications.$inferSelect;
+export type InsertContractModification = typeof contractModifications.$inferInsert;
+
+export const contractCosts = mysqlTable("contract_costs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  contractId: bigint("contract_id", { mode: "number", unsigned: true }),
+  costType: mysqlEnum("cost_type", ["incremental_fulfillment", "mobilization", "setup", "training", "commission"]).notNull(),
+  description: text("description"),
+  amount: decimal("amount", { precision: 18, scale: 2 }).default("0"),
+  capitalizedAmount: decimal("capitalized_amount", { precision: 18, scale: 2 }).default("0"),
+  amortizationPeriod: int("amortization_period"),
+  amortizationMethod: varchar("amortization_method", { length: 50 }),
+  status: mysqlEnum("status", ["pending", "capitalized", "amortized"]).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("contract_costs_tenant_idx").on(table.tenantId),
+]);
+
+export type ContractCost = typeof contractCosts.$inferSelect;
+export type InsertContractCost = typeof contractCosts.$inferInsert;
+
+// =====================================================
+// 67. EDI INTEGRATION
+// =====================================================
+
+export const ediPartners = mysqlTable("edi_partners", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  partnerCode: varchar("partner_code", { length: 50 }).notNull(),
+  partnerName: varchar("partner_name", { length: 255 }).notNull(),
+  partnerType: mysqlEnum("partner_type", ["customer", "supplier", "logistics", "bank", "govt"]).notNull(),
+  ediStandard: mysqlEnum("edi_standard", ["edifact", "x12", "tradacoms", "custom"]).notNull(),
+  version: varchar("version", { length: 50 }),
+  senderId: varchar("sender_id", { length: 100 }),
+  receiverId: varchar("receiver_id", { length: 100 }),
+  qualifier: varchar("qualifier", { length: 50 }),
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("edi_partners_tenant_idx").on(table.tenantId),
+]);
+
+export const ediDocumentTypes = mysqlTable("edi_document_types", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  documentCode: varchar("document_code", { length: 50 }).notNull(),
+  documentName: varchar("document_name", { length: 255 }).notNull(),
+  direction: mysqlEnum("direction", ["inbound", "outbound", "both"]).notNull(),
+  ediStandard: varchar("edi_standard", { length: 50 }),
+  status: mysqlEnum("status", ["active", "inactive"]).default("active"),
+}, (table) => [
+  index("edi_doc_types_tenant_idx").on(table.tenantId),
+]);
+
+export const ediMappings = mysqlTable("edi_mappings", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  mappingName: varchar("mapping_name", { length: 255 }).notNull(),
+  direction: mysqlEnum("direction", ["inbound", "outbound"]).notNull(),
+  sourceFormat: varchar("source_format", { length: 50 }).default("JSON"),
+  targetFormat: varchar("target_format", { length: 50 }).default("EDI"),
+  delimiter: varchar("delimiter", { length: 10 }).default("'"),
+  segmentTerminator: varchar("segment_terminator", { length: 10 }).default("'"),
+  elementSeparator: varchar("element_separator", { length: 10 }).default("+"),
+  componentSeparator: varchar("component_separator", { length: 10 }).default(":"),
+  decimalNotation: varchar("decimal_notation", { length: 10 }).default("."),
+  releaseCharacter: varchar("release_character", { length: 10 }).default("?"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("edi_mappings_tenant_idx").on(table.tenantId),
+]);
+
+export const ediTransactionSets = mysqlTable("edi_transaction_sets", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  transactionSetId: varchar("transaction_set_id", { length: 50 }).notNull(),
+  standard: varchar("standard", { length: 50 }),
+  version: varchar("version", { length: 50 }),
+  description: text("description"),
+  functionalGroup: varchar("functional_group", { length: 50 }),
+  tableDefinition: json("table_definition"),
+  isActive: boolean("is_active").default(true),
+}, (table) => [
+  index("edi_txn_sets_tenant_idx").on(table.tenantId),
+]);
+
+export const ediOutboundQueue = mysqlTable("edi_outbound_queue", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  partnerId: bigint("partner_id", { mode: "number", unsigned: true }),
+  documentTypeId: bigint("document_type_id", { mode: "number", unsigned: true }),
+  sourceEntityType: varchar("source_entity_type", { length: 100 }),
+  sourceEntityId: bigint("source_entity_id", { mode: "number", unsigned: true }),
+  ediPayload: text("edi_payload"),
+  status: mysqlEnum("status", ["pending", "generated", "transmitted", "acknowledged", "failed"]).default("pending"),
+  acknowledgement: text("acknowledgement"),
+  transmissionDate: timestamp("transmission_date"),
+  errorMessage: text("error_message"),
+  retryCount: int("retry_count").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("edi_outbound_tenant_idx").on(table.tenantId),
+]);
+
+export const ediInboundQueue = mysqlTable("edi_inbound_queue", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  partnerId: bigint("partner_id", { mode: "number", unsigned: true }),
+  documentTypeId: bigint("document_type_id", { mode: "number", unsigned: true }),
+  rawEdi: text("raw_edi"),
+  parsedData: json("parsed_data"),
+  status: mysqlEnum("status", ["received", "parsed", "mapped", "processed", "failed"]).default("received"),
+  documentReference: varchar("document_reference", { length: 255 }),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("edi_inbound_tenant_idx").on(table.tenantId),
+]);
+
+export const ediAcknowledgements = mysqlTable("edi_acknowledgements", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  outboundId: bigint("outbound_id", { mode: "number", unsigned: true }),
+  partnerId: bigint("partner_id", { mode: "number", unsigned: true }),
+  ackType: mysqlEnum("ack_type", ["technical", "functional", "application"]).notNull(),
+  ackCode: varchar("ack_code", { length: 50 }),
+  ackDescription: text("ack_description"),
+  ackDate: timestamp("ack_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("edi_acks_tenant_idx").on(table.tenantId),
+]);
+
+export const ediLogs = mysqlTable("edi_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  partnerId: bigint("partner_id", { mode: "number", unsigned: true }),
+  direction: mysqlEnum("direction", ["inbound", "outbound"]),
+  documentType: varchar("document_type", { length: 100 }),
+  transactionRef: varchar("transaction_ref", { length: 255 }),
+  status: varchar("status", { length: 50 }),
+  message: text("message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("edi_logs_tenant_idx").on(table.tenantId),
+]);
+
+export type EdiPartner = typeof ediPartners.$inferSelect;
+export type InsertEdiPartner = typeof ediPartners.$inferInsert;
+export type EdiDocumentType = typeof ediDocumentTypes.$inferSelect;
+export type InsertEdiDocumentType = typeof ediDocumentTypes.$inferInsert;
+export type EdiMapping = typeof ediMappings.$inferSelect;
+export type InsertEdiMapping = typeof ediMappings.$inferInsert;
+export type EdiTransactionSet = typeof ediTransactionSets.$inferSelect;
+export type InsertEdiTransactionSet = typeof ediTransactionSets.$inferInsert;
+export type EdiOutboundQueue = typeof ediOutboundQueue.$inferSelect;
+export type InsertEdiOutboundQueue = typeof ediOutboundQueue.$inferInsert;
+export type EdiInboundQueue = typeof ediInboundQueue.$inferSelect;
+export type InsertEdiInboundQueue = typeof ediInboundQueue.$inferInsert;
+export type EdiAcknowledgement = typeof ediAcknowledgements.$inferSelect;
+export type InsertEdiAcknowledgement = typeof ediAcknowledgements.$inferInsert;
+export type EdiLog = typeof ediLogs.$inferSelect;
+export type InsertEdiLog = typeof ediLogs.$inferInsert;
+
+// =====================================================
+// 68. WEBHOOK & API GATEWAY
+// =====================================================
+
+export const webhookSubscriptions = mysqlTable("webhook_subscriptions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  url: varchar("url", { length: 1024 }).notNull(),
+  secret: varchar("secret", { length: 512 }),
+  eventTypes: json("event_types").notNull(),
+  format: mysqlEnum("format", ["json", "xml"]).default("json"),
+  isActive: boolean("is_active").default(true),
+  retryCount: int("retry_count").default(3),
+  timeoutMs: int("timeout_ms").default(5000),
+  lastTriggeredAt: timestamp("last_triggered_at"),
+  failureCount: int("failure_count").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("webhook_subs_tenant_idx").on(table.tenantId),
+]);
+
+export const webhookDeliveryLogs = mysqlTable("webhook_delivery_logs", {
+  id: serial("id").primaryKey(),
+  subscriptionId: bigint("subscription_id", { mode: "number", unsigned: true }),
+  eventType: varchar("event_type", { length: 100 }),
+  payload: json("payload"),
+  status: mysqlEnum("status", ["delivered", "failed", "retrying"]).notNull(),
+  httpStatus: int("http_status"),
+  responseBody: text("response_body"),
+  attemptNumber: int("attempt_number").default(1),
+  durationMs: int("duration_ms"),
+  deliveredAt: timestamp("delivered_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const webhookEventQueue = mysqlTable("webhook_event_queue", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  payload: json("payload"),
+  sourceEntityType: varchar("source_entity_type", { length: 100 }),
+  sourceEntityId: bigint("source_entity_id", { mode: "number", unsigned: true }),
+  priority: int("priority").default(5),
+  status: mysqlEnum("status", ["pending", "delivered", "failed"]).default("pending"),
+  retryCount: int("retry_count").default(0),
+  maxRetries: int("max_retries").default(5),
+  nextRetryAt: timestamp("next_retry_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("webhook_queue_tenant_idx").on(table.tenantId),
+]);
+
+export const apiKeys = mysqlTable("api_keys", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  keyName: varchar("key_name", { length: 255 }).notNull(),
+  keyHash: varchar("key_hash", { length: 512 }).notNull(),
+  keyPrefix: varchar("key_prefix", { length: 8 }),
+  permissions: json("permissions"),
+  ipWhitelist: json("ip_whitelist"),
+  rateLimitPerMinute: int("rate_limit_per_minute").default(60),
+  isActive: boolean("is_active").default(true),
+  expiresAt: timestamp("expires_at"),
+  lastUsedAt: timestamp("last_used_at"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("api_keys_tenant_idx").on(table.tenantId),
+]);
+
+export const apiUsageLogs = mysqlTable("api_usage_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  apiKeyId: bigint("api_key_id", { mode: "number", unsigned: true }),
+  endpoint: varchar("endpoint", { length: 255 }),
+  method: varchar("method", { length: 10 }),
+  httpStatus: int("http_status"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  durationMs: int("duration_ms"),
+  requestSize: int("request_size"),
+  responseSize: int("response_size"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("api_usage_tenant_idx").on(table.tenantId),
+]);
+
+export const apiRateLimits = mysqlTable("api_rate_limits", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  apiKeyId: bigint("api_key_id", { mode: "number", unsigned: true }),
+  intervalStart: timestamp("interval_start"),
+  requestCount: int("request_count").default(0),
+  limitPerInterval: int("limit_per_interval").default(60),
+  intervalSeconds: int("interval_seconds").default(60),
+}, (table) => [
+  index("api_rate_limits_tenant_idx").on(table.tenantId),
+]);
+
+export type WebhookSubscription = typeof webhookSubscriptions.$inferSelect;
+export type InsertWebhookSubscription = typeof webhookSubscriptions.$inferInsert;
+export type WebhookDeliveryLog = typeof webhookDeliveryLogs.$inferSelect;
+export type InsertWebhookDeliveryLog = typeof webhookDeliveryLogs.$inferInsert;
+export type WebhookEventQueue = typeof webhookEventQueue.$inferSelect;
+export type InsertWebhookEventQueue = typeof webhookEventQueue.$inferInsert;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKey = typeof apiKeys.$inferInsert;
+export type ApiUsageLog = typeof apiUsageLogs.$inferSelect;
+export type InsertApiUsageLog = typeof apiUsageLogs.$inferInsert;
+export type ApiRateLimit = typeof apiRateLimits.$inferSelect;
+export type InsertApiRateLimit = typeof apiRateLimits.$inferInsert;
+
+// =====================================================
+// 69. OLAP & DATA WAREHOUSE
+// =====================================================
+
+export const dwFactTables = mysqlTable("dw_fact_tables", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  factName: varchar("fact_name", { length: 255 }).notNull(),
+  factCode: varchar("fact_code", { length: 50 }),
+  description: text("description"),
+  sourceSchema: varchar("source_schema", { length: 255 }),
+  sourceTable: varchar("source_table", { length: 255 }),
+  refreshFrequency: mysqlEnum("refresh_frequency", ["realtime", "hourly", "daily", "weekly", "monthly"]).default("daily"),
+  status: mysqlEnum("status", ["active", "inactive"]).default("active"),
+  lastRefreshedAt: timestamp("last_refreshed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("dw_facts_tenant_idx").on(table.tenantId),
+]);
+
+export const dwDimensionTables = mysqlTable("dw_dimension_tables", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  dimensionName: varchar("dimension_name", { length: 255 }).notNull(),
+  dimensionCode: varchar("dimension_code", { length: 50 }),
+  description: text("description"),
+  sourceTable: varchar("source_table", { length: 255 }),
+  type: mysqlEnum("type", ["conformed", "role_playing", "junk", "degenerated"]).default("conformed"),
+  hierarchyLevels: int("hierarchy_levels").default(1),
+  isActive: boolean("is_active").default(true),
+}, (table) => [
+  index("dw_dims_tenant_idx").on(table.tenantId),
+]);
+
+export const dwCubes = mysqlTable("dw_cubes", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  cubeName: varchar("cube_name", { length: 255 }).notNull(),
+  cubeCode: varchar("cube_code", { length: 50 }),
+  description: text("description"),
+  factTableId: bigint("fact_table_id", { mode: "number", unsigned: true }),
+  status: mysqlEnum("status", ["active", "inactive"]).default("active"),
+  lastProcessedAt: timestamp("last_processed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("dw_cubes_tenant_idx").on(table.tenantId),
+]);
+
+export const dwCubeDimensions = mysqlTable("dw_cube_dimensions", {
+  id: serial("id").primaryKey(),
+  cubeId: bigint("cube_id", { mode: "number", unsigned: true }),
+  dimensionId: bigint("dimension_id", { mode: "number", unsigned: true }),
+  dimensionType: mysqlEnum("dimension_type", ["regular", "role_playing"]).default("regular"),
+  roleName: varchar("role_name", { length: 100 }),
+});
+
+export const dwCubeMeasures = mysqlTable("dw_cube_measures", {
+  id: serial("id").primaryKey(),
+  cubeId: bigint("cube_id", { mode: "number", unsigned: true }),
+  measureName: varchar("measure_name", { length: 255 }).notNull(),
+  measureCode: varchar("measure_code", { length: 50 }),
+  aggregationType: mysqlEnum("aggregation_type", ["sum", "avg", "count", "min", "max", "distinct_count"]).notNull(),
+  sourceColumn: varchar("source_column", { length: 255 }),
+  format: varchar("format", { length: 50 }),
+  isActive: boolean("is_active").default(true),
+});
+
+export const dwEtlMetadata = mysqlTable("dw_etl_metadata", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  etlJobId: varchar("etl_job_id", { length: 100 }),
+  jobName: varchar("job_name", { length: 255 }),
+  jobType: mysqlEnum("job_type", ["extract", "transform", "load", "full"]).default("full"),
+  sourceConnector: bigint("source_connector", { mode: "number", unsigned: true }),
+  targetConnector: bigint("target_connector", { mode: "number", unsigned: true }),
+  schedule: varchar("schedule", { length: 100 }),
+  lastRunAt: timestamp("last_run_at"),
+  status: mysqlEnum("status", ["active", "paused", "disabled"]).default("active"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("dw_etl_tenant_idx").on(table.tenantId),
+]);
+
+export const dwEpsilonCertifiedData = mysqlTable("dw_epsilon_certified_data", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  cubeId: bigint("cube_id", { mode: "number", unsigned: true }),
+  certificationDate: timestamp("certification_date"),
+  certifiedBy: bigint("certified_by", { mode: "number", unsigned: true }),
+  notes: text("notes"),
+  version: varchar("version", { length: 50 }),
+});
+
+export type DwFactTable = typeof dwFactTables.$inferSelect;
+export type InsertDwFactTable = typeof dwFactTables.$inferInsert;
+export type DwDimensionTable = typeof dwDimensionTables.$inferSelect;
+export type InsertDwDimensionTable = typeof dwDimensionTables.$inferInsert;
+export type DwCube = typeof dwCubes.$inferSelect;
+export type InsertDwCube = typeof dwCubes.$inferInsert;
+export type DwCubeDimension = typeof dwCubeDimensions.$inferSelect;
+export type InsertDwCubeDimension = typeof dwCubeDimensions.$inferInsert;
+export type DwCubeMeasure = typeof dwCubeMeasures.$inferSelect;
+export type InsertDwCubeMeasure = typeof dwCubeMeasures.$inferInsert;
+export type DwEtlMetadata = typeof dwEtlMetadata.$inferSelect;
+export type InsertDwEtlMetadata = typeof dwEtlMetadata.$inferInsert;
+export type DwEpsilonCertifiedData = typeof dwEpsilonCertifiedData.$inferSelect;
+export type InsertDwEpsilonCertifiedData = typeof dwEpsilonCertifiedData.$inferInsert;
+
+// =====================================================
+// 70. ETL PIPELINE
+// =====================================================
+
+export const etlConnectors = mysqlTable("etl_connectors", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  connectorName: varchar("connector_name", { length: 255 }).notNull(),
+  connectorType: mysqlEnum("connector_type", ["mysql", "postgres", "s3", "ftp", "http", "csv", "excel", "api", "custom"]).notNull(),
+  connectionConfig: json("connection_config"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("etl_connectors_tenant_idx").on(table.tenantId),
+]);
+
+export const etlJobs = mysqlTable("etl_jobs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  jobName: varchar("job_name", { length: 255 }).notNull(),
+  jobCode: varchar("job_code", { length: 50 }),
+  description: text("description"),
+  sourceConnectorId: bigint("source_connector_id", { mode: "number", unsigned: true }),
+  targetConnectorId: bigint("target_connector_id", { mode: "number", unsigned: true }),
+  scheduleType: mysqlEnum("schedule_type", ["manual", "cron", "event"]).default("manual"),
+  scheduleExpression: varchar("schedule_expression", { length: 100 }),
+  batchSize: int("batch_size").default(1000),
+  errorHandling: mysqlEnum("error_handling", ["skip", "abort", "retry"]).default("abort"),
+  retryCount: int("retry_count").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => [
+  index("etl_jobs_tenant_idx").on(table.tenantId),
+]);
+
+export const etlJobSteps = mysqlTable("etl_job_steps", {
+  id: serial("id").primaryKey(),
+  jobId: bigint("job_id", { mode: "number", unsigned: true }),
+  stepOrder: int("step_order").default(0),
+  stepType: mysqlEnum("step_type", ["extract", "transform", "load", "validate", "dedupe", "aggregate", "join", "filter", "map"]).notNull(),
+  config: json("config"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const etlTransformations = mysqlTable("etl_transformations", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  transformationName: varchar("transformation_name", { length: 255 }).notNull(),
+  transformationType: mysqlEnum("transformation_type", ["column_map", "datatype_convert", "lookup", "calculate", "conditional", "aggregate", "sort", "dedupe"]).notNull(),
+  sourceField: varchar("source_field", { length: 255 }),
+  targetField: varchar("target_field", { length: 255 }),
+  config: json("config"),
+  isActive: boolean("is_active").default(true),
+}, (table) => [
+  index("etl_transforms_tenant_idx").on(table.tenantId),
+]);
+
+export const etlExecutionLogs = mysqlTable("etl_execution_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  jobId: bigint("job_id", { mode: "number", unsigned: true }),
+  executionId: varchar("execution_id", { length: 100 }),
+  startTime: timestamp("start_time"),
+  endTime: timestamp("end_time"),
+  status: mysqlEnum("status", ["running", "completed", "failed", "aborted"]).default("running"),
+  rowsRead: int("rows_read").default(0),
+  rowsProcessed: int("rows_processed").default(0),
+  rowsError: int("rows_error").default(0),
+  rowsWritten: int("rows_written").default(0),
+  durationMs: int("duration_ms"),
+  errorMessage: text("error_message"),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("etl_exec_logs_tenant_idx").on(table.tenantId),
+]);
+
+export const etlDataQualityRules = mysqlTable("etl_data_quality_rules", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  ruleName: varchar("rule_name", { length: 255 }).notNull(),
+  ruleType: mysqlEnum("rule_type", ["not_null", "unique", "range", "format", "referenced_integrity", "custom"]).notNull(),
+  fieldName: varchar("field_name", { length: 255 }),
+  validationConfig: json("validation_config"),
+  severity: mysqlEnum("severity", ["warn", "error", "block"]).default("error"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("etl_dq_rules_tenant_idx").on(table.tenantId),
+]);
+
+export const etlDataQualityLogs = mysqlTable("etl_data_quality_logs", {
+  id: serial("id").primaryKey(),
+  executionId: bigint("execution_id", { mode: "number", unsigned: true }),
+  ruleId: bigint("rule_id", { mode: "number", unsigned: true }),
+  rowRef: varchar("row_ref", { length: 255 }),
+  fieldName: varchar("field_name", { length: 255 }),
+  expectedValue: text("expected_value"),
+  actualValue: text("actual_value"),
+  severity: varchar("severity", { length: 20 }),
+  status: mysqlEnum("status", ["passed", "failed"]).default("failed"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type EtlConnector = typeof etlConnectors.$inferSelect;
+export type InsertEtlConnector = typeof etlConnectors.$inferInsert;
+export type EtlJob = typeof etlJobs.$inferSelect;
+export type InsertEtlJob = typeof etlJobs.$inferInsert;
+export type EtlJobStep = typeof etlJobSteps.$inferSelect;
+export type InsertEtlJobStep = typeof etlJobSteps.$inferInsert;
+export type EtlTransformation = typeof etlTransformations.$inferSelect;
+export type InsertEtlTransformation = typeof etlTransformations.$inferInsert;
+export type EtlExecutionLog = typeof etlExecutionLogs.$inferSelect;
+export type InsertEtlExecutionLog = typeof etlExecutionLogs.$inferInsert;
+export type EtlDataQualityRule = typeof etlDataQualityRules.$inferSelect;
+export type InsertEtlDataQualityRule = typeof etlDataQualityRules.$inferInsert;
+export type EtlDataQualityLog = typeof etlDataQualityLogs.$inferSelect;
+export type InsertEtlDataQualityLog = typeof etlDataQualityLogs.$inferInsert;
+
+// =====================================================
+// 71. REAL-TIME COLLABORATION (WebSockets)
+// =====================================================
+
+export const wsConnections = mysqlTable("ws_connections", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  sessionId: varchar("session_id", { length: 255 }),
+  deviceInfo: varchar("device_info", { length: 500 }),
+  connectedAt: timestamp("connected_at").defaultNow(),
+  disconnectedAt: timestamp("disconnected_at"),
+  isActive: boolean("is_active").default(true),
+}, (table) => [
+  index("ws_conn_tenant_idx").on(table.tenantId),
+]);
+
+export const wsPresence = mysqlTable("ws_presence", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  status: mysqlEnum("status", ["online", "away", "busy", "offline"]).default("offline"),
+  lastSeen: timestamp("last_seen").defaultNow(),
+  currentModule: varchar("current_module", { length: 100 }),
+  customStatus: varchar("custom_status", { length: 255 }),
+  isActive: boolean("is_active").default(true),
+}, (table) => [
+  index("ws_presence_tenant_idx").on(table.tenantId),
+]);
+
+export const wsNotifications = mysqlTable("ws_notifications", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body"),
+  type: mysqlEnum("type", ["info", "warning", "error", "success"]).default("info"),
+  sourceModule: varchar("source_module", { length: 100 }),
+  sourceEntityType: varchar("source_entity_type", { length: 100 }),
+  sourceEntityId: bigint("source_entity_id", { mode: "number", unsigned: true }),
+  actionUrl: varchar("action_url", { length: 1024 }),
+  isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("ws_notif_tenant_idx").on(table.tenantId),
+]);
+
+export const wsCollaborationSessions = mysqlTable("ws_collaboration_sessions", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  sessionName: varchar("session_name", { length: 255 }).notNull(),
+  sessionType: mysqlEnum("session_type", ["document_review", "dashboard", "record_edit", "chat"]).notNull(),
+  entityType: varchar("entity_type", { length: 100 }),
+  entityId: bigint("entity_id", { mode: "number", unsigned: true }),
+  createdBy: bigint("created_by", { mode: "number", unsigned: true }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+}, (table) => [
+  index("ws_collab_tenant_idx").on(table.tenantId),
+]);
+
+export const wsSessionParticipants = mysqlTable("ws_session_participants", {
+  id: serial("id").primaryKey(),
+  sessionId: bigint("session_id", { mode: "number", unsigned: true }),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  role: mysqlEnum("role", ["owner", "editor", "viewer"]).default("viewer"),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  leftAt: timestamp("left_at"),
+  isActive: boolean("is_active").default(true),
+});
+
+export const wsSessionActivities = mysqlTable("ws_session_activities", {
+  id: serial("id").primaryKey(),
+  sessionId: bigint("session_id", { mode: "number", unsigned: true }),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  activityType: mysqlEnum("activity_type", ["view", "edit", "comment", "approve", "reject", "mention"]).notNull(),
+  activityData: json("activity_data"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const wsUserTyping = mysqlTable("ws_user_typing", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  sessionId: bigint("session_id", { mode: "number", unsigned: true }),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  isTyping: boolean("is_typing").default(false),
+  lastTypingAt: timestamp("last_typing_at").defaultNow(),
+}, (table) => [
+  index("ws_typing_tenant_idx").on(table.tenantId),
+]);
+
+export type WsConnection = typeof wsConnections.$inferSelect;
+export type InsertWsConnection = typeof wsConnections.$inferInsert;
+export type WsPresence = typeof wsPresence.$inferSelect;
+export type InsertWsPresence = typeof wsPresence.$inferInsert;
+export type WsNotification = typeof wsNotifications.$inferSelect;
+export type InsertWsNotification = typeof wsNotifications.$inferInsert;
+export type WsCollaborationSession = typeof wsCollaborationSessions.$inferSelect;
+export type InsertWsCollaborationSession = typeof wsCollaborationSessions.$inferInsert;
+export type WsSessionParticipant = typeof wsSessionParticipants.$inferSelect;
+export type InsertWsSessionParticipant = typeof wsSessionParticipants.$inferInsert;
+export type WsSessionActivity = typeof wsSessionActivities.$inferSelect;
+export type InsertWsSessionActivity = typeof wsSessionActivities.$inferInsert;
+export type WsUserTyping = typeof wsUserTyping.$inferSelect;
+export type InsertWsUserTyping = typeof wsUserTyping.$inferInsert;
