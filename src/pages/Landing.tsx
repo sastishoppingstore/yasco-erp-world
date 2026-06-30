@@ -38,7 +38,7 @@ import {
   LayoutDashboard, Settings, Truck, Scan, Printer, QrCode, Gift,
   RefreshCw, Map, Sun, Moon, Calendar, Timer, Send, Quote,
   ArrowUpRight, Wrench, Share2, Ticket, Bell, Smartphone, Palette,
-  DollarSign, Cloud,
+  DollarSign, Cloud, Download,
 } from "lucide-react";
 
 const BANNER_DISMISS_KEY = "yasco-announcement-dismissed";
@@ -767,6 +767,11 @@ export default function Landing() {
                 transition={{ delay: 0.5, duration: 0.7 }}
                 className="flex flex-col sm:flex-row items-center gap-3 justify-center lg:justify-start"
               >
+                <Button asChild variant="default" size="lg" className="gap-2 text-base px-8 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border-0 shadow-lg shadow-blue-500/25">
+                  <a href="/downloads/yasco-erp-setup.exe">
+                    <Download className="h-5 w-5" />{t("Download for Windows", "\u062a\u062d\u0645\u064a\u0644 \u0644\u0648\u0646\u062f\u0648\u0632")}
+                  </a>
+                </Button>
                 <Button variant="outline" size="lg" className="gap-2 text-base px-8 py-6 border-blue-400/30 text-blue-200 hover:bg-blue-500/10 hover:text-blue-100 hover:border-blue-400/50 transition-all duration-300">
                   <Play className="h-5 w-5" />{t("Watch Demo", "\u0634\u0627\u0647\u062f \u0639\u0631\u0636")}
                 </Button>

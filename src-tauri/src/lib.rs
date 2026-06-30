@@ -109,14 +109,6 @@ fn start_local_backend(app: &mut tauri::App) -> Result<(), Box<dyn std::error::E
       std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "mysql://erp:erp123@localhost:3306/erp".into()),
     )
-    .env(
-      "KIMI_AUTH_URL",
-      std::env::var("KIMI_AUTH_URL").unwrap_or_else(|_| "https://auth.kimi.com".into()),
-    )
-    .env(
-      "KIMI_OPEN_URL",
-      std::env::var("KIMI_OPEN_URL").unwrap_or_else(|_| "https://open.kimi.com".into()),
-    )
     .spawn()?;
 
   let backend_log_for_task = backend_log.clone();
