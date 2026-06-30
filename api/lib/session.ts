@@ -1,8 +1,12 @@
 import * as jose from "jose";
-import { env } from "../lib/env";
-import type { SessionPayload } from "./types";
+import { env } from "./env";
 
 const JWT_ALG = "HS256";
+
+export type SessionPayload = {
+  unionId: string;
+  clientId: string;
+};
 
 export async function signSessionToken(
   payload: SessionPayload,

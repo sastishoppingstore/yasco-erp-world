@@ -3,7 +3,7 @@ import { Session, ErrorMessages, Paths } from "@contracts/constants";
 
 describe("Constants", () => {
   it("Session constants are defined", () => {
-    expect(Session.cookieName).toBe("kimi_sid");
+    expect(Session.cookieName).toBe("erp_sid");
     expect(Session.maxAgeMs).toBeGreaterThan(0);
   });
 

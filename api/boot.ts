@@ -5,7 +5,6 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
-import { createOAuthCallbackHandler } from "./kimi/auth";
 import { Paths } from "@contracts/constants";
 
 // High-Traffic Readiness: Basic in-memory rate limiter
@@ -43,8 +42,6 @@ const rateLimiter = async (c: any, next: any) => {
 };
 
 const app = new Hono<{ Bindings: HttpBindings }>();
-
-app.get(Paths.oauthCallback, createOAuthCallbackHandler());
 
 app.get("/api/localization/detect", (c) => {
   const headerCountry =

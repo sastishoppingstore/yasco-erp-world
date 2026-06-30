@@ -1,6 +1,44 @@
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import type { User } from "@db/schema";
-import { authenticateRequest } from "./kimi/auth";
+import { authenticateRequest } from "./lib/session";
+import { requireDesktopLicense } from "./lib/license";
+import { localAdminUnionId, createLocalAdminUser } from "./lib/localUser";
+import { findUserByUnionId } from "./queries/users";
+import { Session } from "@contracts/constants";
+import { Errors } from "@contracts/errors";
+import * as cookie from "cookie";
+
+async function authenticateRequest(headers: Headers) {
+  requireDesktopLicense(headers);
+  const cookies = cookie.parse(headers.get("cookie") || "");
+  const token = cookies[Session.cookieName];
+  if (!token) {
+    console.warn("[auth] No session cookie found in request.");
+    throw Errors.forbidden("Invalid authentication token.");
+  }
+  const { verifySessionToken } = await import("./lib/session");
+  const claim = await verifySessionToken(token);
+  if (!claim) {
+    throw Errors.forbidden("Invalid authentication token.");
+  }
+  let user;
+  try {
+    user = await findUserByUnionId(claim.unionId);
+  } catch (error) {
+    if (claim.unionId === localAdminUnionId()) {
+      console.warn("[auth] Using local admin fallback because database is unavailable.", error);
+      return createLocalAdminUser();
+    }
+    throw error;
+  }
+  if (!user) {
+    if (claim.unionId === localAdminUnionId()) {
+      return createLocalAdminUser();
+    }
+    throw Errors.forbidden("User not found. Please re-login.");
+  }
+  return user;
+}
 
 export type TrpcContext = {
   req: Request;

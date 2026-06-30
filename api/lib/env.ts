@@ -21,9 +21,7 @@ export const env = {
   databaseUrl: required("DATABASE_URL"),
   databaseReplicaUrl: process.env.DATABASE_REPLICA_URL ?? "",
 
-  // ── Auth / OAuth ─────────────────────────────────────────────────
-  kimiAuthUrl: required("KIMI_AUTH_URL"),
-  kimiOpenUrl: required("KIMI_OPEN_URL"),
+  // ── Auth ─────────────────────────────────────────────────────────
   ownerUnionId: process.env.OWNER_UNION_ID ?? "",
   adminUsername: process.env.ADMIN_USERNAME ?? "admin",
   adminPassword: process.env.ADMIN_PASSWORD ?? "Admin@2025!",

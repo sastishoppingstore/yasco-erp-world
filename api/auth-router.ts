@@ -7,7 +7,7 @@ import { env } from "./lib/env";
 import { createLocalAdminUser, LOCAL_ADMIN_TENANT_ID } from "./lib/localUser";
 import { requireDesktopLicense } from "./lib/license";
 import { sendEmail } from "./lib/smtp";
-import { signSessionToken } from "./kimi/session";
+import { signSessionToken } from "./lib/session";
 import { findUserByUnionId, upsertUser } from "./queries/users";
 import { createRouter, authedQuery, publicQuery } from "./middleware";
 import { templateEngine } from "./lib/notifications/templates";

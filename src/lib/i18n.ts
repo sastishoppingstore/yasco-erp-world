@@ -32,7 +32,7 @@ const translations: Record<string, Record<Language, string>> = {
   "nav.reports": { en: "Reports", ar: "التقارير" },
   "nav.settings": { en: "Settings", ar: "الإعدادات" },
 
-  "auth.login": { en: "Sign in with Kimi", ar: "تسجيل الدخول عبر كيمي" },
+  "auth.login": { en: "Sign In", ar: "تسجيل الدخول" },
   "auth.logout": { en: "Sign Out", ar: "تسجيل الخروج" },
   "auth.profile": { en: "Profile", ar: "الملف الشخصي" },
 
