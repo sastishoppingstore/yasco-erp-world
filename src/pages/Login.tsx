@@ -1,10 +1,9 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, Link } from "react-router";
-import { Building2, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff } from "lucide-react";
+import { Building2, Eye, EyeOff } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -73,41 +72,42 @@ export default function Login() {
       <div className="grid min-h-screen lg:grid-cols-[1fr_480px]">
         {/* Left Panel — Branding */}
         <section className="flex items-center px-6 py-10 lg:px-12">
-          <div className="max-w-3xl space-y-7">
+          <div className="max-w-3xl space-y-8">
             <div className="flex items-center gap-3">
               <img src="/logo-40.png" alt="YASCO" className="size-10 rounded-lg object-contain" />
               <div>
                 <p className="text-lg font-semibold leading-5">YASCO</p>
-                <p className="text-xs text-slate-400">Enterprise OS</p>
+                <p className="text-xs text-slate-400">Enterprise Resource Planning</p>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <Badge className="bg-blue-500 text-white hover:bg-blue-500">
-                <Sparkles className="size-3" />
-                Private ERP login
-              </Badge>
-              <h1 className="max-w-2xl text-3xl font-semibold tracking-tight sm:text-5xl">
-                Secure access for finance, operations, sales, HR, inventory, and management.
+            <div className="space-y-5">
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+                Welcome back to your business operating system
               </h1>
               <p className="max-w-xl text-sm leading-6 text-slate-300">
-                Password login is enabled for the admin account. Email OTP works through your SMTP settings for staff and customer portal access.
+                Sign in to manage finance, inventory, sales, HR, and operations — all in one unified platform.
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                { label: "Admin password", icon: LockKeyhole },
-                { label: "SMTP email OTP", icon: Mail },
-                { label: "Audit-ready session", icon: ShieldCheck },
-              ].map((item) => (
-                <div key={item.label} className="rounded-lg border border-white/10 bg-white/5 p-4">
-                  <item.icon className="size-5 text-blue-300" />
-                  <p className="mt-3 text-sm font-medium">{item.label}</p>
-                </div>
-              ))}
+            <div className="flex flex-wrap gap-6 text-sm text-slate-400">
+              <div className="flex items-center gap-2">
+                <div className="size-1.5 rounded-full bg-emerald-400" />
+                Multi-country & multi-currency
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="size-1.5 rounded-full bg-emerald-400" />
+                ZATCA & tax compliant
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="size-1.5 rounded-full bg-emerald-400" />
+                Real-time sync
+              </div>
             </div>
 
+            <div className="border-t border-white/5 pt-6 text-xs text-slate-500">
+              &copy; {new Date().getFullYear()} YASCO Technologies. All rights reserved.
+            </div>
 
           </div>
         </section>
@@ -119,8 +119,8 @@ export default function Login() {
               <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                 <Building2 className="size-5" />
               </div>
-              <CardTitle className="text-2xl">Sign in</CardTitle>
-              <p className="text-sm text-slate-500">Use admin password or verify email with OTP.</p>
+              <CardTitle className="text-2xl">Sign in to YASCO</CardTitle>
+              <p className="text-sm text-slate-500">Enter your credentials to access the ERP.</p>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="password">
