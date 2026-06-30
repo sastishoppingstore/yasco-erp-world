@@ -14,7 +14,7 @@ export function getRedis(): Redis | null {
         if (times > 10) return null;
         return Math.min(times * 200, 5000);
       },
-      lazyConnect: true,
+      lazyConnect: false,
     });
 
     redisClient.on("ready", () => { redisReady = true; });
