@@ -66,6 +66,18 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Setup Tauri sidecar (Node.js binary)
+        shell: powershell
+        run: |
+          $nodeDir = "$env:RUNNER_TEMP\node-sidecar"
+          mkdir -Force $nodeDir | Out-Null
+          $nodeUrl = "https://nodejs.org/dist/v${{ env.NODE_VERSION }}.0/win-x64/node.exe"
+          Invoke-WebRequest -Uri $nodeUrl -OutFile "$nodeDir\node.exe" -UseBasicParsing
+          mkdir -Force src-tauri/binaries | Out-Null
+          Copy-Item "$nodeDir\node.exe" src-tauri/binaries/node-x86_64-pc-windows-msvc.exe
+        env:
+          NODE_VERSION: ${{ env.NODE_VERSION }}
+
       - name: Build frontend + backend
         run: npm run build
         env:

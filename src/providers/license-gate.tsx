@@ -21,9 +21,7 @@ export function LicenseGate({ children }: LicenseGateProps) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600">
-            <span className="text-2xl font-bold text-white">YA</span>
-          </div>
+          <img src="/logo-40.png" alt="YASCO" className="mx-auto mb-4 h-16 w-16 rounded-2xl object-contain" />
           <div className="h-1 w-48 overflow-hidden rounded-full bg-slate-700 mx-auto">
             <div className="h-full animate-pulse rounded-full bg-emerald-500" style={{ width: "60%" }} />
           </div>
@@ -75,9 +73,7 @@ function LicenseActivationScreen() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur">
           {/* Logo */}
           <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 shadow-lg shadow-emerald-900/50">
-              <span className="text-xl font-bold text-white">YA</span>
-            </div>
+            <img src="/logo-40.png" alt="YASCO" className="h-12 w-12 rounded-xl object-contain" />
             <div>
               <p className="text-lg font-bold text-white">YASCO ERP</p>
               <p className="text-xs text-emerald-400">Desktop Edition</p>

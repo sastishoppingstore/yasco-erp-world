@@ -75,7 +75,7 @@ export default function Login() {
         <section className="flex items-center px-6 py-10 lg:px-12">
           <div className="max-w-3xl space-y-7">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-blue-600 font-bold">YA</div>
+              <img src="/logo-40.png" alt="YASCO" className="size-10 rounded-lg object-contain" />
               <div>
                 <p className="text-lg font-semibold leading-5">YASCO</p>
                 <p className="text-xs text-slate-400">Enterprise OS</p>

@@ -28,6 +28,14 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
 
       <div className="relative flex flex-col items-center gap-2">
+        <motion.img
+          src="/logo-40.png"
+          alt="YASCO"
+          initial={{ opacity: 0, scale: 0.3 }}
+          animate={showYasco ? { opacity: 1, scale: 1 } : {}}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="w-16 h-16 sm:w-20 sm:h-20 mb-4 rounded-2xl object-contain"
+        />
         <div className="flex items-center gap-1">
           {letters.map((letter, i) => (
             <motion.span

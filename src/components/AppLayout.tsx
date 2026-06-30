@@ -489,7 +489,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-white text-sm mx-auto">YA</div>
+          <img src="/logo-40.png" alt="YASCO" className="w-10 h-10 rounded-lg object-contain mx-auto" />
           <p className="text-sm text-slate-500">Checking secure session...</p>
         </div>
       </div>

@@ -630,9 +630,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3 shrink-0">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center font-bold text-white text-sm shadow-lg shadow-blue-500/20">
-                YA
-              </div>
+              <img src="/logo-40.png" alt="YASCO" className="w-9 h-9 rounded-lg object-contain" />
               <div className="hidden sm:block">
                 <span className="font-bold text-lg text-white">YASCO</span>
                 <span className="block text-[10px] text-blue-400/70 -mt-0.5">{t("Global Smart ERP", "\u0646\u0638\u0627\u0645 ERP \u0639\u0627\u0644\u0645\u064a \u0630\u0643\u064a")}</span>
@@ -677,7 +675,7 @@ export default function Landing() {
                 <SheetContent side="right" className="bg-slate-950 border-white/5 w-[300px]">
                   <SheetHeader>
                     <SheetTitle className="text-white flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-md bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center font-bold text-white text-xs">YA</div>
+                      <img src="/logo-32.png" alt="YASCO" className="w-7 h-7 rounded object-contain" />
                       <span>YASCO</span>
                     </SheetTitle>
                   </SheetHeader>
@@ -1557,7 +1555,7 @@ export default function Landing() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center font-bold text-white text-sm">YA</div>
+                <img src="/logo-40.png" alt="YASCO" className="w-9 h-9 rounded-lg object-contain" />
                 <div>
                   <span className="font-bold text-lg text-white">YASCO</span>
                   <span className="block text-[10px] text-blue-400/70">{t("Enterprise Operating System", "\u0646\u0638\u0627\u0645 \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0645\u0624\u0633\u0633\u0627\u0627\u062a")}</span>
