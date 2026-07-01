@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const letters = ["Y", "A", "S", "C", "O"];
-const techLetters = ["T", "E", "C", "H"];
+const letters = ["Y", "A", "S", "C", "O", " ", "T", "E", "C", "H"];
 
 export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
   const [phase, setPhase] = useState<"yasco" | "tech" | "tagline" | "done">("yasco");
@@ -56,7 +55,6 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
         </div>
 
         <AnimatePresence>
-          {(phase === "tech" || phase === "tagline" || phase === "done") && (
             <motion.div
               initial={{ opacity: 0, width: 0 }}
               animate={{ opacity: 1, width: "auto" }}
@@ -65,7 +63,6 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
             >
               <motion.div className="h-px w-8 sm:w-12 bg-gradient-to-r from-transparent to-blue-400/50" />
               <div className="flex items-center gap-0.5">
-                {techLetters.map((letter, i) => (
                   <motion.span
                     key={`tech-${i}`}
                     initial={{ opacity: 0, y: -60, rotateX: 90 }}
