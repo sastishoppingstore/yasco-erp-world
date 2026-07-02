@@ -2127,6 +2127,53 @@ export const subscriptions = mysqlTable("subscriptions", {
 
 export type Subscription = typeof subscriptions.$inferSelect;
 
+export const tenantModuleControls = mysqlTable("tenant_module_controls", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  moduleKey: varchar("module_key", { length: 100 }).notNull(),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  source: mysqlEnum("source", ["plan", "override", "trial", "support"]).default("plan").notNull(),
+  limitJson: json("limit_json"),
+  notes: text("notes"),
+  updatedBy: bigint("updated_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => ({
+  tenantModuleIdx: uniqueIndex("tenant_module_controls_unique_idx").on(table.tenantId, table.moduleKey),
+  tenantIdx: index("tenant_module_controls_tenant_idx").on(table.tenantId),
+  moduleIdx: index("tenant_module_controls_module_idx").on(table.moduleKey),
+}));
+
+export const tenantServiceEvents = mysqlTable("tenant_service_events", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  eventType: mysqlEnum("event_type", ["module_toggle", "limit_update", "billing_update", "backup_request", "restore_request", "support_action", "white_label_update"]).notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "running", "done", "failed", "cancelled"]).default("pending").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  metadata: json("metadata"),
+  requestedBy: bigint("requested_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => ({
+  tenantIdx: index("tenant_service_events_tenant_idx").on(table.tenantId),
+  eventTypeIdx: index("tenant_service_events_type_idx").on(table.eventType),
+  statusIdx: index("tenant_service_events_status_idx").on(table.status),
+}));
+
+export const systemSettings = mysqlTable("system_settings", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 150 }).notNull().unique(),
+  value: text("value"),
+  category: varchar("category", { length: 100 }).default("platform"),
+  isSecret: boolean("is_secret").default(false),
+  updatedBy: bigint("updated_by", { mode: "number", unsigned: true }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+}, (table) => ({
+  keyIdx: uniqueIndex("system_settings_key_idx").on(table.key),
+  categoryIdx: index("system_settings_category_idx").on(table.category),
+}));
+
 export const subscriptionInvoices = mysqlTable("subscription_invoices", {
   id: serial("id").primaryKey(),
   tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),

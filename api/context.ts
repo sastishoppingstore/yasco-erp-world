@@ -1,6 +1,5 @@
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import type { User } from "@db/schema";
-import { authenticateRequest } from "./lib/session";
 import { requireDesktopLicense } from "./lib/license";
 import { localAdminUnionId, createLocalAdminUser } from "./lib/localUser";
 import { findUserByUnionId } from "./queries/users";

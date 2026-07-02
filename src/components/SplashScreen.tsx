@@ -1,23 +1,25 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const letters = ["Y", "A", "S", "C", "O", " ", "T", "E", "C", "H"];
+const yascoLetters = ["Y", "A", "S", "C", "O"];
+const techLetters = ["T", "E", "C", "H"];
 
 export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
-  const [phase, setPhase] = useState<"yasco" | "tech" | "tagline" | "done">("yasco");
   const [showYasco, setShowYasco] = useState(false);
   const [showTech, setShowTech] = useState(false);
   const [showTagline, setShowTagline] = useState(false);
 
   useEffect(() => {
     const t1 = setTimeout(() => setShowYasco(true), 200);
-    const t2 = setTimeout(() => setPhase("tech"), 1800);
-    const t3 = setTimeout(() => setShowTech(true), 2000);
-    const t4 = setTimeout(() => setPhase("tagline"), 3200);
-    const t5 = setTimeout(() => setShowTagline(true), 3400);
-    const t6 = setTimeout(() => setPhase("done"), 4500);
-    const t7 = setTimeout(() => onFinish(), 5000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); clearTimeout(t6); clearTimeout(t7); };
+    const t2 = setTimeout(() => setShowTech(true), 1800);
+    const t3 = setTimeout(() => setShowTagline(true), 3200);
+    const t4 = setTimeout(() => onFinish(), 5000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
   }, [onFinish]);
 
   return (
@@ -35,8 +37,9 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="w-16 h-16 sm:w-20 sm:h-20 mb-4 rounded-2xl object-contain"
         />
+        
         <div className="flex items-center gap-1">
-          {letters.map((letter, i) => (
+          {yascoLetters.map((letter, i) => (
             <motion.span
               key={`yasco-${i}`}
               initial={{ opacity: 0, y: 80, rotateX: -90 }}
@@ -55,6 +58,7 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
         </div>
 
         <AnimatePresence>
+          {showTech && (
             <motion.div
               initial={{ opacity: 0, width: 0 }}
               animate={{ opacity: 1, width: "auto" }}
@@ -63,10 +67,11 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
             >
               <motion.div className="h-px w-8 sm:w-12 bg-gradient-to-r from-transparent to-blue-400/50" />
               <div className="flex items-center gap-0.5">
+                {techLetters.map((letter, i) => (
                   <motion.span
                     key={`tech-${i}`}
                     initial={{ opacity: 0, y: -60, rotateX: 90 }}
-                    animate={showTech ? { opacity: 1, y: 0, rotateX: 0 } : {}}
+                    animate={{ opacity: 1, y: 0, rotateX: 0 }}
                     transition={{ delay: i * 0.1 + 0.1, duration: 0.5, ease: "easeOut" }}
                     className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-300/80 tracking-widest"
                   >
@@ -80,7 +85,7 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
         </AnimatePresence>
 
         <AnimatePresence>
-          {(phase === "tagline" || phase === "done") && (
+          {showTagline && (
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -103,7 +108,7 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
 
       <motion.div
         initial={{ opacity: 0 }}
-        animate={phase === "done" ? { opacity: 1 } : {}}
+        animate={showTagline ? { opacity: 1 } : {}}
         transition={{ duration: 0.3 }}
         className="absolute bottom-32"
       >

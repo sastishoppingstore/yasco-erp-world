@@ -194,7 +194,7 @@ export function JobCostingManager() {
                 {dashboard.criticalCount}
               </div>
               <p className="text-sm text-muted-foreground">Critical Items</p>
-              <p className="text-xs text-red-600 mt-1">>20% variance</p>
+              <p className="text-xs text-red-600 mt-1">&gt;20% variance</p>
             </CardContent>
           </Card>
           <Card>

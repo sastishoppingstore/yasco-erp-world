@@ -1624,17 +1624,15 @@ export default function Landing() {
               </div>
             ))}
           </div>
-
-          <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          
+          <div className="mt-8 pt-8 border-t border-slate-800 text-center">
             <p className="text-xs text-slate-500">
-              {t("\u00a9 2026 YASCO. All rights reserved.", "\u00a9 2026 \u064a\u0627\u0633\u0643\u0648. \u062c\u0645\u064a\u0639 \u0627\u0644\u062d\u0642\u0648\u0642 \u0645\u062d\u0641\u0648\u0638\u0629.")}
+              © 2026 YASCO TECH — Jeddah, Saudi Arabia<br />
+              Developed by <span className="text-blue-400">Wafa Tech Studio</span> • Owner: <span className="text-blue-400">Yaseen Khan</span>
             </p>
-            <div className="flex items-center gap-4 text-xs text-slate-500">
-              <Button variant="ghost" size="sm" onClick={() => setLang(language === "en" ? "ar" : "en")} className="gap-1 text-slate-400 hover:text-white">
-                <Languages className="h-3.5 w-3.5" />{language === "en" ? "\u0627\u0644\u0639\u0631\u0628\u064a\u0629" : "English"}
-              </Button>
-              <span>{t("Enterprise Operating System", "\u0646\u0638\u0627\u0645 \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0645\u0624\u0633\u0633\u0627\u062a")}</span>
-            </div>
+            <p className="text-xs text-slate-600 mt-2">
+              {t("Enterprise Operating System", "\u0646\u0638\u0627\u0645 \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0645\u0624\u0633\u0633\u0627\u062a")}
+            </p>
           </div>
         </div>
       </footer>

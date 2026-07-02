@@ -384,7 +384,7 @@ export const forecastingRouter = createRouter({
           qualityRiskScore: 15,
           safetyRiskScore: 12,
           recommendations: [],
-        };
+        },
       };
     }),
 

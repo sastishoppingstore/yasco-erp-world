@@ -373,7 +373,7 @@ export function validateBatch(invoices: ValidationInput[]): {
   totalErrors: number;
   totalWarnings: number;
   results: Array<{ input: ValidationInput; result: ValidationResult }>;
-}> {
+} {
   const results = invoices.map((input) => ({
     input,
     result: validateInvoice(input),

@@ -106,11 +106,12 @@ export const authRouter = createRouter({
       }
 
       const unionId = `local:${expectedUsername}`;
+      const isSuperAdmin = true;
       const user = await ensureLocalUser({
         unionId,
-        name: "YASCO Admin",
+        name: isSuperAdmin ? "YASCO Super Admin" : "YASCO Admin",
         email: env.adminEmail || undefined,
-        role: "admin",
+        role: isSuperAdmin ? "super_admin" : "admin",
       });
       await setLocalSession(ctx, unionId);
       return { success: true, user };

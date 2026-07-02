@@ -7,6 +7,8 @@ import * as schema from "@db/schema";
 import { and, eq, asc, desc, gte, lte, sql, count, like } from "drizzle-orm";
 import crypto from "node:crypto";
 
+const saudiVatPattern = /^3\d{13}3$/;
+
 async function createAuditLog(params: { tenantId?: number; userId?: number; action: string; entityType: string; entityId?: number; oldValues?: any; newValues?: any }) {
   const db = getDb();
   await db.insert(schema.auditLogs).values({
@@ -18,6 +20,107 @@ async function createAuditLog(params: { tenantId?: number; userId?: number; acti
     oldValues: params.oldValues,
     newValues: params.newValues,
   });
+}
+
+function check(label: string, ok: boolean, severity: "critical" | "warning" | "info", message: string) {
+  return { label, ok, severity, message };
+}
+
+function subscriptionAccess(sub: typeof schema.subscriptions.$inferSelect | null | undefined) {
+  const now = new Date();
+  if (!sub) return { allowed: false, reason: "No subscription selected" };
+  if (sub.status === "suspended") return { allowed: false, reason: "Subscription is suspended" };
+  if (sub.status === "cancelled") return { allowed: false, reason: "Subscription is cancelled" };
+  if (sub.status === "expired") return { allowed: false, reason: "Subscription has expired" };
+  if (sub.status === "past_due" && sub.gracePeriodEndsAt && new Date(sub.gracePeriodEndsAt) < now) {
+    return { allowed: false, reason: "Payment grace period has ended" };
+  }
+  if (sub.status === "trial" && sub.trialEndAt && new Date(sub.trialEndAt) < now) {
+    return { allowed: false, reason: "Trial period has ended" };
+  }
+  if (sub.status === "active" && sub.currentPeriodEndAt && new Date(sub.currentPeriodEndAt) < now) {
+    return { allowed: false, reason: "Billing period has ended" };
+  }
+  return { allowed: true, reason: "Subscription is usable" };
+}
+
+async function buildTenantReadiness(tenantId: number) {
+  const db = getDb();
+  const [
+    tenant,
+    company,
+    legal,
+    settings,
+    subscription,
+    sandboxCredential,
+    productionCredential,
+    invoiceSummary,
+    failedApiLogs,
+    latestApiLog,
+    certificates,
+  ] = await Promise.all([
+    db.query.tenants.findFirst({ where: eq(schema.tenants.id, tenantId) }),
+    db.query.companies.findFirst({ where: eq(schema.companies.tenantId, tenantId) }),
+    db.query.companyLegalDetails.findFirst({ where: eq(schema.companyLegalDetails.tenantId, tenantId) }),
+    db.query.companySettings.findFirst({ where: eq(schema.companySettings.tenantId, tenantId) }),
+    db.query.subscriptions.findFirst({ where: eq(schema.subscriptions.tenantId, tenantId) }),
+    db.query.zatcaCredentials.findFirst({ where: and(eq(schema.zatcaCredentials.tenantId, tenantId), eq(schema.zatcaCredentials.environment, "sandbox"), eq(schema.zatcaCredentials.isActive, true)) }),
+    db.query.zatcaCredentials.findFirst({ where: and(eq(schema.zatcaCredentials.tenantId, tenantId), eq(schema.zatcaCredentials.environment, "production"), eq(schema.zatcaCredentials.isActive, true)) }),
+    db.select({
+      total: sql<number>`count(*)`,
+      cleared: sql<number>`sum(case when ${schema.zatcaInvoiceStatus.status} = 'cleared' then 1 else 0 end)`,
+      reported: sql<number>`sum(case when ${schema.zatcaInvoiceStatus.status} = 'reported' then 1 else 0 end)`,
+      failed: sql<number>`sum(case when ${schema.zatcaInvoiceStatus.status} in ('failed','rejected') then 1 else 0 end)`,
+      pending: sql<number>`sum(case when ${schema.zatcaInvoiceStatus.status} in ('draft','signed','pending','submitted') then 1 else 0 end)`,
+    }).from(schema.zatcaInvoiceStatus).where(eq(schema.zatcaInvoiceStatus.tenantId, tenantId)),
+    db.select({ count: sql<number>`count(*)` }).from(schema.zatcaApiLogs).where(and(eq(schema.zatcaApiLogs.tenantId, tenantId), eq(schema.zatcaApiLogs.status, "failed"))),
+    db.query.zatcaApiLogs.findFirst({ where: eq(schema.zatcaApiLogs.tenantId, tenantId), orderBy: [desc(schema.zatcaApiLogs.createdAt)] }),
+    db.select().from(schema.zatcaCertificates).where(and(eq(schema.zatcaCertificates.tenantId, tenantId), eq(schema.zatcaCertificates.isActive, true))),
+  ]);
+
+  const vatNumber = legal?.vatNumber || settings?.taxNumber || tenant?.taxNumber || "";
+  const subscriptionState = subscriptionAccess(subscription);
+  const now = new Date();
+  const soon = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const expiredCerts = certificates.filter((cert) => cert.expiresAt && new Date(cert.expiresAt) < now).length;
+  const expiringCerts = certificates.filter((cert) => cert.expiresAt && new Date(cert.expiresAt) >= now && new Date(cert.expiresAt) <= soon).length;
+  const checks = [
+    check("Tenant active", !!tenant && !["suspended", "cancelled"].includes(tenant.status), "critical", "Tenant must be active or trial."),
+    check("Subscription usable", subscriptionState.allowed, "critical", subscriptionState.reason),
+    check("Company record", !!company, "critical", "Company profile must exist."),
+    check("Legal name", !!(legal?.legalNameEn || legal?.legalNameAr || settings?.companyName), "critical", "Legal Arabic/English company name is required."),
+    check("Saudi VAT number", saudiVatPattern.test(vatNumber.replace(/\D/g, "")), "critical", "VAT number must be 15 digits, start with 3, and end with 3."),
+    check("CR number", !!(legal?.crNumber || settings?.crNumber || tenant?.registrationNumber), "warning", "Commercial registration number should be configured."),
+    check("National address", !!(legal?.buildingNumber && legal?.streetName && legal?.city && legal?.postalCode), "warning", "Building, street, city, and postal code should be configured."),
+    check("Sandbox EGS", !!sandboxCredential, "warning", "Sandbox ZATCA credentials should be configured before production onboarding."),
+    check("Production EGS", !!productionCredential, "critical", "Production ZATCA credentials are required before live sale."),
+    check("Certificate valid", expiredCerts === 0, "critical", "No active ZATCA certificate should be expired."),
+    check("Certificate renewal", expiringCerts === 0, "warning", "Certificates expiring within 30 days should be renewed."),
+  ];
+  const criticalOpen = checks.filter((item) => !item.ok && item.severity === "critical").length;
+  const warningsOpen = checks.filter((item) => !item.ok && item.severity === "warning").length;
+  const score = Math.max(0, Math.round((checks.filter((item) => item.ok).length / checks.length) * 100));
+  return {
+    tenant,
+    company,
+    subscription,
+    score,
+    readyForSale: criticalOpen === 0,
+    criticalOpen,
+    warningsOpen,
+    checks,
+    zatca: {
+      environment: productionCredential ? "production" : sandboxCredential ? "sandbox" : "not_configured",
+      hasSandboxCredential: !!sandboxCredential,
+      hasProductionCredential: !!productionCredential,
+      activeCertificates: certificates.length,
+      expiredCertificates: expiredCerts,
+      expiringCertificates: expiringCerts,
+      invoiceSummary: invoiceSummary[0] || { total: 0, cleared: 0, reported: 0, failed: 0, pending: 0 },
+      failedApiLogs: Number(failedApiLogs[0]?.count || 0),
+      latestApiLog,
+    },
+  };
 }
 
 // =====================================================
@@ -72,6 +175,44 @@ export const superAdminRouter = createRouter({
         const oldTenant = await db.query.tenants.findFirst({ where: eq(schema.tenants.id, input.tenantId) });
         await db.update(schema.tenants).set({ status: "suspended" }).where(eq(schema.tenants.id, input.tenantId));
         await createAuditLog({ tenantId: input.tenantId, userId: ctx.user.id, action: "company_suspend", entityType: "tenant", entityId: input.tenantId, oldValues: oldTenant, newValues: { status: "suspended" } });
+        return { success: true };
+      }),
+    archive: adminQuery
+      .input(z.object({ tenantId: z.number(), reason: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = getDb();
+        const oldTenant = await db.query.tenants.findFirst({ where: eq(schema.tenants.id, input.tenantId) });
+        if (!oldTenant) throw new Error("Tenant not found");
+        await db.update(schema.tenants).set({ status: "suspended" }).where(eq(schema.tenants.id, input.tenantId));
+        await db.update(schema.subscriptions).set({ status: "suspended" }).where(eq(schema.subscriptions.tenantId, input.tenantId));
+        await createAuditLog({
+          tenantId: input.tenantId,
+          userId: ctx.user.id,
+          action: "company_archive",
+          entityType: "tenant",
+          entityId: input.tenantId,
+          oldValues: oldTenant,
+          newValues: { status: "suspended", reason: input.reason || null },
+        });
+        return { success: true };
+      }),
+    restore: adminQuery
+      .input(z.object({ tenantId: z.number(), subscriptionStatus: z.enum(["trial", "active", "past_due", "expired"]).default("active") }))
+      .mutation(async ({ input, ctx }) => {
+        const db = getDb();
+        const oldTenant = await db.query.tenants.findFirst({ where: eq(schema.tenants.id, input.tenantId) });
+        if (!oldTenant) throw new Error("Tenant not found");
+        await db.update(schema.tenants).set({ status: input.subscriptionStatus === "trial" ? "trial" : "active" }).where(eq(schema.tenants.id, input.tenantId));
+        await db.update(schema.subscriptions).set({ status: input.subscriptionStatus }).where(eq(schema.subscriptions.tenantId, input.tenantId));
+        await createAuditLog({
+          tenantId: input.tenantId,
+          userId: ctx.user.id,
+          action: "company_restore",
+          entityType: "tenant",
+          entityId: input.tenantId,
+          oldValues: oldTenant,
+          newValues: { status: input.subscriptionStatus === "trial" ? "trial" : "active", subscriptionStatus: input.subscriptionStatus },
+        });
         return { success: true };
       }),
     changePlan: adminQuery
@@ -189,6 +330,168 @@ export const superAdminRouter = createRouter({
         return { success: true };
       }),
   },
+  modules: {
+    listForTenant: adminQuery
+      .input(z.object({ tenantId: z.number() }))
+      .query(async ({ input }) => {
+        const db = getDb();
+        const [modules, controls, subscription] = await Promise.all([
+          db.select().from(schema.moduleRegistry).orderBy(asc(schema.moduleRegistry.sortOrder)),
+          db.select().from(schema.tenantModuleControls).where(eq(schema.tenantModuleControls.tenantId, input.tenantId)),
+          db.query.subscriptions.findFirst({ where: eq(schema.subscriptions.tenantId, input.tenantId) }),
+        ]);
+        const controlMap = new Map(controls.map((control) => [control.moduleKey, control]));
+        const planFeatures = subscription?.planId
+          ? await db.select().from(schema.planFeatures).where(and(eq(schema.planFeatures.planId, subscription.planId), eq(schema.planFeatures.isActive, true)))
+          : [];
+        const planFeatureKeys = new Set(planFeatures.map((feature) => feature.featureKey));
+        return modules.map((module) => {
+          const control = controlMap.get(module.moduleKey);
+          const planAllows = planFeatureKeys.size === 0 || planFeatureKeys.has(module.moduleKey);
+          return {
+            ...module,
+            planAllows,
+            isEnabled: control ? control.isEnabled : planAllows,
+            source: control?.source || "plan",
+            limitJson: control?.limitJson || null,
+            notes: control?.notes || "",
+          };
+        });
+      }),
+
+    setTenantModule: adminQuery
+      .input(z.object({
+        tenantId: z.number(),
+        moduleKey: z.string().min(1),
+        isEnabled: z.boolean(),
+        source: z.enum(["plan", "override", "trial", "support"]).default("override"),
+        limitJson: z.record(z.string(), z.unknown()).optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = getDb();
+        const values = {
+          tenantId: input.tenantId,
+          moduleKey: input.moduleKey,
+          isEnabled: input.isEnabled,
+          source: input.source,
+          limitJson: input.limitJson,
+          notes: input.notes,
+          updatedBy: ctx.user.id,
+        };
+        await db.insert(schema.tenantModuleControls).values(values).onDuplicateKeyUpdate({
+          set: {
+            isEnabled: input.isEnabled,
+            source: input.source,
+            limitJson: input.limitJson,
+            notes: input.notes,
+            updatedBy: ctx.user.id,
+            updatedAt: new Date(),
+          },
+        });
+        await db.insert(schema.tenantServiceEvents).values({
+          tenantId: input.tenantId,
+          eventType: "module_toggle",
+          status: "done",
+          title: `${input.moduleKey} ${input.isEnabled ? "enabled" : "disabled"}`,
+          metadata: { moduleKey: input.moduleKey, isEnabled: input.isEnabled, source: input.source },
+          requestedBy: ctx.user.id,
+        });
+        await createAuditLog({
+          tenantId: input.tenantId,
+          userId: ctx.user.id,
+          action: "tenant_module_toggle",
+          entityType: "tenant_module_control",
+          newValues: values,
+        });
+        return { success: true };
+      }),
+  },
+
+  subscriptions: {
+    updateLimits: adminQuery
+      .input(z.object({
+        tenantId: z.number(),
+        userLimit: z.number().int().nonnegative().optional(),
+        branchLimit: z.number().int().nonnegative().optional(),
+        warehouseLimit: z.number().int().nonnegative().optional(),
+        productLimit: z.number().int().nonnegative().optional(),
+        status: z.enum(["trial", "active", "past_due", "cancelled", "expired", "suspended"]).optional(),
+        graceDays: z.number().int().nonnegative().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = getDb();
+        const sub = await db.query.subscriptions.findFirst({ where: eq(schema.subscriptions.tenantId, input.tenantId) });
+        if (!sub) throw new Error("No subscription found for this tenant");
+        const gracePeriodEndsAt = input.graceDays !== undefined
+          ? new Date(Date.now() + input.graceDays * 24 * 60 * 60 * 1000)
+          : undefined;
+        const updates = {
+          userLimit: input.userLimit,
+          branchLimit: input.branchLimit,
+          warehouseLimit: input.warehouseLimit,
+          productLimit: input.productLimit,
+          status: input.status,
+          gracePeriodEndsAt,
+        };
+        await db.update(schema.subscriptions).set(updates).where(eq(schema.subscriptions.tenantId, input.tenantId));
+        await db.insert(schema.tenantServiceEvents).values({
+          tenantId: input.tenantId,
+          eventType: "limit_update",
+          status: "done",
+          title: "Subscription limits updated",
+          metadata: updates,
+          requestedBy: ctx.user.id,
+        });
+        await createAuditLog({
+          tenantId: input.tenantId,
+          userId: ctx.user.id,
+          action: "subscription_limits_update",
+          entityType: "subscription",
+          entityId: sub.id,
+          oldValues: sub,
+          newValues: updates,
+        });
+        return { success: true };
+      }),
+  },
+
+  serviceEvents: {
+    list: adminQuery
+      .input(z.object({ tenantId: z.number().optional(), limit: z.number().min(1).max(100).default(25) }).optional())
+      .query(async ({ input }) => {
+        const db = getDb();
+        const query = db.select().from(schema.tenantServiceEvents);
+        if (input?.tenantId) {
+          return query.where(eq(schema.tenantServiceEvents.tenantId, input.tenantId)).orderBy(desc(schema.tenantServiceEvents.createdAt)).limit(input.limit || 25);
+        }
+        return query.orderBy(desc(schema.tenantServiceEvents.createdAt)).limit(input?.limit || 25);
+      }),
+
+    requestBackup: adminQuery
+      .input(z.object({ tenantId: z.number(), type: z.enum(["backup_request", "restore_request"]), notes: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = getDb();
+        const [{ id }] = await db.insert(schema.tenantServiceEvents).values({
+          tenantId: input.tenantId,
+          eventType: input.type,
+          status: "pending",
+          title: input.type === "backup_request" ? "Backup requested" : "Restore requested",
+          metadata: { notes: input.notes || "" },
+          requestedBy: ctx.user.id,
+        }).$returningId();
+        await createAuditLog({
+          tenantId: input.tenantId,
+          userId: ctx.user.id,
+          action: input.type,
+          entityType: "tenant_service_event",
+          entityId: id,
+          newValues: { notes: input.notes || "" },
+        });
+        return { id, success: true };
+      }),
+  },
+
   smtp: {
     getSettings: adminQuery.query(async () => {
       const db = getDb();
@@ -367,19 +670,25 @@ export const superAdminRouter = createRouter({
       const [totalCompanies] = await db.select({ count: sql<number>`count(*)` }).from(schema.tenants);
       const [activeCompanies] = await db.select({ count: sql<number>`count(*)` }).from(schema.tenants).where(eq(schema.tenants.status, "active"));
       const [trialCompanies] = await db.select({ count: sql<number>`count(*)` }).from(schema.tenants).where(eq(schema.tenants.status, "trial"));
+      const [suspendedCompanies] = await db.select({ count: sql<number>`count(*)` }).from(schema.tenants).where(eq(schema.tenants.status, "suspended"));
       const [revenueResult] = await db.select({ total: sql<string>`coalesce(sum(amount), 0)` }).from(schema.subscriptionInvoices).where(eq(schema.subscriptionInvoices.status, "paid"));
       const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
       const [signupsThisMonth] = await db.select({ count: sql<number>`count(*)` }).from(schema.tenants).where(gte(schema.tenants.createdAt, startOfMonth));
       const [totalSubscriptions] = await db.select({ count: sql<number>`count(*)` }).from(schema.subscriptions);
       const [paidSubscriptions] = await db.select({ count: sql<number>`count(*)` }).from(schema.subscriptions).where(eq(schema.subscriptions.status, "active"));
+      const [failedZatca] = await db.select({ count: sql<number>`count(*)` }).from(schema.zatcaApiLogs).where(eq(schema.zatcaApiLogs.status, "failed"));
+      const [pendingZatca] = await db.select({ count: sql<number>`count(*)` }).from(schema.zatcaInvoiceStatus).where(sql`${schema.zatcaInvoiceStatus.status} in ('draft','signed','pending','submitted')`);
       return {
         totalCompanies: totalCompanies?.count || 0,
         activeCompanies: activeCompanies?.count || 0,
         trialCompanies: trialCompanies?.count || 0,
+        suspendedCompanies: suspendedCompanies?.count || 0,
         totalRevenue: Number(revenueResult?.total || 0),
         signupsThisMonth: signupsThisMonth?.count || 0,
         totalSubscriptions: totalSubscriptions?.count || 0,
         paidSubscriptions: paidSubscriptions?.count || 0,
+        failedZatca: failedZatca?.count || 0,
+        pendingZatca: pendingZatca?.count || 0,
       };
     }),
     revenue: adminQuery
@@ -430,6 +739,43 @@ export const superAdminRouter = createRouter({
         conversionRate: total > 0 ? Math.round((converted / total) * 100) : 0,
       };
     }),
+  },
+
+  // =====================================================
+  // GLOBAL COMPLIANCE READINESS - SaaS/ZATCA launch control
+  // =====================================================
+  compliance: {
+    tenantReadiness: adminQuery
+      .input(z.object({ tenantId: z.number() }))
+      .query(async ({ input }) => buildTenantReadiness(input.tenantId)),
+
+    globalReadiness: adminQuery
+      .input(z.object({ limit: z.number().min(1).max(200).default(50), onlyNotReady: z.boolean().default(false) }).optional())
+      .query(async ({ input }) => {
+        const db = getDb();
+        const limit = input?.limit || 50;
+        const tenants = await db.select({ id: schema.tenants.id }).from(schema.tenants).orderBy(desc(schema.tenants.createdAt)).limit(limit);
+        const readiness = await Promise.all(tenants.map((tenant) => buildTenantReadiness(tenant.id)));
+        const items = input?.onlyNotReady ? readiness.filter((item) => !item.readyForSale) : readiness;
+        return {
+          totalChecked: readiness.length,
+          ready: readiness.filter((item) => item.readyForSale).length,
+          notReady: readiness.filter((item) => !item.readyForSale).length,
+          criticalOpen: readiness.reduce((sum, item) => sum + item.criticalOpen, 0),
+          warningsOpen: readiness.reduce((sum, item) => sum + item.warningsOpen, 0),
+          items,
+        };
+      }),
+
+    zatcaFailures: adminQuery
+      .input(z.object({ tenantId: z.number().optional(), limit: z.number().min(1).max(200).default(50) }).optional())
+      .query(async ({ input }) => {
+        const db = getDb();
+        const where = input?.tenantId
+          ? and(eq(schema.zatcaApiLogs.status, "failed"), eq(schema.zatcaApiLogs.tenantId, input.tenantId))
+          : eq(schema.zatcaApiLogs.status, "failed");
+        return db.select().from(schema.zatcaApiLogs).where(where).orderBy(desc(schema.zatcaApiLogs.createdAt)).limit(input?.limit || 50);
+      }),
   },
 
   // =====================================================

@@ -1,12 +1,47 @@
 import { z } from "zod";
 import { createRouter, publicQuery, authedQuery } from "./middleware";
 import { getDb } from "./queries/connection";
+import { env } from "./lib/env";
 import * as schema from "@db/schema";
 import { and, eq, asc, desc, gte, lte, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 
 function hashOtp(email: string, otp: string) {
-  return crypto.createHmac("sha256", "saas-secret-key").update(`${email}:${otp}`).digest("hex");
+  return crypto.createHmac("sha256", env.appSecret || env.encryptionKey).update(`${email}:${otp}`).digest("hex");
+}
+
+async function getTenantUsage(tenantId: number) {
+  const db = getDb();
+  const [[products], [users], [warehouses], [invoices]] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(schema.products).where(eq(schema.products.tenantId, tenantId)),
+    db.select({ count: sql<number>`count(*)` }).from(schema.users).where(eq(schema.users.tenantId, tenantId)),
+    db.select({ count: sql<number>`count(*)` }).from(schema.warehouses).where(eq(schema.warehouses.tenantId, tenantId)),
+    db.select({ count: sql<number>`count(*)` }).from(schema.invoices).where(eq(schema.invoices.tenantId, tenantId)),
+  ]);
+  return {
+    products: Number(products?.count || 0),
+    users: Number(users?.count || 0),
+    warehouses: Number(warehouses?.count || 0),
+    invoices: Number(invoices?.count || 0),
+  };
+}
+
+function subscriptionAccess(sub: typeof schema.subscriptions.$inferSelect | null | undefined) {
+  const now = new Date();
+  if (!sub) return { allowed: false, reason: "No subscription selected" };
+  if (sub.status === "suspended") return { allowed: false, reason: "Subscription is suspended" };
+  if (sub.status === "cancelled") return { allowed: false, reason: "Subscription is cancelled" };
+  if (sub.status === "expired") return { allowed: false, reason: "Subscription has expired" };
+  if (sub.status === "past_due" && sub.gracePeriodEndsAt && new Date(sub.gracePeriodEndsAt) < now) {
+    return { allowed: false, reason: "Payment grace period has ended" };
+  }
+  if (sub.status === "trial" && sub.trialEndAt && new Date(sub.trialEndAt) < now) {
+    return { allowed: false, reason: "Trial period has ended" };
+  }
+  if (sub.status === "active" && sub.currentPeriodEndAt && new Date(sub.currentPeriodEndAt) < now) {
+    return { allowed: false, reason: "Billing period has ended" };
+  }
+  return { allowed: true, reason: "Subscription is active" };
 }
 
 export const saasRouter = createRouter({
@@ -127,6 +162,37 @@ export const saasRouter = createRouter({
         return { productLimit: sub.productLimit, userLimit: sub.userLimit, branchLimit: sub.branchLimit, warehouseLimit: sub.warehouseLimit };
       }
       return { productLimit: 30, userLimit: 3, branchLimit: 1, warehouseLimit: 1 };
+    }),
+    status: authedQuery.query(async ({ ctx }) => {
+      const db = getDb();
+      const tenantId = ctx.user.tenantId!;
+      const [tenant, sub, usage] = await Promise.all([
+        db.query.tenants.findFirst({ where: eq(schema.tenants.id, tenantId) }),
+        db.query.subscriptions.findFirst({ where: eq(schema.subscriptions.tenantId, tenantId) }),
+        getTenantUsage(tenantId),
+      ]);
+      const plan = sub ? await db.query.plans.findFirst({ where: eq(schema.plans.id, sub.planId) }) : null;
+      const access = subscriptionAccess(sub);
+      const limits = {
+        products: sub?.productLimit ?? 30,
+        users: sub?.userLimit ?? 3,
+        warehouses: sub?.warehouseLimit ?? 1,
+        branches: sub?.branchLimit ?? 1,
+      };
+      return {
+        allowed: access.allowed && tenant?.status !== "suspended" && tenant?.status !== "cancelled",
+        reason: tenant?.status === "suspended" ? "Company is suspended" : tenant?.status === "cancelled" ? "Company is cancelled" : access.reason,
+        tenant,
+        subscription: sub,
+        plan,
+        limits,
+        usage,
+        utilization: {
+          products: limits.products ? Math.round((usage.products / limits.products) * 100) : 0,
+          users: limits.users ? Math.round((usage.users / limits.users) * 100) : 0,
+          warehouses: limits.warehouses ? Math.round((usage.warehouses / limits.warehouses) * 100) : 0,
+        },
+      };
     }),
     checkProductLimit: authedQuery
       .input(z.object({ count: z.number() }))

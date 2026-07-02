@@ -1,42 +1,17 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router";
 import {
-  Building2, Users, CreditCard, TrendingUp, DollarSign, Activity,
-  Settings, Mail, FileText, ShieldAlert, BarChart3, Package,
-  Loader2, Sparkles, ArrowUpRight,
+  Building2, Users, DollarSign, Activity,
+  Mail, FileText, ShieldAlert, BarChart3, Package,
+  Key, Sparkles, FileWarning, CheckCircle2, AlertTriangle,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { useLanguage } from "@/providers/language";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line,
 } from "recharts";
-
-const revenueData = [
-  { month: "Jan", revenue: 45000, signups: 12 },
-  { month: "Feb", revenue: 52000, signups: 18 },
-  { month: "Mar", revenue: 48000, signups: 15 },
-  { month: "Apr", revenue: 61000, signups: 22 },
-  { month: "May", revenue: 58000, signups: 20 },
-  { month: "Jun", revenue: 72000, signups: 28 },
-];
-
-const recentSignups = [
-  { name: "Alfa Corp", email: "info@alfacorp.com", plan: "Business", date: "2026-06-02", status: "active" },
-  { name: "Beta LLC", email: "contact@betallc.com", plan: "Starter", date: "2026-06-01", status: "trial" },
-  { name: "Gamma Trading", email: "admin@gammatrading.com", plan: "Enterprise", date: "2026-05-30", status: "active" },
-  { name: "Delta Services", email: "ceo@deltaservices.com", plan: "Business", date: "2026-05-28", status: "active" },
-];
-
-const recentEmails = [
-  { to: "info@alfacorp.com", subject: "Welcome to YASCO", status: "sent", date: "2026-06-02" },
-  { to: "contact@betallc.com", subject: "Trial Expiring Soon", status: "sent", date: "2026-06-01" },
-  { to: "admin@gammatrading.com", subject: "Invoice #INV-2026-001", status: "failed", date: "2026-05-30" },
-  { to: "ceo@deltaservices.com", subject: "Plan Upgrade Confirmed", status: "sent", date: "2026-05-28" },
-];
 
 export default function SuperAdminDashboard() {
   const { language } = useLanguage();
@@ -46,29 +21,64 @@ export default function SuperAdminDashboard() {
     refetchInterval: 60000,
   });
 
+  const revenueQuery = trpc.superAdmin.stats.revenue.useQuery(undefined, { refetchInterval: 60000 });
+  const signupsQuery = trpc.superAdmin.stats.signups.useQuery(undefined, { refetchInterval: 60000 });
+  const readinessQuery = trpc.superAdmin.compliance.globalReadiness.useQuery(
+    { limit: 100, onlyNotReady: false },
+    { refetchInterval: 60000 },
+  );
+
   const stats = statsQuery.data ?? {
-    totalCompanies: 156,
-    activeCompanies: 128,
-    trialCompanies: 22,
-    totalRevenue: 58200,
-    revenueGrowth: 12.5,
+    totalCompanies: 0,
+    activeCompanies: 0,
+    trialCompanies: 0,
+    totalRevenue: 0,
+    signupsThisMonth: 0,
+    totalSubscriptions: 0,
+    paidSubscriptions: 0,
+    suspendedCompanies: 0,
+    failedZatca: 0,
+    pendingZatca: 0,
   };
-  const monthlyRevenue = "monthlyRevenue" in stats ? Number(stats.monthlyRevenue) : Number(stats.totalRevenue || 0);
+  const readiness = readinessQuery.data;
+  const readinessPercent = readiness?.totalChecked
+    ? Math.round((readiness.ready / readiness.totalChecked) * 100)
+    : 0;
+
+  const monthNames = isAr
+    ? ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+    : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const chartData = (revenueQuery.data?.months || []).map(m => ({
+    month: monthNames[m.month - 1] || String(m.month),
+    revenue: m.total,
+    signups: (signupsQuery.data?.months.find((s: any) => s.month === m.month)?.count || 0),
+  }));
 
   const statCards = [
     { label: isAr ? "إجمالي الشركات" : "Total Companies", value: stats.totalCompanies, icon: Building2, color: "text-blue-600 bg-blue-50" },
     { label: isAr ? "نشطة" : "Active", value: stats.activeCompanies, icon: Activity, color: "text-green-600 bg-green-50" },
-    { label: isAr ? "تجريبية" : "Trial", value: stats.trialCompanies, icon: Sparkles, color: "text-purple-600 bg-purple-50" },
-    { label: isAr ? "الإيرادات الشهرية" : "Monthly Revenue", value: `${(monthlyRevenue / 1000).toFixed(1)}K`, icon: DollarSign, color: "text-orange-600 bg-orange-50", suffix: "SAR" },
+    { label: isAr ? "تجريبية" : "Trial", value: stats.trialCompanies, icon: Sparkles, color: "text-indigo-600 bg-indigo-50" },
+    { label: isAr ? "الإيرادات" : "Revenue", value: `${(stats.totalRevenue / 1000).toFixed(1)}K`, icon: DollarSign, color: "text-orange-600 bg-orange-50" },
+  ];
+
+  const complianceCards = [
+    { label: isAr ? "جاهزة للبيع" : "Ready for sale", value: readiness?.ready || 0, icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50" },
+    { label: isAr ? "مشاكل حرجة" : "Critical issues", value: readiness?.criticalOpen || 0, icon: AlertTriangle, color: "text-red-600 bg-red-50" },
+    { label: isAr ? "ZATCA فاشلة" : "Failed ZATCA", value: stats.failedZatca, icon: FileWarning, color: "text-amber-600 bg-amber-50" },
+    { label: isAr ? "شركات موقوفة" : "Suspended", value: stats.suspendedCompanies, icon: ShieldAlert, color: "text-slate-600 bg-slate-100" },
   ];
 
   const quickLinks = [
-    { label: isAr ? "إدارة الخطط" : "Manage Plans", icon: Package, path: "/super-admin/plans", color: "bg-blue-50 text-blue-600" },
-    { label: isAr ? "إدارة الشركات" : "Manage Companies", icon: Building2, path: "/super-admin/companies", color: "bg-green-50 text-green-600" },
-    { label: isAr ? "إعدادات SMTP" : "SMTP Settings", icon: Mail, path: "/super-admin/smtp", color: "bg-purple-50 text-purple-600" },
-    { label: isAr ? "قوالب البريد" : "Email Templates", icon: FileText, path: "/super-admin/email-templates", color: "bg-orange-50 text-orange-600" },
-    { label: isAr ? "سجلات المراجعة" : "Audit Logs", icon: ShieldAlert, path: "/super-admin/audit-logs", color: "bg-red-50 text-red-600" },
-    { label: isAr ? "التقارير" : "Reports", icon: BarChart3, path: "/super-admin/reports", color: "bg-cyan-50 text-cyan-600" },
+    { label: isAr ? "إدارة الخطط" : "Manage Plans", icon: Package, path: "/app/admin/super-plans" },
+    { label: isAr ? "إدارة الشركات" : "Manage Companies", icon: Building2, path: "/app/admin/super-companies" },
+    { label: isAr ? "مركز الامتثال" : "Compliance Center", icon: FileWarning, path: "/app/admin/super-compliance" },
+    { label: isAr ? "التراخيص" : "Licenses", icon: Key, path: "/app/admin/license-console" },
+    { label: isAr ? "إعدادات SMTP" : "SMTP Settings", icon: Mail, path: "/app/admin/super-smtp" },
+    { label: isAr ? "قوالب البريد" : "Email Templates", icon: FileText, path: "/app/admin/super-email-templates" },
+    { label: isAr ? "الموافقة على الترخيص" : "License Approval", icon: ShieldAlert, path: "/app/admin/license-approval" },
+    { label: isAr ? "سجلات المراجعة" : "Audit Logs", icon: BarChart3, path: "/app/admin/super-dashboard" },
+    { label: isAr ? "انتحال الشخصية" : "Impersonate", icon: Users, path: "/app/admin/impersonate" },
   ];
 
   return (
@@ -86,6 +96,40 @@ export default function SuperAdminDashboard() {
         </Badge>
       </div>
 
+      <section className="relative overflow-hidden rounded-lg bg-slate-950 p-6 text-white shadow-2xl shadow-slate-900/10">
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute left-8 top-6 size-20 rounded-full border border-emerald-300/30" />
+          <div className="absolute right-10 top-8 size-14 rotate-45 border border-sky-300/30" />
+          <div className="absolute bottom-6 left-1/3 h-px w-56 bg-gradient-to-r from-transparent via-emerald-300/50 to-transparent" />
+        </div>
+        <div className="relative grid gap-5 lg:grid-cols-[1fr_280px] lg:items-center">
+          <div>
+            <Badge className="mb-3 border-emerald-300/30 bg-emerald-400/15 text-emerald-50">
+              <Sparkles className="mr-1 size-3" />
+              {isAr ? "منصة SaaS سعودية" : "Saudi SaaS control"}
+            </Badge>
+            <h2 className="text-xl font-semibold">
+              {isAr ? "تحكم في آلاف الشركات من لوحة واحدة" : "Control thousands of companies from one panel"}
+            </h2>
+            <p className="mt-2 text-sm text-slate-300">
+              {isAr
+                ? "تابع الاشتراكات، الجاهزية القانونية، الفوترة الإلكترونية، الترخيص، والتنبيهات قبل البيع."
+                : "Track subscriptions, legal readiness, ZATCA invoicing, licenses and sales blockers before onboarding customers."}
+            </p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/10 p-4 backdrop-blur">
+            <div className="flex items-center justify-between text-sm">
+              <span>{isAr ? "جاهزية الإطلاق" : "Launch readiness"}</span>
+              <span className="font-bold">{readinessPercent}%</span>
+            </div>
+            <Progress value={readinessPercent} className="mt-3 h-2" />
+            <Button asChild size="sm" className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700">
+              <a href="/app/admin/super-compliance">{isAr ? "فتح مركز الامتثال" : "Open compliance center"}</a>
+            </Button>
+          </div>
+        </div>
+      </section>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => {
           const Icon = stat.icon;
@@ -96,13 +140,28 @@ export default function SuperAdminDashboard() {
                   <div className={`rounded-lg p-2 ${stat.color}`}>
                     <Icon className="size-5" />
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    <ArrowUpRight className="size-3 mr-1 text-green-500" />
-                    {statsQuery.isLoading ? "..." : "+12%"}
-                  </Badge>
                 </div>
                 <div className="mt-4">
-                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-2xl font-bold">{statsQuery.isLoading ? "..." : stat.value}</p>
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {complianceCards.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={stat.label}>
+              <CardContent className="p-5">
+                <div className={`inline-flex rounded-lg p-2 ${stat.color}`}>
+                  <Icon className="size-5" />
+                </div>
+                <div className="mt-4">
+                  <p className="text-2xl font-bold">{readinessQuery.isLoading || statsQuery.isLoading ? "..." : stat.value}</p>
                   <p className="text-sm text-muted-foreground">{stat.label}</p>
                 </div>
               </CardContent>
@@ -119,7 +178,7 @@ export default function SuperAdminDashboard() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueData}>
+                <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
                   <XAxis dataKey="month" />
                   <YAxis />
@@ -138,7 +197,7 @@ export default function SuperAdminDashboard() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={revenueData}>
+                <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
                   <XAxis dataKey="month" />
                   <YAxis />
@@ -153,23 +212,21 @@ export default function SuperAdminDashboard() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">{isAr ? "الروابط السريعة" : "Quick Links"}</CardTitle>
-              <CardDescription>{isAr ? "إدارة المنصة" : "Manage your platform"}</CardDescription>
-            </div>
+          <CardHeader>
+            <CardTitle className="text-lg">{isAr ? "الروابط السريعة" : "Quick Links"}</CardTitle>
+            <CardDescription>{isAr ? "إدارة المنصة" : "Manage your platform"}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
               {quickLinks.map((link) => {
                 const Icon = link.icon;
                 return (
-                  <Link key={link.label} to={link.path} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-slate-50 transition-colors">
-                    <div className={`rounded-lg p-2 ${link.color}`}>
+                  <a key={link.label} href={link.path} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-slate-50 transition-colors">
+                    <div className={`rounded-lg p-2 bg-slate-100 text-slate-600`}>
                       <Icon className="size-4" />
                     </div>
                     <span className="text-sm font-medium">{link.label}</span>
-                  </Link>
+                  </a>
                 );
               })}
             </div>
@@ -178,60 +235,34 @@ export default function SuperAdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">{isAr ? "آخر عمليات التسجيل" : "Recent Signups"}</CardTitle>
+            <CardTitle className="text-lg">{isAr ? "ملخص المنصة" : "Platform Summary"}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {recentSignups.map((s) => (
-                <div key={s.email} className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
-                  <div>
-                    <p className="text-sm font-medium">{s.name}</p>
-                    <p className="text-xs text-muted-foreground">{s.email}</p>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant={s.status === "active" ? "default" : "secondary"} className="text-xs">
-                      {s.plan}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground mt-1">{s.date}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                <span className="text-sm">{isAr ? "إجمالي الشركات" : "Total Companies"}</span>
+                <span className="font-bold">{stats.totalCompanies}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                <span className="text-sm">{isAr ? "الاشتراكات النشطة" : "Active Subscriptions"}</span>
+                <span className="font-bold">{stats.paidSubscriptions}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                <span className="text-sm">{isAr ? "الاشتراكات التجريبية" : "Trial Subscriptions"}</span>
+                <span className="font-bold">{stats.trialCompanies}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                <span className="text-sm">{isAr ? "تسجيلات هذا الشهر" : "Signups This Month"}</span>
+                <span className="font-bold">{stats.signupsThisMonth}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                <span className="text-sm">{isAr ? "إجمالي الإيرادات" : "Total Revenue"}</span>
+                <span className="font-bold">{stats.totalRevenue.toLocaleString()} SAR</span>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">{isAr ? "سجلات البريد الإلكتروني" : "Recent Email Logs"}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "إلى" : "To"}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "الموضوع" : "Subject"}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "الحالة" : "Status"}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "التاريخ" : "Date"}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentEmails.map((e) => (
-                <tr key={`${e.to}-${e.subject}`} className="border-b last:border-0">
-                  <td className="px-4 py-3 text-sm">{e.to}</td>
-                  <td className="px-4 py-3 text-sm">{e.subject}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={e.status === "sent" ? "default" : "destructive"} className="text-xs">
-                      {e.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{e.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
     </div>
   );
 }

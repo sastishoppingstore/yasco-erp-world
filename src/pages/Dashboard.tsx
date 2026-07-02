@@ -20,6 +20,7 @@ import {
   PlusCircle, ChevronRight,
 } from "lucide-react";
 import { Link } from "react-router";
+import DashboardCustomizer from "@/components/dashboard/DashboardCustomizer";
 
 const COLORS = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
 
@@ -133,6 +134,7 @@ export default function Dashboard() {
               {rtl ? "إعداد الشركة" : "Setup Wizard"}
             </Button>
           </Link>
+          <DashboardCustomizer />
         </div>
       </div>
 

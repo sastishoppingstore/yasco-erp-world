@@ -1,16 +1,16 @@
-import { useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
-  Search, Filter, ChevronDown, ChevronUp, MoreHorizontal,
-  CheckCircle2, XCircle, Repeat, Clock, Trash2, Loader2,
+  Search, Filter, MoreHorizontal,
+  CheckCircle2, XCircle, Repeat, Clock, Trash2, Key, Copy, Check,
+  Archive, RotateCcw, ShieldCheck, AlertTriangle,
 } from "lucide-react";
 import { trpc } from "@/providers/trpc";
 import { useLanguage } from "@/providers/language";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -21,117 +21,203 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-
-interface Company {
-  id: string;
-  name: string;
-  email: string;
-  plan: string;
-  status: "active" | "trial" | "inactive" | "suspended";
-  createdDate: string;
-  trialEnds?: string;
-  employeesCount?: number;
-  country?: string;
-}
-
-const initialCompanies: Company[] = [
-  { id: "1", name: "Alfa Corp", email: "info@alfacorp.com", plan: "Business", status: "active", createdDate: "2026-05-15", employeesCount: 8, country: "SA" },
-  { id: "2", name: "Beta LLC", email: "contact@betallc.com", plan: "Starter", status: "trial", createdDate: "2026-06-01", trialEnds: "2026-06-04", employeesCount: 3, country: "AE" },
-  { id: "3", name: "Gamma Trading", email: "admin@gammatrading.com", plan: "Enterprise", status: "active", createdDate: "2026-04-20", employeesCount: 25, country: "SA" },
-  { id: "4", name: "Delta Services", email: "ceo@deltaservices.com", plan: "Business", status: "inactive", createdDate: "2026-03-10", employeesCount: 5, country: "PK" },
-  { id: "5", name: "Epsilon Co", email: "info@epsilonco.com", plan: "Starter", status: "suspended", createdDate: "2026-02-01", employeesCount: 2, country: "EG" },
-];
+import { toast } from "sonner";
 
 export default function SuperAdminCompanies() {
   const { language } = useLanguage();
   const isAr = language === "ar";
 
-  const [companies, setCompanies] = useState<Company[]>(initialCompanies);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPlan, setFilterPlan] = useState("all");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [showChangePlan, setShowChangePlan] = useState(false);
   const [showExtendTrial, setShowExtendTrial] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-  const [newPlan, setNewPlan] = useState("Business");
+  const [showLicense, setShowLicense] = useState(false);
+  const [newPlanId, setNewPlanId] = useState<number>(0);
   const [extendDays, setExtendDays] = useState("7");
+  const [licenseResult, setLicenseResult] = useState<{ key: string; expiresAt: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const activateMutation = trpc.superAdmin.companies.activate.useMutation();
-  const deactivateMutation = trpc.superAdmin.companies.deactivate.useMutation();
-  const changePlanMutation = trpc.superAdmin.companies.changePlan.useMutation();
-  const extendTrialMutation = trpc.superAdmin.companies.extendTrial.useMutation();
-  const deleteMutation = trpc.superAdmin.companies.delete.useMutation();
+  const utils = trpc.useUtils();
+  const plansQuery = trpc.superAdmin.plans.list.useQuery();
+  const companiesQuery = trpc.superAdmin.companies.list.useQuery(undefined, { refetchInterval: 30000 });
+  const readinessQuery = trpc.superAdmin.compliance.globalReadiness.useQuery(
+    { limit: 100, onlyNotReady: false },
+    { refetchInterval: 45000 },
+  );
+  const plans = plansQuery.data || [];
+  const companies = companiesQuery.data?.items || [];
+  const readinessByTenant = useMemo(() => {
+    const map = new Map<number, any>();
+    (readinessQuery.data?.items || []).forEach((item: any) => {
+      if (item.tenant?.id) map.set(item.tenant.id, item);
+    });
+    return map;
+  }, [readinessQuery.data]);
+
+  const activateMutation = trpc.superAdmin.companies.activate.useMutation({
+    onSuccess: () => { utils.superAdmin.companies.list.invalidate(); toast.success(isAr ? "تم تفعيل الشركة" : "Company activated"); },
+  });
+  const deactivateMutation = trpc.superAdmin.companies.deactivate.useMutation({
+    onSuccess: () => { utils.superAdmin.companies.list.invalidate(); toast.success(isAr ? "تم إيقاف الشركة" : "Company deactivated"); },
+  });
+  const archiveMutation = trpc.superAdmin.companies.archive.useMutation({
+    onSuccess: () => {
+      utils.superAdmin.companies.list.invalidate();
+      utils.superAdmin.compliance.globalReadiness.invalidate();
+      toast.success(isAr ? "تم أرشفة الشركة" : "Company archived");
+    },
+  });
+  const restoreMutation = trpc.superAdmin.companies.restore.useMutation({
+    onSuccess: () => {
+      utils.superAdmin.companies.list.invalidate();
+      utils.superAdmin.compliance.globalReadiness.invalidate();
+      toast.success(isAr ? "تمت استعادة الشركة" : "Company restored");
+    },
+  });
+  const changePlanMutation = trpc.superAdmin.companies.changePlan.useMutation({
+    onSuccess: () => { utils.superAdmin.companies.list.invalidate(); toast.success(isAr ? "تم تغيير الخطة" : "Plan changed"); setShowChangePlan(false); },
+  });
+  const extendTrialMutation = trpc.superAdmin.companies.extendTrial.useMutation({
+    onSuccess: () => { utils.superAdmin.companies.list.invalidate(); toast.success(isAr ? "تم تمديد الفترة التجريبية" : "Trial extended"); setShowExtendTrial(false); },
+  });
+  const deleteMutation = trpc.superAdmin.companies.delete.useMutation({
+    onSuccess: () => { utils.superAdmin.companies.list.invalidate(); toast.success(isAr ? "تم حذف الشركة" : "Company deleted"); setShowDelete(false); },
+  });
+  const licenseMutation = trpc.superAdmin.licenses.generate.useMutation({
+    onSuccess: (data) => { setLicenseResult({ key: data.licenseKey, expiresAt: data.expiresAt }); setShowLicense(true); },
+  });
+
+  const getPlanName = (planValue: string) => {
+    const p = plans.find(pl => pl.name.toLowerCase() === planValue.toLowerCase());
+    return p ? (isAr && p.nameAr ? p.nameAr : p.name) : planValue;
+  };
 
   const statusColors: Record<string, string> = {
     active: "bg-green-100 text-green-700",
     trial: "bg-blue-100 text-blue-700",
-    inactive: "bg-slate-100 text-slate-600",
     suspended: "bg-red-100 text-red-700",
+    cancelled: "bg-slate-100 text-slate-600",
   };
 
-  const filtered = companies.filter((c) => {
-    if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
+  const filtered = companies.filter((c: any) => {
+    const name = c.name || "";
+    if (search && !name.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterStatus !== "all" && c.status !== filterStatus) return false;
-    if (filterPlan !== "all" && c.plan !== filterPlan) return false;
+    if (filterPlan !== "all") {
+      const planMatch = (c.plan || "").toLowerCase() === filterPlan.toLowerCase();
+      const subPlan = c.subscription?.planId
+        ? plans.find(p => p.id === c.subscription.planId)
+        : null;
+      const subPlanMatch = subPlan ? subPlan.name.toLowerCase() === filterPlan.toLowerCase() : false;
+      if (!planMatch && !subPlanMatch) return false;
+    }
     return true;
   });
 
-  const handleAction = (companyId: string, action: string) => {
-    switch (action) {
-      case "activate":
-        activateMutation.mutate({ id: companyId } as any);
-        setCompanies((prev) => prev.map((c) => c.id === companyId ? { ...c, status: "active" } : c));
-        break;
-      case "deactivate":
-        deactivateMutation.mutate({ id: companyId } as any);
-        setCompanies((prev) => prev.map((c) => c.id === companyId ? { ...c, status: "inactive" } : c));
-        break;
-      case "delete":
-        setSelectedCompany(companies.find((c) => c.id === companyId) || null);
-        setShowDelete(true);
-        break;
-      case "changePlan":
-        setSelectedCompany(companies.find((c) => c.id === companyId) || null);
-        setNewPlan(companies.find((c) => c.id === companyId)?.plan || "Business");
-        setShowChangePlan(true);
-        break;
-      case "extendTrial":
-        setSelectedCompany(companies.find((c) => c.id === companyId) || null);
-        setShowExtendTrial(true);
-        break;
-    }
+  const handleActivate = (tenantId: number) => {
+    activateMutation.mutate({ tenantId });
   };
 
-  const handleDeleteConfirm = () => {
-    if (!selectedCompany) return;
-    deleteMutation.mutate({ id: selectedCompany.id } as any);
-    setCompanies((prev) => prev.filter((c) => c.id !== selectedCompany.id));
-    setShowDelete(false);
+  const handleDeactivate = (tenantId: number) => {
+    deactivateMutation.mutate({ tenantId });
   };
 
-  const handleChangePlanConfirm = () => {
-    if (!selectedCompany) return;
-    changePlanMutation.mutate({ id: selectedCompany.id, plan: newPlan } as any);
-    setCompanies((prev) => prev.map((c) => c.id === selectedCompany.id ? { ...c, plan: newPlan } : c));
-    setShowChangePlan(false);
+  const handleArchive = (tenantId: number) => {
+    archiveMutation.mutate({ tenantId, reason: "Archived from super admin company management" });
   };
 
-  const handleExtendTrialConfirm = () => {
-    if (!selectedCompany) return;
-    extendTrialMutation.mutate({ id: selectedCompany.id, days: Number(extendDays) } as any);
-    setShowExtendTrial(false);
+  const handleRestore = (tenantId: number) => {
+    restoreMutation.mutate({ tenantId, subscriptionStatus: "active" });
+  };
+
+  const handleChangePlan = () => {
+    if (!selectedTenantId || !newPlanId) return;
+    changePlanMutation.mutate({ tenantId: selectedTenantId, planId: newPlanId, billingCycle: "monthly" });
+  };
+
+  const handleExtendTrial = () => {
+    if (!selectedTenantId) return;
+    extendTrialMutation.mutate({ tenantId: selectedTenantId, days: Number(extendDays) });
+  };
+
+  const handleDelete = () => {
+    if (!selectedTenantId) return;
+    deleteMutation.mutate({ tenantId: selectedTenantId, confirm: true });
+  };
+
+  const handleGenerateLicense = (tenantId: number, companyName: string) => {
+    licenseMutation.mutate({ tenantId, companyName, plan: "desktop", maxDevices: 1, validDays: 365 });
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      toast.success(isAr ? "تم نسخ المفتاح" : "License key copied");
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const detailRows = (company: any) => {
+    const sub = company.subscription;
+    return (
+      <tr key={`details-${company.id}`}>
+        <td colSpan={7} className="px-4 py-4 bg-slate-50">
+          <div className="grid grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">{isAr ? "البريد" : "Email"}:</span>
+              <span className="ml-2 font-medium">{company.email || "-"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">{isAr ? "البلد" : "Country"}:</span>
+              <span className="ml-2 font-medium">{company.country || "-"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">{isAr ? "الخطة" : "Plan"}:</span>
+              <span className="ml-2 font-medium">{getPlanName(company.plan || "")}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">{isAr ? "انتهاء التجربة" : "Trial Ends"}:</span>
+              <span className="ml-2 font-medium">
+                {company.trialEndsAt ? new Date(company.trialEndsAt).toLocaleDateString() : "-"}
+              </span>
+            </div>
+            {sub && (
+              <>
+                <div>
+                  <span className="text-muted-foreground">{isAr ? "حالة الاشتراك" : "Sub Status"}:</span>
+                  <span className="ml-2 font-medium">{sub.status}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">{isAr ? "دورة الفوترة" : "Billing"}:</span>
+                  <span className="ml-2 font-medium">{sub.billingCycle || "-"}</span>
+                </div>
+              </>
+            )}
+          </div>
+        </td>
+      </tr>
+    );
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{isAr ? "إدارة الشركات" : "Company Management"}</h1>
           <p className="text-sm text-muted-foreground">{isAr ? "إدارة جميع الشركات على المنصة" : "Manage all companies on the platform"}</p>
         </div>
-        <Badge variant="secondary">{companies.length} {isAr ? "شركة" : "companies"}</Badge>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <a href="/app/admin/super-compliance">
+              <ShieldCheck className="mr-2 size-4" />
+              {isAr ? "الامتثال" : "Compliance"}
+            </a>
+          </Button>
+          <Badge variant="secondary">{companiesQuery.data?.total || 0} {isAr ? "شركة" : "companies"}</Badge>
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
@@ -148,8 +234,8 @@ export default function SuperAdminCompanies() {
             <SelectItem value="all">{isAr ? "الكل" : "All"}</SelectItem>
             <SelectItem value="active">{isAr ? "نشط" : "Active"}</SelectItem>
             <SelectItem value="trial">{isAr ? "تجريبي" : "Trial"}</SelectItem>
-            <SelectItem value="inactive">{isAr ? "غير نشط" : "Inactive"}</SelectItem>
             <SelectItem value="suspended">{isAr ? "موقوف" : "Suspended"}</SelectItem>
+            <SelectItem value="cancelled">{isAr ? "ملغي" : "Cancelled"}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterPlan} onValueChange={setFilterPlan}>
@@ -158,108 +244,147 @@ export default function SuperAdminCompanies() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{isAr ? "الكل" : "All"}</SelectItem>
-            <SelectItem value="Starter">Starter</SelectItem>
-            <SelectItem value="Business">Business</SelectItem>
-            <SelectItem value="Enterprise">Enterprise</SelectItem>
+            {plans.map(p => (
+              <SelectItem key={p.id} value={p.name.toLowerCase()}>
+                {isAr && p.nameAr ? p.nameAr : p.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
       <Card>
         <CardContent className="p-0">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b bg-slate-50">
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "الشركة" : "Company"}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "الخطة" : "Plan"}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "الحالة" : "Status"}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "تاريخ التسجيل" : "Created"}</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((company) => (
-                <>
-                  <tr key={company.id} className="border-b hover:bg-slate-50 cursor-pointer" onClick={() => setExpandedId(expandedId === company.id ? null : company.id)}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex size-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
-                          {company.name[0]}
-                        </div>
-                        <div>
-                          <span className="font-medium text-sm">{company.name}</span>
-                          <p className="text-xs text-muted-foreground">{company.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant="outline">{company.plan}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge className={statusColors[company.status]}>{company.status}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{company.createdDate}</td>
-                    <td className="px-4 py-3">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm"><MoreHorizontal className="size-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {company.status !== "active" && (
-                            <DropdownMenuItem onClick={() => handleAction(company.id, "activate")}>
-                              <CheckCircle2 className="size-3 mr-2 text-green-600" />
-                              {isAr ? "تفعيل" : "Activate"}
-                            </DropdownMenuItem>
-                          )}
-                          {company.status === "active" && (
-                            <DropdownMenuItem onClick={() => handleAction(company.id, "deactivate")}>
-                              <XCircle className="size-3 mr-2 text-red-600" />
-                              {isAr ? "إيقاف" : "Deactivate"}
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem onClick={() => handleAction(company.id, "changePlan")}>
-                            <Repeat className="size-3 mr-2" />
-                            {isAr ? "تغيير الخطة" : "Change Plan"}
-                          </DropdownMenuItem>
-                          {company.status === "trial" && (
-                            <DropdownMenuItem onClick={() => handleAction(company.id, "extendTrial")}>
-                              <Clock className="size-3 mr-2" />
-                              {isAr ? "تمديد التجربة" : "Extend Trial"}
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600" onClick={() => handleAction(company.id, "delete")}>
-                            <Trash2 className="size-3 mr-2" />
-                            {isAr ? "حذف" : "Delete"}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                  {expandedId === company.id && (
-                    <tr key={`${company.id}-details`}>
-                      <td colSpan={5} className="px-4 py-4 bg-slate-50">
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">{isAr ? "الموظفون" : "Employees"}:</span>
-                            <span className="ml-2 font-medium">{company.employeesCount || "-"}</span>
+          {companiesQuery.isLoading ? (
+            <div className="p-8 text-center text-muted-foreground">{isAr ? "جاري التحميل..." : "Loading..."}</div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b bg-slate-50">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "الشركة" : "Company"}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "الخطة" : "Plan"}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "الحالة" : "Status"}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "الجاهزية" : "Readiness"}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "تاريخ التسجيل" : "Created"}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">{isAr ? "الترخيص" : "License"}</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((company: any) => {
+                  const readiness = readinessByTenant.get(company.id);
+                  return (
+                  <Fragment key={company.id}>
+                    <tr key={company.id} className="border-b hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex size-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
+                            {(company.name || "?").charAt(0)}
                           </div>
                           <div>
-                            <span className="text-muted-foreground">{isAr ? "الدولة" : "Country"}:</span>
-                            <span className="ml-2 font-medium">{company.country || "-"}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">{isAr ? "انتهاء التجربة" : "Trial Ends"}:</span>
-                            <span className="ml-2 font-medium">{company.trialEnds || "-"}</span>
+                            <span className="font-medium text-sm">{company.name}</span>
+                            <p className="text-xs text-muted-foreground">{company.email || "-"}</p>
                           </div>
                         </div>
                       </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline">{getPlanName(company.plan || "")}</Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge className={statusColors[company.status] || "bg-slate-100 text-slate-600"}>{company.status}</Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        {readiness ? (
+                          <div className="flex items-center gap-2">
+                            <Badge className={readiness.readyForSale ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}>
+                              {readiness.score || 0}%
+                            </Badge>
+                            {readiness.readyForSale ? (
+                              <CheckCircle2 className="size-4 text-emerald-600" />
+                            ) : (
+                              <AlertTriangle className="size-4 text-amber-600" />
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        {company.createdAt ? new Date(company.createdAt).toLocaleDateString() : "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleGenerateLicense(company.id, company.name)}
+                          disabled={licenseMutation.isPending}
+                        >
+                          <Key className="size-3 mr-1" />
+                          {isAr ? "توليد" : "Generate"}
+                        </Button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm"><MoreHorizontal className="size-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {company.status !== "active" && (
+                              <DropdownMenuItem onClick={() => handleActivate(company.id)}>
+                                <CheckCircle2 className="size-3 mr-2 text-green-600" />
+                                {isAr ? "تفعيل" : "Activate"}
+                              </DropdownMenuItem>
+                            )}
+                            {company.status === "active" && (
+                              <DropdownMenuItem onClick={() => handleDeactivate(company.id)}>
+                                <XCircle className="size-3 mr-2 text-red-600" />
+                                {isAr ? "إيقاف" : "Deactivate"}
+                              </DropdownMenuItem>
+                            )}
+                            {company.status === "suspended" ? (
+                              <DropdownMenuItem onClick={() => handleRestore(company.id)}>
+                                <RotateCcw className="size-3 mr-2 text-emerald-600" />
+                                {isAr ? "استعادة" : "Restore"}
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => handleArchive(company.id)}>
+                                <Archive className="size-3 mr-2 text-amber-600" />
+                                {isAr ? "أرشفة" : "Archive"}
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => { setSelectedTenantId(company.id); setNewPlanId(0); setShowChangePlan(true); }}>
+                              <Repeat className="size-3 mr-2" />
+                              {isAr ? "تغيير الخطة" : "Change Plan"}
+                            </DropdownMenuItem>
+                            {company.status === "trial" && (
+                              <DropdownMenuItem onClick={() => { setSelectedTenantId(company.id); setShowExtendTrial(true); }}>
+                                <Clock className="size-3 mr-2" />
+                                {isAr ? "تمديد التجربة" : "Extend Trial"}
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-red-600" onClick={() => { setSelectedTenantId(company.id); setShowDelete(true); }}>
+                              <Trash2 className="size-3 mr-2" />
+                              {isAr ? "حذف" : "Delete"}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
                     </tr>
-                  )}
-                </>
-              ))}
-            </tbody>
-          </table>
+                    {detailRows(company)}
+                  </Fragment>
+                );
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                      {isAr ? "لا توجد شركات" : "No companies found"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </CardContent>
       </Card>
 
@@ -268,26 +393,26 @@ export default function SuperAdminCompanies() {
           <DialogHeader>
             <DialogTitle>{isAr ? "تغيير الخطة" : "Change Plan"}</DialogTitle>
             <DialogDescription>
-              {isAr
-                ? `تغيير خطة ${selectedCompany?.name}`
-                : `Change plan for ${selectedCompany?.name}`}
+              {isAr ? "اختر الخطة الجديدة" : "Select a new plan"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Select value={newPlan} onValueChange={setNewPlan}>
+            <Select value={String(newPlanId)} onValueChange={(v) => setNewPlanId(Number(v))}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder={isAr ? "اختر خطة" : "Select a plan"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Starter">Starter</SelectItem>
-                <SelectItem value="Business">Business</SelectItem>
-                <SelectItem value="Enterprise">Enterprise</SelectItem>
+                {plans.map(p => (
+                  <SelectItem key={p.id} value={String(p.id)}>
+                    {isAr && p.nameAr ? p.nameAr : p.name} - {p.priceMonth} {p.currency}/{isAr ? "شهرياً" : "mo"}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowChangePlan(false)}>{isAr ? "إلغاء" : "Cancel"}</Button>
-            <Button onClick={handleChangePlanConfirm}>{isAr ? "تأكيد" : "Confirm"}</Button>
+            <Button onClick={handleChangePlan} disabled={!newPlanId}>{isAr ? "تأكيد" : "Confirm"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -297,9 +422,7 @@ export default function SuperAdminCompanies() {
           <DialogHeader>
             <DialogTitle>{isAr ? "تمديد الفترة التجريبية" : "Extend Trial"}</DialogTitle>
             <DialogDescription>
-              {isAr
-                ? `تمديد الفترة التجريبية لـ ${selectedCompany?.name}`
-                : `Extend trial for ${selectedCompany?.name}`}
+              {isAr ? "أدخل عدد الأيام للإضافة" : "Enter number of days to add"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -307,7 +430,39 @@ export default function SuperAdminCompanies() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowExtendTrial(false)}>{isAr ? "إلغاء" : "Cancel"}</Button>
-            <Button onClick={handleExtendTrialConfirm}>{isAr ? "تمديد" : "Extend"}</Button>
+            <Button onClick={handleExtendTrial}>{isAr ? "تمديد" : "Extend"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLicense && !!licenseResult} onOpenChange={(open) => { if (!open) setLicenseResult(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{isAr ? "مفتاح الترخيص" : "License Key Generated"}</DialogTitle>
+            <DialogDescription>
+              {isAr ? "قم بنسخ مفتاح الترخيص وإرساله إلى الشركة" : "Copy the license key and send it to the company"}
+            </DialogDescription>
+          </DialogHeader>
+          {licenseResult && (
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-slate-50 p-4">
+                <p className="text-xs text-muted-foreground mb-1">{isAr ? "مفتاح الترخيص" : "License Key"}:</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 rounded bg-slate-100 px-3 py-2 text-sm font-mono break-all">{licenseResult.key}</code>
+                  <Button size="sm" variant="outline" onClick={() => copyToClipboard(licenseResult.key)}>
+                    {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
+                  </Button>
+                </div>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {isAr ? "تاريخ الانتهاء" : "Expires"}: {new Date(licenseResult.expiresAt).toLocaleDateString()}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => { setLicenseResult(null); setShowLicense(false); }}>
+              {isAr ? "إغلاق" : "Close"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -318,13 +473,13 @@ export default function SuperAdminCompanies() {
             <AlertDialogTitle>{isAr ? "تأكيد الحذف" : "Confirm Deletion"}</AlertDialogTitle>
             <AlertDialogDescription>
               {isAr
-                ? `هل أنت متأكد من حذف ${selectedCompany?.name}؟ سيتم حذف جميع بيانات الشركة.`
-                : `Are you sure you want to delete ${selectedCompany?.name}? All company data will be lost.`}
+                ? `هل أنت متأكد من حذف هذه الشركة؟ سيتم حذف جميع بياناتها.`
+                : `Are you sure you want to delete this company? All data will be lost.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{isAr ? "إلغاء" : "Cancel"}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
               {isAr ? "حذف" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>

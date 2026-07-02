@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,10 @@ import { useCountryDetection } from "@/providers/country-detection";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileCode2, FileSignature, Plus, Eye, Printer, QrCode, RefreshCw, Send, Trash2, X } from "lucide-react";
+import { FileCode2, FileSignature, Plus, Eye, Printer, QrCode, RefreshCw, Send, Trash2, Pencil, MessageCircle } from "lucide-react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
+import ActionButton3D from "@/components/ui/ActionButton3D";
 import SaudiInvoicePrint from "./SaudiInvoicePrint";
 
 type InvoiceItem = { description: string; quantity: number; unitPrice: string; taxPercent: string; totalAmount: string };
@@ -27,6 +28,25 @@ export default function InvoicesPage() {
     },
     onError: (error) => toast.error(error.message),
   });
+  const updateInvoice = trpc.sales.invoiceUpdate.useMutation({
+    onSuccess: () => {
+      refetch();
+      invoiceDetail.refetch();
+      toast.success("Invoice updated");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const deleteInvoiceMut = trpc.sales.invoiceDelete.useMutation({
+    onSuccess: () => { refetch(); toast.success("Invoice deleted"); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleDelete = (id: number) => {
+    if (confirm("Delete this invoice?")) {
+      deleteInvoiceMut.mutate({ id });
+    }
+  };
+
   const updateStatus = trpc.sales.invoiceUpdateStatus.useMutation({ onSuccess: () => refetch() });
   const generateXml = trpc.zatca.generateXml.useMutation({
     onSuccess: () => {
@@ -64,7 +84,13 @@ export default function InvoicesPage() {
     onSuccess: () => toast.success("ZATCA status synced"),
     onError: (error) => toast.error(error.message),
   });
+  const sendWhatsAppInvoice = trpc.whatsapp.sendInvoiceCreated.useMutation({
+    onSuccess: () => toast.success("Invoice sent on WhatsApp"),
+    onError: (error) => toast.error(error.message),
+  });
   const [open, setOpen] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
+  const [pendingEditInvoiceId, setPendingEditInvoiceId] = useState<number | null>(null);
   const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const invoiceDetail = trpc.sales.invoiceGet.useQuery(
@@ -92,6 +118,56 @@ export default function InvoicesPage() {
     notes: "",
     items: [{ description: "", quantity: 1, unitPrice: "0", taxPercent: "15", totalAmount: "0" }] as InvoiceItem[],
   });
+
+  const resetForm = () => {
+    setEditingInvoiceId(null);
+    setForm({
+      invoiceNumber: `${settings?.invoicePrefix || "INV-"}${Date.now().toString().slice(-6)}`,
+      customerId: 0,
+      date: new Date().toISOString().slice(0, 10),
+      dueDate: "",
+      invoiceType: (settings?.zatcaEnabled ? "zatca" : "standard") as "standard" | "simplified" | "zatca",
+      subTotal: "0",
+      taxAmount: "0",
+      taxPercent: String(settings?.vatRate ?? "15"),
+      totalAmount: "0",
+      notes: "",
+      items: [{ description: "", quantity: 1, unitPrice: "0", taxPercent: String(settings?.vatRate ?? "15"), totalAmount: "0" }],
+    });
+  };
+
+  const loadEditForm = (data: NonNullable<typeof invoiceDetail.data>) => {
+    if (!data.invoice) return;
+    const sourceItems = data.items?.length
+      ? data.items
+      : [{ description: "", quantity: 1, unitPrice: "0", taxPercent: data.invoice.taxPercent ?? "15", totalAmount: "0" }];
+    setEditingInvoiceId(data.invoice.id);
+    setForm(recalc({
+      invoiceNumber: data.invoice.invoiceNumber,
+      customerId: Number(data.invoice.customerId),
+      date: data.invoice.date,
+      dueDate: data.invoice.dueDate ?? "",
+      invoiceType: data.invoice.invoiceType,
+      subTotal: String(data.invoice.subTotal),
+      taxAmount: String(data.invoice.taxAmount),
+      taxPercent: String(data.invoice.taxPercent),
+      totalAmount: String(data.invoice.totalAmount),
+      notes: data.invoice.notes ?? "",
+      items: sourceItems.map((item: any) => ({
+        description: item.description ?? "",
+        quantity: Number(item.quantity ?? 1),
+        unitPrice: String(item.unitPrice ?? "0"),
+        taxPercent: String(item.taxPercent ?? data.invoice.taxPercent ?? "15"),
+        totalAmount: String(item.totalAmount ?? "0"),
+      })),
+    }));
+    setOpen(true);
+  };
+
+  const openEditInvoice = (invoiceId: number) => {
+    setPendingEditInvoiceId(invoiceId);
+    setViewInvoiceId(invoiceId);
+  };
 
   const addItem = () => {
     setForm(prev => recalc({
@@ -151,6 +227,12 @@ export default function InvoicesPage() {
   const detail = invoiceDetail.data;
 
   useEffect(() => {
+    if (!pendingEditInvoiceId || !detail?.invoice || detail.invoice.id !== pendingEditInvoiceId) return;
+    loadEditForm(detail);
+    setPendingEditInvoiceId(null);
+  }, [pendingEditInvoiceId, detail]);
+
+  useEffect(() => {
     let active = true;
     const payload = detail?.invoice?.zatcaQrCode;
     if (!payload) {
@@ -174,6 +256,40 @@ export default function InvoicesPage() {
 
   const filtered = invoices?.filter(i => !statusFilter || i.status === statusFilter) || [];
   const selectedInvoiceId = detail?.invoice?.id;
+  const selectedInvoiceLocked = Boolean(
+    detail?.invoice?.zatcaXml ||
+    detail?.invoice?.zatcaStatus === "reported" ||
+    detail?.invoice?.zatcaStatus === "cleared" ||
+    detail?.invoice?.status === "paid" ||
+    detail?.invoice?.status === "partial"
+  );
+
+  const submitInvoice = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (editingInvoiceId) {
+      updateInvoice.mutate({ id: editingInvoiceId, ...form }, { onSuccess: () => { setOpen(false); setEditingInvoiceId(null); } });
+      return;
+    }
+    createInvoice.mutate({ ...form }, { onSuccess: () => setOpen(false) });
+  };
+
+  const handleWhatsAppSend = () => {
+    if (!detail?.invoice || !detail.customer || !detail.company) return;
+    const phone = detail.customer.mobile || detail.customer.phone;
+    if (!phone) {
+      toast.error("Customer phone/mobile is required for WhatsApp.");
+      return;
+    }
+    sendWhatsAppInvoice.mutate({
+      customerPhone: phone,
+      customerName: detail.customer.name,
+      invoiceNumber: detail.invoice.invoiceNumber,
+      amount: Number(detail.invoice.totalAmount),
+      currency: detail.company.defaultCurrency || "SAR",
+      companyName: detail.company.companyName || detail.company.companyNameAr || "YASCO ERP",
+      language: "ar",
+    });
+  };
 
   const statusColors: Record<string, string> = {
     draft: "bg-slate-100 text-slate-700",
@@ -189,14 +305,10 @@ export default function InvoicesPage() {
       <div className="flex items-center justify-between">
         <div><h2 className="text-2xl font-bold">Invoices</h2><p className="text-slate-500">Manage sales invoices with ZATCA compliance</p></div>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button onClick={() => setForm((prev) => recalc({
-            ...prev,
-            invoiceNumber: prev.invoiceNumber || `${settings?.invoicePrefix || "INV-"}${Date.now().toString().slice(-6)}`,
-            date: prev.date || new Date().toISOString().slice(0, 10),
-          }))}><Plus className="w-4 h-4 mr-2" />New Invoice</Button></DialogTrigger>
+          <DialogTrigger asChild><Button onClick={resetForm}><Plus className="w-4 h-4 mr-2" />New Invoice</Button></DialogTrigger>
           <DialogContent className="max-w-2xl">
-            <DialogHeader><DialogTitle>Create Invoice</DialogTitle></DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); createInvoice.mutate({ ...form }, { onSuccess: () => setOpen(false) }); }} className="space-y-4">
+            <DialogHeader><DialogTitle>{editingInvoiceId ? "Edit Invoice" : "Create Invoice"}</DialogTitle></DialogHeader>
+            <form onSubmit={submitInvoice} className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div><Label>Invoice #</Label><Input value={form.invoiceNumber} onChange={e => setForm({...form, invoiceNumber: e.target.value})} required /></div>
                 <div><Label>Date</Label><Input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} required /></div>
@@ -293,7 +405,9 @@ export default function InvoicesPage() {
                   Saudi invoice mode: backend requires company name and Saudi VAT number, then creates ZATCA TLV QR payload, Saudi VAT fields, XML archive data, and pending ZATCA status.
                 </div>
               )}
-              <Button type="submit" className="w-full">Create Invoice</Button>
+              <Button type="submit" className="w-full" disabled={createInvoice.isPending || updateInvoice.isPending}>
+                {editingInvoiceId ? "Update Invoice" : "Create Invoice"}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -322,9 +436,45 @@ export default function InvoicesPage() {
                   <TableCell className="text-right font-mono">{Number(inv.paidAmount).toLocaleString()}</TableCell>
                   <TableCell><span className={`text-xs px-2 py-1 rounded-full ${statusColors[inv.status] || ""}`}>{inv.status}</span></TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => setViewInvoiceId(inv.id)}>
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1.5">
+                      <ActionButton3D
+                        icon={<Eye className="size-3.5" />}
+                        label="View"
+                        color="blue"
+                        onClick={() => setViewInvoiceId(inv.id)}
+                      />
+                      {(inv.status === "draft" || inv.status === "sent") && (
+                        <ActionButton3D
+                          icon={<Pencil className="size-3.5" />}
+                          label="Edit"
+                          color="amber"
+                          onClick={() => { setViewInvoiceId(inv.id); openEditInvoice(inv.id); }}
+                        />
+                      )}
+                      {inv.status === "draft" && (
+                        <ActionButton3D
+                          icon={<Trash2 className="size-3.5" />}
+                          label="Delete"
+                          color="red"
+                          onClick={() => handleDelete(inv.id)}
+                        />
+                      )}
+                      {inv.status === "draft" && (
+                        <ActionButton3D
+                          icon={<Send className="size-3.5" />}
+                          label="Send"
+                          color="purple"
+                          onClick={() => updateStatus.mutate({ id: inv.id, status: "sent" })}
+                        />
+                      )}
+                      <ActionButton3D
+                        icon={<Printer className="size-3.5" />}
+                        label="Print"
+                        color="emerald"
+                        variant="outline"
+                        onClick={() => { setViewInvoiceId(inv.id); setTimeout(() => handlePrint(), 1000); }}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -363,6 +513,12 @@ export default function InvoicesPage() {
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => syncZatcaStatus.mutate({ invoiceId: selectedInvoiceId })}>
                       <RefreshCw className="mr-2 h-4 w-4" />Sync
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={selectedInvoiceLocked} onClick={() => openEditInvoice(selectedInvoiceId)}>
+                      <Pencil className="mr-2 h-4 w-4" />Edit
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleWhatsAppSend}>
+                      <MessageCircle className="mr-2 h-4 w-4" />WhatsApp
                     </Button>
                   </>
                 )}

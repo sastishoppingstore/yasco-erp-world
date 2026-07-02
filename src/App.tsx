@@ -39,8 +39,10 @@ const FbrTaxSettings = lazy(() => import("./pages/FbrTaxSettings"));
 
 // Super Admin Pages
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
+const SuperAdminMasterControl = lazy(() => import("./pages/SuperAdminMasterControl"));
 const SuperAdminPlans = lazy(() => import("./pages/SuperAdminPlans"));
 const SuperAdminCompanies = lazy(() => import("./pages/SuperAdminCompanies"));
+const SuperAdminCompliance = lazy(() => import("./pages/SuperAdminCompliance"));
 const SuperAdminSmtp = lazy(() => import("./pages/SuperAdminSmtp"));
 const SuperAdminEmailTemplates = lazy(() => import("./pages/SuperAdminEmailTemplates"));
 const Impersonate = lazy(() => import("./pages/Impersonate"));
@@ -376,6 +378,13 @@ const EducationAdmissions = lazy(() => import("./pages/verticals/education/Admis
 const EducationFeeInvoicing = lazy(() => import("./pages/verticals/education/FeeInvoicing"));
 const EducationClassSchedule = lazy(() => import("./pages/verticals/education/ClassSchedule"));
 const EducationReportCards = lazy(() => import("./pages/verticals/education/ReportCards"));
+const WorkshopDashboard = lazy(() => import("./pages/verticals/workshop/index"));
+const WorkshopJobCards = lazy(() => import("./pages/verticals/workshop/JobCards"));
+const WorkshopVehicles = lazy(() => import("./pages/verticals/workshop/Vehicles"));
+const WorkshopEstimates = lazy(() => import("./pages/verticals/workshop/Estimates"));
+const WorkshopTechnicians = lazy(() => import("./pages/verticals/workshop/Technicians"));
+const WorkshopInspections = lazy(() => import("./pages/verticals/workshop/Inspections"));
+const WorkshopBays = lazy(() => import("./pages/verticals/workshop/Bays"));
 const HotelRooms = lazy(() => import("./pages/verticals/hotel/Rooms"));
 const HotelBookings = lazy(() => import("./pages/verticals/hotel/Bookings"));
 const HotelCalendar = lazy(() => import("./pages/verticals/hotel/Calendar"));
@@ -448,6 +457,8 @@ function LayoutWrapper({ children }: { children: React.ReactNode }) {
   return <AppLayout>{children}</AppLayout>;
 }
 
+const CompanyOnboarding = lazy(() => import("./pages/CompanyOnboarding"));
+
 export default function App() {
   const [splashDone, setSplashDone] = useState(() => {
     return sessionStorage.getItem("yasco-splash-shown") === "true";
@@ -486,6 +497,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<RegisterBusiness />} />
+      <Route path="/company-onboarding" element={<CompanyOnboarding />} />
       <Route path="/verify-otp" element={<VerifyOtp />} />
       <Route path="/select-plan" element={<SelectPlan />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -603,8 +615,10 @@ export default function App() {
       <Route path="/app/admin/website" element={<LayoutWrapper><WebsiteAdminPage /></LayoutWrapper>} />
       <Route path="/app/admin/master-control" element={<LayoutWrapper><MasterControlPage /></LayoutWrapper>} />
       <Route path="/app/admin/super-dashboard" element={<LayoutWrapper><SuperAdminDashboard /></LayoutWrapper>} />
+      <Route path="/app/admin/super-master-control" element={<LayoutWrapper><SuperAdminMasterControl /></LayoutWrapper>} />
       <Route path="/app/admin/super-plans" element={<LayoutWrapper><SuperAdminPlans /></LayoutWrapper>} />
       <Route path="/app/admin/super-companies" element={<LayoutWrapper><SuperAdminCompanies /></LayoutWrapper>} />
+      <Route path="/app/admin/super-compliance" element={<LayoutWrapper><SuperAdminCompliance /></LayoutWrapper>} />
       <Route path="/app/admin/super-smtp" element={<LayoutWrapper><SuperAdminSmtp /></LayoutWrapper>} />
       <Route path="/app/admin/super-email-templates" element={<LayoutWrapper><SuperAdminEmailTemplates /></LayoutWrapper>} />
       <Route path="/app/admin/impersonate" element={<LayoutWrapper><Impersonate /></LayoutWrapper>} />
@@ -716,6 +730,15 @@ export default function App() {
       <Route path="/app/verticals/education/fee-invoicing" element={<LayoutWrapper><EducationFeeInvoicing /></LayoutWrapper>} />
       <Route path="/app/verticals/education/schedule" element={<LayoutWrapper><EducationClassSchedule /></LayoutWrapper>} />
       <Route path="/app/verticals/education/report-cards" element={<LayoutWrapper><EducationReportCards /></LayoutWrapper>} />
+
+      {/* Workshop Verticals */}
+      <Route path="/app/verticals/workshop" element={<LayoutWrapper><WorkshopDashboard /></LayoutWrapper>} />
+      <Route path="/app/verticals/workshop/job-cards" element={<LayoutWrapper><WorkshopJobCards /></LayoutWrapper>} />
+      <Route path="/app/verticals/workshop/vehicles" element={<LayoutWrapper><WorkshopVehicles /></LayoutWrapper>} />
+      <Route path="/app/verticals/workshop/estimates" element={<LayoutWrapper><WorkshopEstimates /></LayoutWrapper>} />
+      <Route path="/app/verticals/workshop/technicians" element={<LayoutWrapper><WorkshopTechnicians /></LayoutWrapper>} />
+      <Route path="/app/verticals/workshop/inspections" element={<LayoutWrapper><WorkshopInspections /></LayoutWrapper>} />
+      <Route path="/app/verticals/workshop/bays" element={<LayoutWrapper><WorkshopBays /></LayoutWrapper>} />
 
       {/* Hotel Verticals */}
       <Route path="/app/verticals/hotel" element={<LayoutWrapper><HotelRooms /></LayoutWrapper>} />

@@ -86,6 +86,17 @@ function isValidSaudiVatNumber(vatNumber: string) {
   return /^3\d{13}3$/.test(cleaned);
 }
 
+function isIssuedOrZatcaLocked(invoice: typeof invoices.$inferSelect) {
+  return Boolean(
+    invoice.zatcaXml ||
+    invoice.zatcaStatus === "reported" ||
+    invoice.zatcaStatus === "cleared" ||
+    invoice.status === "paid" ||
+    invoice.status === "partial" ||
+    invoice.status === "credit_note",
+  );
+}
+
 export const salesRouter = createRouter({
   // Customers
   customerList: authedQuery
@@ -356,6 +367,171 @@ export const salesRouter = createRouter({
     .mutation(async ({ input }) => {
       const db = getDb();
       await db.update(invoices).set({ status: input.status }).where(eq(invoices.id, input.id));
+      return { success: true };
+    }),
+
+  invoiceUpdate: authedQuery
+    .input(z.object({
+      id: z.number(),
+      invoiceNumber: z.string().optional(),
+      invoiceType: z.enum(["standard", "simplified", "zatca"]).optional(),
+      customerId: z.number().optional(),
+      date: z.string().optional(),
+      dueDate: z.string().optional(),
+      subTotal: z.string().optional(),
+      taxAmount: z.string().optional(),
+      taxPercent: z.string().optional(),
+      totalAmount: z.string().optional(),
+      notes: z.string().optional(),
+      status: z.enum(["draft", "sent", "paid", "partial", "overdue", "cancelled", "credit_note"]).optional(),
+      items: z.array(z.object({
+        id: z.number().optional(),
+        productId: z.number().optional(),
+        description: z.string(),
+        quantity: z.number(),
+        unitPrice: z.string(),
+        taxPercent: z.string().optional(),
+        totalAmount: z.string(),
+      })).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const tenantId = ctx.user.tenantId!;
+      const { items, ...invoiceData } = input;
+      const invoiceId = input.id;
+
+      const existingInvoice = await db.query.invoices.findFirst({
+        where: and(eq(invoices.id, invoiceId), eq(invoices.tenantId, tenantId)),
+      });
+      if (!existingInvoice) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found" });
+      }
+      if (isIssuedOrZatcaLocked(existingInvoice)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Issued, paid, reported, or cleared invoices are immutable. Use a credit/debit note instead.",
+        });
+      }
+
+      const settings = await db.query.companySettings.findFirst({
+        where: eq(companySettings.tenantId, tenantId),
+      });
+      const saudiInvoice = isSaudiCompany(settings) || invoiceData.invoiceType === "zatca";
+      const currency = settings?.defaultCurrency || (saudiInvoice ? "SAR" : "USD");
+      const taxPercent = invoiceData.taxPercent || (settings?.vatRate ? String(settings.vatRate) : saudiInvoice ? "15" : "0");
+      const taxAmount = invoiceData.taxAmount || "0";
+      const invoiceType = saudiInvoice ? "zatca" : (invoiceData.invoiceType || existingInvoice.invoiceType);
+      const sellerName = settings?.companyName || settings?.companyNameAr || "";
+      const vatNumber = settings?.taxNumber || "";
+
+      let zatcaQrCode = existingInvoice.zatcaQrCode;
+      let zatcaXml = existingInvoice.zatcaXml;
+      let zatcaStatus = existingInvoice.zatcaStatus;
+
+      if (saudiInvoice) {
+        if (!sellerName.trim()) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Saudi ZATCA invoices require company name in Settings before billing.",
+          });
+        }
+        if (!isValidSaudiVatNumber(vatNumber)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Saudi ZATCA invoices require a valid 15-digit VAT number that starts and ends with 3.",
+          });
+        }
+        const timestamp = new Date(`${invoiceData.date || existingInvoice.date}T00:00:00.000Z`).toISOString();
+        zatcaQrCode = buildZatcaQrPayload(sellerName, vatNumber, timestamp, invoiceData.totalAmount || existingInvoice.totalAmount, taxAmount);
+        zatcaXml = buildSaudiInvoiceXml({
+          invoiceNumber: invoiceData.invoiceNumber || existingInvoice.invoiceNumber,
+          date: invoiceData.date || existingInvoice.date,
+          sellerName,
+          vatNumber,
+          crNumber: settings?.crNumber,
+          currency,
+          subTotal: invoiceData.subTotal || existingInvoice.subTotal,
+          taxAmount,
+          totalAmount: invoiceData.totalAmount || existingInvoice.totalAmount,
+        });
+        zatcaStatus = "pending";
+      }
+
+      await db.update(invoices).set({
+        ...invoiceData,
+        invoiceType,
+        taxPercent,
+        taxAmount,
+        zatcaQrCode,
+        zatcaXml,
+        zatcaStatus,
+        balanceDue: (Number(invoiceData.totalAmount || existingInvoice.totalAmount) - Number(existingInvoice.paidAmount)).toFixed(2),
+        updatedAt: new Date(),
+      }).where(eq(invoices.id, invoiceId));
+
+      if (items) {
+        await db.delete(invoiceItems).where(eq(invoiceItems.invoiceId, invoiceId));
+        for (const item of items) {
+          await db.insert(invoiceItems).values({ ...item, invoiceId });
+        }
+      }
+
+      await db.insert(auditLogs).values({
+        tenantId,
+        userId: ctx.user.id,
+        action: "invoice_update",
+        entityType: "invoice",
+        entityId: invoiceId,
+        newValues: {
+          ...invoiceData,
+          items: items?.length,
+          saudiInvoice,
+          zatcaStatus,
+        },
+        createdAt: new Date(),
+      });
+
+      return { id: invoiceId, success: true };
+    }),
+
+  invoiceDelete: authedQuery
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const tenantId = ctx.user.tenantId!;
+      const invoiceId = input.id;
+
+      const existingInvoice = await db.query.invoices.findFirst({
+        where: and(eq(invoices.id, invoiceId), eq(invoices.tenantId, tenantId)),
+      });
+      if (!existingInvoice) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found" });
+      }
+
+      if (isIssuedOrZatcaLocked(existingInvoice)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot delete issued, paid, reported, or cleared invoices. Create a credit/debit note instead.",
+        });
+      }
+
+      await db.delete(invoiceItems).where(eq(invoiceItems.invoiceId, invoiceId));
+      await db.delete(invoices).where(eq(invoices.id, invoiceId));
+
+      await db.insert(auditLogs).values({
+        tenantId,
+        userId: ctx.user.id,
+        action: "invoice_delete",
+        entityType: "invoice",
+        entityId: invoiceId,
+        newValues: {
+          invoiceNumber: existingInvoice.invoiceNumber,
+          totalAmount: existingInvoice.totalAmount,
+          status: existingInvoice.status,
+        },
+        createdAt: new Date(),
+      });
+
       return { success: true };
     }),
 

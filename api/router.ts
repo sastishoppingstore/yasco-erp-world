@@ -80,6 +80,7 @@ import { webhookRouter } from "./webhookRouter";
 import { olapRouter } from "./olapRouter";
 import { etlRouter } from "./etlRouter";
 import { wsRouter } from "./wsRouter";
+import { workshopRouter } from "./workshopRouter";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -165,6 +166,7 @@ export const appRouter = createRouter({
   olap: olapRouter,
   etl: etlRouter,
   ws: wsRouter,
+  workshop: workshopRouter,
 });
 
 export type AppRouter = typeof appRouter;

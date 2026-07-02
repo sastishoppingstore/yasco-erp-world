@@ -32,6 +32,7 @@ import {
   Warehouse,
   Menu,
   Languages,
+  Globe,
   Search,
   Bell,
   ShieldCheck,
@@ -50,11 +51,32 @@ import {
   User,
   X,
   ChevronDown,
+  Wrench,
+  ClipboardList,
+  Car,
+  ParkingCircle,
+  FileWarning,
 } from "lucide-react";
 
 import { AiAssistantPanel } from "./AiAssistantPanel";
 import { SyncStatusBar } from "./sync/SyncStatusBar";
 import { VoiceCommandButton, VoiceCommandHeaderButton } from "./VoiceCommand";
+import { useCategoryModules, getStoredCategory, BusinessCategory } from "@/hooks/useCategoryModules";
+
+const categoryGroupVisibility: Record<string, string[]> = {
+  hospital: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  workshop: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'WORKSHOP', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  construction: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'PROJECTS', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  retail: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  restaurant: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  hotel: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  manufacturing: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'MANUFACTURING', 'PROJECTS', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  education: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  transport: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  real_estate: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  services: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'PROJECTS', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+  all: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'MANUFACTURING', 'PROJECTS', 'WORKSHOP', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
+};
 
 const menuGroups = [
   {
@@ -161,6 +183,19 @@ const menuGroups = [
     ],
   },
   {
+    title: "WORKSHOP",
+    titleAr: "الورشة",
+    items: [
+      { label: "Workshop Dashboard", labelAr: "لوحة الورشة", icon: Wrench, path: "/app/verticals/workshop" },
+      { label: "Job Cards", labelAr: "بطاقات العمل", icon: ClipboardList, path: "/app/verticals/workshop/job-cards" },
+      { label: "Vehicles", labelAr: "المركبات", icon: Car, path: "/app/verticals/workshop/vehicles" },
+      { label: "Estimates", labelAr: "التقديرات", icon: FileText, path: "/app/verticals/workshop/estimates" },
+      { label: "Technicians", labelAr: "الفنيين", icon: Users, path: "/app/verticals/workshop/technicians" },
+      { label: "Inspections", labelAr: "الفحوصات", icon: Search, path: "/app/verticals/workshop/inspections" },
+      { label: "Bay Schedule", labelAr: "جدول الرافعات", icon: ParkingCircle, path: "/app/verticals/workshop/bays" },
+    ],
+  },
+  {
     title: "PLATFORM",
     titleAr: "المنصة",
     items: [
@@ -189,7 +224,9 @@ const menuGroups = [
 
 const adminMenuItems = [
   { label: "Super Admin Dashboard", labelAr: "لوحة المشرف العام", icon: ShieldCheck, path: "/app/admin/super-dashboard", roles: ["super_admin"] },
+  { label: "Platform Master Control", labelAr: "التحكم الكامل للمنصة", icon: ShieldCheck, path: "/app/admin/super-master-control", roles: ["super_admin"] },
   { label: "Companies", labelAr: "الشركات", icon: Building2, path: "/app/admin/super-companies", roles: ["super_admin"] },
+  { label: "Compliance Center", labelAr: "مركز الامتثال", icon: FileWarning, path: "/app/admin/super-compliance", roles: ["super_admin"] },
   { label: "Plans", labelAr: "الخطط", icon: CreditCard, path: "/app/admin/super-plans", roles: ["super_admin"] },
   { label: "Reseller Management", labelAr: "إدارة الموزعين", icon: Users, path: "/app/admin/super-resellers", roles: ["super_admin"] },
   { label: "SMTP Settings", labelAr: "إعدادات البريد", icon: Settings, path: "/app/admin/super-smtp", roles: ["super_admin"] },
@@ -216,13 +253,17 @@ const SidebarContent = memo(function SidebarContent({ collapsed, onNavigate }: {
 
   const userAdminItems = adminMenuItems.filter(item => item.roles.includes(user?.role || ""));
 
+  const storedCategory = getStoredCategory();
+  const visibleGroups = categoryGroupVisibility[storedCategory] || categoryGroupVisibility.all;
+
   const displayName = companySettings?.companyName || "YASCO ERP";
   const displayAr = companySettings?.companyNameAr;
   const logo = companySettings?.logo;
   const initials = displayName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
   // Filter menu items by search query
-  const allItems = menuGroups.flatMap(g => g.items.map(item => ({ ...item, group: rtl ? g.titleAr : g.title })));
+  const filteredGroups = menuGroups.filter(g => visibleGroups.includes(g.title));
+  const allItems = filteredGroups.flatMap(g => g.items.map(item => ({ ...item, group: rtl ? g.titleAr : g.title })));
   const filteredItems = searchQuery.trim()
     ? allItems.filter(item =>
         item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -305,7 +346,7 @@ const SidebarContent = memo(function SidebarContent({ collapsed, onNavigate }: {
             )}
           </div>
         ) : (
-          menuGroups.map((group) => (
+          filteredGroups.map((group) => (
             <div key={group.title} className="mb-3">
               {!collapsed && (
                 <div className="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
@@ -580,6 +621,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             />
             {/* Voice Command Header Button */}
             <VoiceCommandHeaderButton />
+
+            {/* Language Toggle Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLang(language === "en" ? "ar" : "en")}
+              className="border-white/20 bg-white/10 hover:bg-white/20 text-white hover:text-white gap-1.5 px-2.5"
+              aria-label={rtl ? "تغيير اللغة" : "Change language"}
+            >
+              <Globe className="size-4" />
+              <span className="text-xs font-semibold">{language === "en" ? "AR" : "EN"}</span>
+            </Button>
 
             <Button variant="ghost" size="icon" aria-label="Notifications" className="relative hover:bg-white/10 text-white">
               <Bell className="size-4" />

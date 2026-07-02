@@ -13,15 +13,33 @@ const DEFAULT_WORKER_OPTIONS: Partial<WorkerOptions> = {
   lockDuration: 60000,
 };
 
+class MockRedis {
+  on() { return this; }
+  off() { return this; }
+  connect() { return Promise.resolve(this); }
+  disconnect() { return Promise.resolve(); }
+  quit() { return Promise.resolve("OK"); }
+}
+
+let queueRedis: any = null;
+
 function getConnection() {
+  if (queueRedis) return queueRedis;
   const redis = getRedis();
-  if (!redis) throw new Error("Redis not available for queue");
+  if (!redis) {
+    console.warn("[queue] Redis not configured — using mock (queues disabled)");
+    queueRedis = new MockRedis();
+    return queueRedis;
+  }
+  queueRedis = redis;
   return redis;
 }
 
-export function createQueue(name: string, defaultJobOptions?: Partial<JobsOptions>): Queue {
+export function createQueue(name: string, defaultJobOptions?: Partial<JobsOptions>): Queue | null {
+  const conn = getConnection();
+  if (!conn) return null;
   return new Queue(name, {
-    connection: getConnection(),
+    connection: conn,
     defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, ...defaultJobOptions },
   });
 }
@@ -30,16 +48,20 @@ export function createWorker<T = any, R = any>(
   name: string,
   processor: (job: { data: T; id?: string }) => Promise<R>,
   opts?: Partial<WorkerOptions>,
-): Worker<T, R> {
+): Worker<T, R> | null {
+  const conn = getConnection();
+  if (!conn) return null;
   return new Worker<T, R>(name, async (job) => processor(job), {
     ...DEFAULT_WORKER_OPTIONS,
     ...opts,
-    connection: getConnection(),
+    connection: conn,
   });
 }
 
-export function createQueueEvents(name: string): QueueEvents {
-  return new QueueEvents(name, { connection: getConnection() });
+export function createQueueEvents(name: string): QueueEvents | null {
+  const conn = getConnection();
+  if (!conn) return null;
+  return new QueueEvents(name, { connection: conn });
 }
 
 export type QueueDefinition = {
