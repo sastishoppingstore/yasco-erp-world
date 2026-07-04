@@ -22,3 +22,4 @@ yarn-error.log*
 .vscode/*
 !.vscode/extensions.json
 windows-build/
+.env
