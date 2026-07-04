@@ -14,7 +14,7 @@ export function getRedis(): Redis | null {
         if (times > 10) return null;
         return Math.min(times * 200, 5000);
       },
-      lazyConnect: false,
+      lazyConnect: true,
     });
 
     redisClient.on("ready", () => { redisReady = true; });
@@ -33,6 +33,24 @@ export async function connectRedis(): Promise<boolean> {
     const client = getRedis();
     if (!client) return false;
     if (redisReady) return true;
+    if (client.status === "ready") {
+      redisReady = true;
+      return true;
+    }
+    if (client.status === "connecting" || client.status === "connect") {
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+          client.off("ready", onReady);
+          client.off("error", onError);
+        };
+        const onReady = () => { cleanup(); resolve(); };
+        const onError = (err: Error) => { cleanup(); reject(err); };
+        client.once("ready", onReady);
+        client.once("error", onError);
+      });
+      redisReady = true;
+      return true;
+    }
     await client.connect();
     redisReady = true;
     console.log("[redis] connected successfully");

@@ -81,6 +81,8 @@ import { olapRouter } from "./olapRouter";
 import { etlRouter } from "./etlRouter";
 import { wsRouter } from "./wsRouter";
 import { workshopRouter } from "./workshopRouter";
+import { healthcareCompleteRouter } from "./healthcareCompleteRouter";
+import { workshopCompleteRouter } from "./workshopCompleteRouter";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({

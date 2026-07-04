@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { sendEmail } from "./lib/smtp";
+import { templates } from "./lib/emailBranding";
 import * as schema from "@db/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { templateEngine } from "./lib/notifications/templates";
@@ -51,13 +52,19 @@ export const registrationRouter = createRouter({
       city: z.string().min(1),
       businessType: z.string().min(1),
       industry: z.string().min(1),
-      employeesCount: z.coerce.number().int().positive(),
+      employeesCount: z.union([z.coerce.number().int().positive(), z.string().min(1)]),
       currency: z.string().min(1),
       language: z.string().min(1),
       timezone: z.string().min(1),
       taxRegistered: z.boolean(),
       taxNumber: z.string().optional(),
-      address: z.string().min(1),
+      crNumber: z.string().optional(),
+      ntnNumber: z.string().optional(),
+      strnNumber: z.string().optional(),
+      trnNumber: z.string().optional(),
+      businessCategory: z.string().optional(),
+      enabledModules: z.array(z.string()).optional(),
+      address: z.string().optional(),
       logo: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -82,6 +89,19 @@ export const registrationRouter = createRouter({
         plan: "free",
         trialEndsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
       }).$returningId();
+      await db.insert(schema.companySettings).values({
+        tenantId: tenant.id,
+        companyName: input.companyName,
+        email,
+        phone: input.phone,
+        address: input.address || "",
+        city: input.city,
+        country: input.country,
+        taxNumber: input.taxNumber,
+        crNumber: input.crNumber,
+        defaultCurrency: input.currency,
+        zatcaEnabled: input.country === "SA" && input.taxRegistered,
+      });
       await db.insert(schema.companies).values({
         tenantId: tenant.id,
         legalName: input.companyName,
@@ -102,6 +122,16 @@ export const registrationRouter = createRouter({
         role: "admin",
         isActive: true,
       });
+      const modules = new Set([...(input.enabledModules || []), "accounting", "inventory", "sales", "purchase", "hrm", "reports", "settings"]);
+      for (const moduleName of modules) {
+        await db.insert(schema.tenantModules).values({
+          tenantId: tenant.id,
+          moduleName,
+          isEnabled: true,
+          enabledAt: new Date(),
+          notes: input.businessCategory ? `Enabled during signup for ${input.businessCategory}` : "Enabled during signup",
+        });
+      }
       const otp = generateOtp();
       const otpHash = hashOtp(email, otp);
       await db.insert(schema.otpCodes).values({
@@ -112,7 +142,8 @@ export const registrationRouter = createRouter({
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
         ipAddress: ctx.clientIp || null,
       });
-      const result = await sendEmail(email, "Verify your email address", `Your OTP for registration is: ${otp}\n\nThis code expires in 10 minutes.`);
+      const html = templates.otp({ otp, expiryMinutes: 10 });
+      const result = await sendEmail({ to: email, subject: `Verify your email - ${otp}`, html, text: `Your OTP for registration is: ${otp}. Expires in 10 minutes.` });
       return { tenantId: tenant.id, email, message: "Registration successful. Please verify your email with the OTP sent." };
     }),
   verifyOtp: publicQuery
@@ -158,12 +189,8 @@ export const registrationRouter = createRouter({
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
         ipAddress: ctx.clientIp || null,
       });
-      const tpl = await templateEngine.getTemplate(null, "account_otp");
-      const subject = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").subject : "Your OTP Code";
-      const bodyEn = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").body : `Your OTP code is: ${otp}\n\nThis code expires in 10 minutes.`;
-      const bodyAr = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "ar").body : "";
-      const fullBody = bodyAr ? `${bodyEn}\n\n---\n${bodyAr}` : bodyEn;
-      const result = await sendEmail(email, subject, fullBody);
+      const html = templates.otp({ otp, expiryMinutes: 10 });
+      const result = await sendEmail({ to: email, subject: `Your OTP Code - ${otp}`, html, text: `Your OTP code is: ${otp}. Expires in 10 minutes.` });
       return { success: true, message: "OTP sent successfully." };
     }),
   forgotPassword: publicQuery
@@ -183,12 +210,8 @@ export const registrationRouter = createRouter({
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
         ipAddress: ctx.clientIp || null,
       });
-      const tpl = await templateEngine.getTemplate(null, "password_reset_otp");
-      const subject = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").subject : "Password Reset OTP";
-      const bodyEn = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").body : `Your OTP for password reset is: ${otp}\n\nThis code expires in 10 minutes.`;
-      const bodyAr = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "ar").body : "";
-      const fullBody = bodyAr ? `${bodyEn}\n\n---\n${bodyAr}` : bodyEn;
-      const result = await sendEmail(email, subject, fullBody);
+      const html = templates.passwordReset({ otp, expiryMinutes: 10 });
+      const result = await sendEmail({ to: email, subject: `Password Reset OTP - ${otp}`, html, text: `Your OTP for password reset is: ${otp}. Expires in 10 minutes.` });
       return { success: true, message: "OTP sent to your email." };
     }),
   resetPassword: publicQuery

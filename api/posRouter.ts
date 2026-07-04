@@ -132,6 +132,7 @@ export const posRouter = createRouter({
       discountAmount: z.string().default("0"),
       totalAmount: z.string(),
       notes: z.string().optional(),
+      invoiceType: z.enum(["zatca", "non_zatca"]).default("zatca"), // NEW: Let company choose
       items: z.array(z.object({
         productId: z.number(),
         description: z.string().optional(),
@@ -148,6 +149,9 @@ export const posRouter = createRouter({
       const invoiceNumber = `POS-${Date.now()}`;
       const { items, ...invoiceData } = input;
       const customerId = input.customerId ?? await getOrCreateWalkInCustomer(db, tenantId);
+      
+      // ZATCA is OPTIONAL - Company can choose ZATCA or Non-ZATCA invoice
+      // Check if company has ZATCA enabled for automatic compliance
       const balanceDue = Math.max(0, Number(input.totalAmount) - Number(input.paymentAmount || 0)).toFixed(4);
 
       // Create invoice

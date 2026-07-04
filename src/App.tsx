@@ -51,13 +51,6 @@ const Impersonate = lazy(() => import("./pages/Impersonate"));
 const TaskList = lazy(() => import("./pages/tasks/TaskList"));
 const MeetingList = lazy(() => import("./pages/meetings/MeetingList"));
 
-// AI Pages
-const AIReportsPage = lazy(() => import("./pages/ai/AIReports"));
-const AIForecastingPage = lazy(() => import("./pages/ai/AIForecasting"));
-const AIChatbotPage = lazy(() => import("./pages/ai/Chatbot"));
-const AIAutomationPage = lazy(() => import("./pages/ai/Automation"));
-const AIVoicePage = lazy(() => import("./pages/ai/Voice"));
-
 // BI Pages
 const DashboardBuilderPage = lazy(() => import("./pages/bi/DashboardBuilder"));
 const ReportBuilderPage = lazy(() => import("./pages/bi/ReportBuilder"));
@@ -143,6 +136,7 @@ const StockTransfersPage = lazy(() => import("./pages/inventory/transfers"));
 const SalesPage = lazy(() => import("./pages/sales"));
 const CustomersPage = lazy(() => import("./pages/sales/customers"));
 const InvoicesPage = lazy(() => import("./pages/sales/invoices"));
+const QuickInvoicePage = lazy(() => import("./pages/sales/quick-invoice"));
 const QuotationsPage = lazy(() => import("./pages/sales/quotations"));
 const SalesOrdersPage = lazy(() => import("./pages/sales/orders"));
 const CreditNotesPage = lazy(() => import("./pages/sales/credit-notes"));
@@ -230,6 +224,9 @@ const LicenseApprovalPage = lazy(() => import("./pages/admin/license-approval"))
 const LicenseConsolePage = lazy(() => import("./pages/admin/LicenseConsole"));
 const SuperResellersPage = lazy(() => import("./pages/admin/super-resellers"));
 const InvoiceSettingsPage = lazy(() => import("./pages/admin/invoice-settings"));
+
+// Super Admin Layout
+const SuperAdminLayout = lazy(() => import("./components/SuperAdminLayout"));
 
 // ZATCA phase 2 pages
 const ZatcaPhase2SetupPage = lazy(() => import("./pages/settings/zatca-phase2-setup"));
@@ -478,14 +475,14 @@ export default function App() {
       <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950">
         <div className="flex items-center gap-1">
           {["Y","A","S","C","O"].map((l, i) => (
-            <span key={i} className="text-4xl font-black text-blue-400 animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}>
+            <span key={i} className="text-4xl font-black text-amber-400 animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}>
               {l}
             </span>
           ))}
         </div>
         <div className="flex items-center gap-0.5 mt-1">
           {["T","E","C","H"].map((l, i) => (
-            <span key={i} className="text-lg font-bold text-blue-300/60 animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
+            <span key={i} className="text-lg font-bold text-amber-300/60 animate-pulse" style={{ animationDelay: `${i * 0.1}s` }}>
               {l}
             </span>
           ))}
@@ -508,9 +505,22 @@ export default function App() {
       <Route path="/erp" element={<ErpRedirect />} />
       <Route path="/erp/*" element={<ErpRedirect />} />
 
-      {/* Admin shortcut - /admin redirects to /app/admin */}
-      <Route path="/admin" element={<AdminRedirect />} />
-      <Route path="/admin/*" element={<AdminRedirect />} />
+      {/* Super Admin - standalone panel at /admin */}
+      <Route path="/admin" element={<SuperAdminLayout><SuperAdminDashboard /></SuperAdminLayout>} />
+      <Route path="/admin/dashboard" element={<SuperAdminLayout><SuperAdminDashboard /></SuperAdminLayout>} />
+      <Route path="/admin/companies" element={<SuperAdminLayout><SuperAdminCompanies /></SuperAdminLayout>} />
+      <Route path="/admin/plans" element={<SuperAdminLayout><SuperAdminPlans /></SuperAdminLayout>} />
+      <Route path="/admin/compliance" element={<SuperAdminLayout><SuperAdminCompliance /></SuperAdminLayout>} />
+      <Route path="/admin/smtp" element={<SuperAdminLayout><SuperAdminSmtp /></SuperAdminLayout>} />
+      <Route path="/admin/email-templates" element={<SuperAdminLayout><SuperAdminEmailTemplates /></SuperAdminLayout>} />
+      <Route path="/admin/license-console" element={<SuperAdminLayout><LicenseConsolePage /></SuperAdminLayout>} />
+      <Route path="/admin/license-approval" element={<SuperAdminLayout><LicenseApprovalPage /></SuperAdminLayout>} />
+      <Route path="/admin/impersonate" element={<SuperAdminLayout><Impersonate /></SuperAdminLayout>} />
+      <Route path="/admin/resellers" element={<SuperAdminLayout><SuperResellersPage /></SuperAdminLayout>} />
+      <Route path="/admin/reseller-keys" element={<SuperAdminLayout><ResellerKeysPage /></SuperAdminLayout>} />
+      <Route path="/admin/master-control" element={<SuperAdminLayout><MasterControlPage /></SuperAdminLayout>} />
+      <Route path="/admin/super-master-control" element={<SuperAdminLayout><SuperAdminMasterControl /></SuperAdminLayout>} />
+      <Route path="/admin/invoice-settings" element={<SuperAdminLayout><InvoiceSettingsPage /></SuperAdminLayout>} />
 
       {/* App routes (all ERP pages under /app) */}
       <Route path="/app" element={<LayoutWrapper><Dashboard /></LayoutWrapper>} />
@@ -540,6 +550,7 @@ export default function App() {
       <Route path="/app/sales/quotations" element={<LayoutWrapper><QuotationsPage /></LayoutWrapper>} />
       <Route path="/app/sales/orders" element={<LayoutWrapper><SalesOrdersPage /></LayoutWrapper>} />
       <Route path="/app/sales/invoices" element={<LayoutWrapper><InvoicesPage /></LayoutWrapper>} />
+      <Route path="/app/sales/quick-invoice" element={<LayoutWrapper><QuickInvoicePage /></LayoutWrapper>} />
       <Route path="/app/sales/credit-notes" element={<LayoutWrapper><CreditNotesPage /></LayoutWrapper>} />
       <Route path="/app/sales/payments" element={<LayoutWrapper><CustomerPaymentsPage /></LayoutWrapper>} />
 
@@ -645,13 +656,6 @@ export default function App() {
       <Route path="/app/tax-settings/fbr" element={<LayoutWrapper><FbrTaxSettings /></LayoutWrapper>} />
       <Route path="/app/tasks" element={<LayoutWrapper><TaskList /></LayoutWrapper>} />
       <Route path="/app/meetings" element={<LayoutWrapper><MeetingList /></LayoutWrapper>} />
-
-      {/* AI Routes */}
-      <Route path="/app/ai/reports" element={<LayoutWrapper><AIReportsPage /></LayoutWrapper>} />
-      <Route path="/app/ai/forecasting" element={<LayoutWrapper><AIForecastingPage /></LayoutWrapper>} />
-      <Route path="/app/ai/chatbot" element={<LayoutWrapper><AIChatbotPage /></LayoutWrapper>} />
-      <Route path="/app/ai/automation" element={<LayoutWrapper><AIAutomationPage /></LayoutWrapper>} />
-      <Route path="/app/ai/voice" element={<LayoutWrapper><AIVoicePage /></LayoutWrapper>} />
 
       {/* BI Routes */}
       <Route path="/app/bi/dashboards" element={<LayoutWrapper><DashboardBuilderPage /></LayoutWrapper>} />

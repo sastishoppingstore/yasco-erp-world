@@ -123,13 +123,27 @@ export const salesRouter = createRouter({
     .input(z.object({
       code: z.string().optional(),
       name: z.string(),
+      nameAr: z.string().optional(),
+      customerType: z.enum(["b2b", "b2c", "government", "cash_customer"]).optional(),
       email: z.string().optional(),
       phone: z.string().optional(),
       mobile: z.string().optional(),
+      whatsapp: z.string().optional(),
       address: z.string().optional(),
+      buildingNumber: z.string().optional(),
+      streetName: z.string().optional(),
+      district: z.string().optional(),
       city: z.string().optional(),
+      postalCode: z.string().optional(),
+      additionalNumber: z.string().optional(),
       taxNumber: z.string().optional(),
+      vatNumber: z.string().optional(),
+      crNumber: z.string().optional(),
+      contactPerson: z.string().optional(),
+      contactTitle: z.string().optional(),
       creditLimit: z.string().optional(),
+      openingBalance: z.string().optional(),
+      openingBalanceDate: z.string().optional(),
       paymentTerms: z.number().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
@@ -140,6 +154,44 @@ export const salesRouter = createRouter({
         code: input.code || `CUST-${Date.now()}`,
       }).$returningId();
       return { id, success: true };
+    }),
+
+  customerUpdate: authedQuery
+    .input(z.object({
+      id: z.number(),
+      code: z.string().optional(),
+      name: z.string().optional(),
+      nameAr: z.string().optional(),
+      customerType: z.enum(["b2b", "b2c", "government", "cash_customer"]).optional(),
+      email: z.string().optional(),
+      phone: z.string().optional(),
+      mobile: z.string().optional(),
+      whatsapp: z.string().optional(),
+      address: z.string().optional(),
+      buildingNumber: z.string().optional(),
+      streetName: z.string().optional(),
+      district: z.string().optional(),
+      city: z.string().optional(),
+      postalCode: z.string().optional(),
+      additionalNumber: z.string().optional(),
+      taxNumber: z.string().optional(),
+      vatNumber: z.string().optional(),
+      crNumber: z.string().optional(),
+      contactPerson: z.string().optional(),
+      contactTitle: z.string().optional(),
+      creditLimit: z.string().optional(),
+      openingBalance: z.string().optional(),
+      openingBalanceDate: z.string().optional(),
+      paymentTerms: z.number().optional(),
+      isActive: z.boolean().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const { id, ...data } = input;
+      await db.update(customers)
+        .set(data)
+        .where(and(eq(customers.id, id), eq(customers.tenantId, ctx.user.tenantId!)));
+      return { success: true };
     }),
 
   quotationList: authedQuery
@@ -258,14 +310,21 @@ export const salesRouter = createRouter({
     .input(z.object({
       invoiceNumber: z.string(),
       invoiceType: z.enum(["standard", "simplified", "zatca"]).optional(),
+      invoiceMode: z.string().optional(),
       customerId: z.number(),
       date: z.string(),
       dueDate: z.string().optional(),
       subTotal: z.string(),
       taxAmount: z.string().optional(),
       taxPercent: z.string().optional(),
+      taxableAmount: z.string().optional(),
+      discountAmount: z.string().optional(),
       totalAmount: z.string(),
       notes: z.string().optional(),
+      poNumber: z.string().optional(),
+      contractNumber: z.string().optional(),
+      projectReference: z.string().optional(),
+      workedMonth: z.string().optional(),
       items: z.array(z.object({
         productId: z.number().optional(),
         description: z.string(),
@@ -273,11 +332,20 @@ export const salesRouter = createRouter({
         unitPrice: z.string(),
         taxPercent: z.string().optional(),
         totalAmount: z.string(),
+        unit: z.string().optional(),
+        sku: z.string().optional(),
+        discountPercent: z.number().optional(),
+        totalHours: z.number().optional(),
+        ratePerHour: z.number().optional(),
       })),
     }))
     .mutation(async ({ input, ctx }) => {
       const db = getDb();
-      const { items, ...invoiceData } = input;
+      const { items, ...invoiceDataInput } = input;
+      const invoiceData: Record<string, any> = {
+        ...invoiceDataInput,
+        dueDate: invoiceDataInput.dueDate || null,
+      };
       const tenantId = ctx.user.tenantId!;
       const settings = await db.query.companySettings.findFirst({
         where: eq(companySettings.tenantId, tenantId),
@@ -289,25 +357,12 @@ export const salesRouter = createRouter({
       const invoiceType = saudiInvoice ? "zatca" : (invoiceData.invoiceType || "standard");
       const sellerName = settings?.companyName || settings?.companyNameAr || "";
       const vatNumber = settings?.taxNumber || "";
-      if (saudiInvoice) {
-        if (!sellerName.trim()) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Saudi ZATCA invoices require company name in Settings before billing.",
-          });
-        }
-        if (!isValidSaudiVatNumber(vatNumber)) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Saudi ZATCA invoices require a valid 15-digit VAT number that starts and ends with 3.",
-          });
-        }
-      }
+      const zatcaReady = saudiInvoice && sellerName.trim() && isValidSaudiVatNumber(vatNumber);
       const timestamp = new Date(`${invoiceData.date}T00:00:00.000Z`).toISOString();
-      const zatcaQrCode = saudiInvoice
+      const zatcaQrCode = zatcaReady
         ? buildZatcaQrPayload(sellerName, vatNumber, timestamp, invoiceData.totalAmount, taxAmount)
         : undefined;
-      const zatcaXml = saudiInvoice
+      const zatcaXml = zatcaReady
         ? buildSaudiInvoiceXml({
             invoiceNumber: invoiceData.invoiceNumber,
             date: invoiceData.date,
@@ -328,7 +383,7 @@ export const salesRouter = createRouter({
         taxAmount,
         zatcaQrCode,
         zatcaXml,
-        zatcaStatus: saudiInvoice ? "pending" : undefined,
+        zatcaStatus: zatcaReady ? "pending" : undefined,
         terms: settings?.invoiceTerms,
         balanceDue: invoiceData.totalAmount,
         status: "draft",
@@ -350,7 +405,8 @@ export const salesRouter = createRouter({
           taxAmount,
           taxPercent,
           saudiInvoice,
-          zatcaStatus: saudiInvoice ? "pending" : null,
+          zatcaStatus: zatcaReady ? "pending" : null,
+          zatcaReady,
         },
         createdAt: new Date(),
       });
@@ -375,14 +431,21 @@ export const salesRouter = createRouter({
       id: z.number(),
       invoiceNumber: z.string().optional(),
       invoiceType: z.enum(["standard", "simplified", "zatca"]).optional(),
+      invoiceMode: z.string().optional(),
       customerId: z.number().optional(),
       date: z.string().optional(),
       dueDate: z.string().optional(),
       subTotal: z.string().optional(),
       taxAmount: z.string().optional(),
       taxPercent: z.string().optional(),
+      taxableAmount: z.string().optional(),
+      discountAmount: z.string().optional(),
       totalAmount: z.string().optional(),
       notes: z.string().optional(),
+      poNumber: z.string().optional(),
+      contractNumber: z.string().optional(),
+      projectReference: z.string().optional(),
+      workedMonth: z.string().optional(),
       status: z.enum(["draft", "sent", "paid", "partial", "overdue", "cancelled", "credit_note"]).optional(),
       items: z.array(z.object({
         id: z.number().optional(),
@@ -392,13 +455,21 @@ export const salesRouter = createRouter({
         unitPrice: z.string(),
         taxPercent: z.string().optional(),
         totalAmount: z.string(),
+        unit: z.string().optional(),
+        sku: z.string().optional(),
+        discountPercent: z.number().optional(),
+        totalHours: z.number().optional(),
+        ratePerHour: z.number().optional(),
       })).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       const db = getDb();
       const tenantId = ctx.user.tenantId!;
-      const { items, ...invoiceData } = input;
-      const invoiceId = input.id;
+      const { id: invoiceId, items, ...invoiceDataInput } = input;
+      const invoiceData: Record<string, any> = { ...invoiceDataInput };
+      if (Object.prototype.hasOwnProperty.call(invoiceData, "dueDate")) {
+        invoiceData.dueDate = invoiceData.dueDate || null;
+      }
 
       const existingInvoice = await db.query.invoices.findFirst({
         where: and(eq(invoices.id, invoiceId), eq(invoices.tenantId, tenantId)),

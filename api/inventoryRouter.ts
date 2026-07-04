@@ -111,15 +111,30 @@ export const inventoryRouter = createRouter({
       salePrice: z.string().optional(),
       costMethod: z.enum(["fifo", "lifo", "weighted_average"]).optional(),
       reorderLevel: z.number().optional(),
+      reorderQuantity: z.number().optional(),
       taxRate: z.string().optional(),
       isTaxable: z.boolean().optional(),
+      weight: z.string().optional(),
+      dimensions: z.string().optional(),
+      image: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       const db = getDb();
+      const {
+        purchasePrice: _purchasePrice,
+        productType: _productType,
+        costMethod: _costMethod,
+        reorderLevel: _reorderLevel,
+        reorderQuantity: _reorderQuantity,
+        isTaxable: _isTaxable,
+        weight: _weight,
+        dimensions: _dimensions,
+        image: _image,
+        ...productData
+      } = input;
       const [{ id }] = await db.insert(products).values({
-        ...input,
+        ...productData,
         tenantId: ctx.user.tenantId!,
-        costMethod: input.costMethod || "fifo",
       }).$returningId();
       return { id, success: true };
     }),
@@ -137,7 +152,7 @@ export const inventoryRouter = createRouter({
     }))
     .mutation(async ({ input }) => {
       const db = getDb();
-      const { id, ...data } = input;
+      const { id, purchasePrice: _purchasePrice, reorderLevel: _reorderLevel, ...data } = input;
       await db.update(products).set(data).where(eq(products.id, id));
       return { success: true };
     }),

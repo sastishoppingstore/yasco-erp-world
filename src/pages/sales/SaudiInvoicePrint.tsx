@@ -3,13 +3,21 @@ import { forwardRef } from "react";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 
+type InvoiceMode = "product" | "service" | "labor" | "construction" | "pharmacy" | "school" | "restaurant" | "workshop";
+
 interface InvoiceItem {
   id: number;
   description: string;
+  descriptionAr?: string;
   quantity: number;
   unitPrice: string | number;
   taxPercent: string | number;
   totalAmount: string | number;
+  unit?: string;
+  totalHours?: number;
+  ratePerHour?: number;
+  sku?: string;
+  discountPercent?: number;
 }
 
 interface CompanyInfo {
@@ -20,11 +28,19 @@ interface CompanyInfo {
   country?: string;
   phone?: string;
   email?: string;
+  website?: string;
   taxNumber?: string;
   crNumber?: string;
   logo?: string;
+  stamp?: string;
+  signature?: string;
   defaultCurrency?: string;
   invoiceTerms?: string;
+  buildingNumber?: string;
+  streetName?: string;
+  district?: string;
+  postalCode?: string;
+  additionalNumber?: string;
 }
 
 interface CustomerInfo {
@@ -35,18 +51,29 @@ interface CustomerInfo {
   phone?: string;
   email?: string;
   taxNumber?: string;
+  crNumber?: string;
+  buildingNumber?: string;
+  streetName?: string;
+  district?: string;
+  postalCode?: string;
+  contactPerson?: string;
 }
 
 interface InvoiceData {
   invoiceNumber?: string;
   date?: string;
+  time?: string;
   dueDate?: string;
   invoiceType?: string;
+  invoiceMode?: InvoiceMode;
   taxPercent?: string | number;
   subTotal?: string | number;
+  discountAmount?: string | number;
+  taxableAmount?: string | number;
   taxAmount?: string | number;
   totalAmount?: string | number;
   paidAmount?: string | number;
+  balanceDue?: string | number;
   status?: string;
   zatcaStatus?: string;
   zatcaQrCode?: string;
@@ -54,6 +81,14 @@ interface InvoiceData {
   terms?: string;
   uuid?: string;
   hash?: string;
+  poNumber?: string;
+  contractNumber?: string;
+  projectReference?: string;
+  workedMonth?: string;
+  paymentMethod?: string;
+  paymentTerms?: string;
+  cashier?: string;
+  createdBy?: string;
 }
 
 export interface SaudiInvoicePrintProps {
@@ -76,6 +111,92 @@ function fmtMoney(v?: string | number | null) {
 
 function isSimplified(type?: string) {
   return type === "simplified";
+}
+
+// ── Amount in words (English) ─────────────────────────────────────────
+function numberToWordsEn(n: number): string {
+  if (n === 0) return "Zero";
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+    "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const scales = ["", "Thousand", "Million", "Billion"];
+  function convertChunk(num: number): string {
+    if (num === 0) return "";
+    const parts: string[] = [];
+    if (num >= 100) { parts.push(ones[Math.floor(num / 100)] + " Hundred"); num %= 100; }
+    if (num >= 20) { parts.push(tens[Math.floor(num / 10)]); num %= 10; }
+    if (num > 0) parts.push(ones[num]);
+    return parts.join(" ");
+  }
+  const intPart = Math.floor(n);
+  const frac = Math.round((n - intPart) * 100);
+  let result = "";
+  let scaleIdx = 0;
+  let remaining = intPart;
+  while (remaining > 0) {
+    const chunk = remaining % 1000;
+    if (chunk > 0) {
+      const chunkWords = convertChunk(chunk);
+      result = chunkWords + (scales[scaleIdx] ? " " + scales[scaleIdx] : "") + (result ? " " + result : "");
+    }
+    remaining = Math.floor(remaining / 1000);
+    scaleIdx++;
+  }
+  result = result || "Zero";
+  if (frac > 0) result += ` and ${frac}/100`;
+  return result.trim() + " Saudi Riyals";
+}
+
+// ── Amount in words (Arabic) ──────────────────────────────────────────
+function numberToWordsAr(n: number): string {
+  if (n === 0) return "صفر";
+  const ones: [string, string][] = [
+    ["", ""], ["واحد", "واحدة"], ["اثنان", "اثنتان"], ["ثلاثة", "ثلاث"], ["أربعة", "أربع"],
+    ["خمسة", "خمس"], ["ستة", "ست"], ["سبعة", "سبع"], ["ثمانية", "ثمان"], ["تسعة", "تسع"],
+    ["عشرة", "عشر"], ["أحد عشر", "إحدى عشرة"], ["اثنا عشر", "اثنتا عشرة"],
+    ["ثلاثة عشر", "ثلاث عشرة"], ["أربعة عشر", "أربع عشرة"], ["خمسة عشر", "خمس عشرة"],
+    ["ستة عشر", "ست عشرة"], ["سبعة عشر", "سبع عشرة"], ["ثمانية عشر", "ثماني عشرة"], ["تسعة عشر", "تسع عشرة"]
+  ];
+  const tensAr = ["", "", "عشرون", "ثلاثون", "أربعون", "خمسون", "ستون", "سبعون", "ثمانون", "تسعون"];
+  const scalesAr = ["", "ألف", "مليون", "مليار"];
+  function chunkAr(num: number, feminine: boolean): string {
+    if (num === 0) return "";
+    const idx = feminine ? 1 : 0;
+    const parts: string[] = [];
+    if (num >= 100) {
+      const h = Math.floor(num / 100);
+      if (h === 1) parts.push("مائة");
+      else if (h === 2) parts.push("مائتان");
+      else parts.push(ones[h][0] + " مائة");
+      num %= 100;
+    }
+    if (num >= 20) {
+      parts.push(tensAr[Math.floor(num / 10)]);
+      num %= 10;
+    }
+    if (num > 0) parts.push(ones[num][idx]);
+    return parts.join(" و ");
+  }
+  const intPart = Math.floor(n);
+  const frac = Math.round((n - intPart) * 100);
+  let result = "";
+  let scaleIdx = 0;
+  let remaining = intPart;
+  const feminineScales = [false, true, false, false]; // ألف is feminine
+  while (remaining > 0) {
+    const chunk = remaining % 1000;
+    if (chunk > 0) {
+      const chunkWords = chunkAr(chunk, feminineScales[scaleIdx]);
+      if (chunk === 1 && scaleIdx === 1) result = "ألف" + (result ? " " + result : "");
+      else if (chunk === 2 && scaleIdx === 1) result = "ألفان" + (result ? " " + result : "");
+      else result = chunkWords + (scalesAr[scaleIdx] ? " " + scalesAr[scaleIdx] : "") + (result ? " و " + result : "");
+    }
+    remaining = Math.floor(remaining / 1000);
+    scaleIdx++;
+  }
+  result = result || "صفر";
+  if (frac > 0) result += ` و ${frac}/100`;
+  return result.trim() + " ريال سعودي";
 }
 
 // ── Hijri date helper (approximate) ────────────────────────────────────
@@ -686,85 +807,171 @@ export const SaudiInvoicePrint = forwardRef<HTMLDivElement, SaudiInvoicePrintPro
             </div>
 
             {/* ── Meta Row ── */}
-            <div className="inv-meta-row">
+            <div className="inv-meta-row" style={{ gridTemplateColumns: `repeat(6, 1fr)` }}>
               <div className="inv-meta-pill inv-meta-pill-type">
                 <div className="inv-meta-label">Invoice Type</div>
-                <div className="inv-meta-value" style={{ color: "#0f172a", fontSize: 12 }}>
+                <div className="inv-meta-value" style={{ color: "#0f172a", fontSize: 10 }}>
                   {invoice.invoiceType === "simplified" ? "Simplified / مبسطة"
                     : invoice.invoiceType === "zatca"    ? "ZATCA / فاتورة ذاتكا"
                     : "Standard / قياسية"}
                 </div>
               </div>
               <div className="inv-meta-pill inv-meta-pill-date">
-                <div className="inv-meta-label">Invoice Date</div>
-                <div className="inv-meta-value" style={{ color: "#c2410c" }}>
+                <div className="inv-meta-label">Issue Date</div>
+                <div className="inv-meta-value" style={{ color: "#c2410c", fontSize: 11 }}>
                   {invoice.date ?? "—"}
                 </div>
                 {hijriDate && (
-                  <div style={{ fontSize: 10, color: "#9a3412", direction: "rtl", marginTop: 2 }}>{hijriDate}</div>
+                  <div style={{ fontSize: 9, color: "#9a3412", direction: "rtl", marginTop: 1 }}>{hijriDate}</div>
                 )}
+              </div>
+              <div className="inv-meta-pill inv-meta-pill-type" style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}>
+                <div className="inv-meta-label">Issue Time</div>
+                <div className="inv-meta-value" style={{ color: "#065f46", fontSize: 11 }}>
+                  {invoice.time ?? "—"}
+                </div>
               </div>
               <div className="inv-meta-pill inv-meta-pill-due">
                 <div className="inv-meta-label">Due Date</div>
-                <div className="inv-meta-value" style={{ color: "#b91c1c" }}>
+                <div className="inv-meta-value" style={{ color: "#b91c1c", fontSize: 11 }}>
                   {invoice.dueDate ?? "Upon Receipt"}
                 </div>
               </div>
-              <div className="inv-meta-pill inv-meta-pill-uuid">
-                <div className="inv-meta-label">Place of Supply</div>
-                <div className="inv-meta-value" style={{ color: "#6d28d9", fontSize: 12 }}>
-                  {company.country ?? "Saudi Arabia / المملكة"}
+              <div className="inv-meta-pill inv-meta-pill-uuid" style={{ background: "#faf5ff", borderColor: "#e9d5ff" }}>
+                <div className="inv-meta-label">{invoice.workedMonth ? "Worked Month" : "Payment Method"}</div>
+                <div className="inv-meta-value" style={{ color: "#6d28d9", fontSize: 10 }}>
+                  {invoice.workedMonth ?? invoice.paymentMethod ?? "—"}
+                </div>
+              </div>
+              <div className="inv-meta-pill inv-meta-pill-date" style={{ background: "#fff7ed", borderColor: "#fed7aa" }}>
+                <div className="inv-meta-label">{invoice.poNumber ? "PO No." : invoice.cashier ? "Cashier" : "Created By"}</div>
+                <div className="inv-meta-value" style={{ color: "#9a3412", fontSize: 10 }}>
+                  {invoice.poNumber ?? invoice.cashier ?? invoice.createdBy ?? "—"}
                 </div>
               </div>
             </div>
+            {(invoice.contractNumber || invoice.projectReference) && (
+              <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+                {invoice.contractNumber && (
+                  <div style={{ fontSize: 11, color: "#475569", background: "#f1f5f9", padding: "4px 12px", borderRadius: 6 }}>
+                    <strong>Contract:</strong> {invoice.contractNumber}
+                  </div>
+                )}
+                {invoice.projectReference && (
+                  <div style={{ fontSize: 11, color: "#475569", background: "#f1f5f9", padding: "4px 12px", borderRadius: 6 }}>
+                    <strong>Project:</strong> {invoice.projectReference}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── Items Table ── */}
             <div className="inv-table-wrap">
               <table className="inv-table">
                 <thead>
                   <tr>
-                    <th style={{ width: 40, textAlign: "center" }}>#</th>
-                    <th>Description / الوصف</th>
-                    <th style={{ textAlign: "right" }}>Qty</th>
-                    <th style={{ textAlign: "right" }}>Unit Price</th>
-                    <th style={{ textAlign: "right" }}>VAT %</th>
-                    <th style={{ textAlign: "right" }}>VAT Amt</th>
-                    <th style={{ textAlign: "right" }}>Total / الإجمالي</th>
+                    <th style={{ width: 32, textAlign: "center" }}>#</th>
+                    {invoice.invoiceMode === "labor" || invoice.invoiceMode === "construction" ? (
+                      <>
+                        <th>Worker / Job Description</th>
+                        <th style={{ textAlign: "right", width: 80 }}>Unit</th>
+                        <th style={{ textAlign: "right", width: 80 }}>Total Hrs</th>
+                        <th style={{ textAlign: "right", width: 100 }}>Rate/Hour</th>
+                        <th style={{ textAlign: "right", width: 80 }}>VAT %</th>
+                        <th style={{ textAlign: "right", width: 100 }}>VAT Amt</th>
+                        <th style={{ textAlign: "right", width: 110 }}>Total / الإجمالي</th>
+                      </>
+                    ) : invoice.invoiceMode === "service" ? (
+                      <>
+                        <th>Service Description</th>
+                        <th style={{ textAlign: "right", width: 80 }}>Unit</th>
+                        <th style={{ textAlign: "right", width: 80 }}>Qty</th>
+                        <th style={{ textAlign: "right", width: 100 }}>Rate</th>
+                        <th style={{ textAlign: "right", width: 80 }}>VAT %</th>
+                        <th style={{ textAlign: "right", width: 100 }}>VAT Amt</th>
+                        <th style={{ textAlign: "right", width: 110 }}>Total / الإجمالي</th>
+                      </>
+                    ) : (
+                      <>
+                        <th>SKU / Description / الوصف</th>
+                        <th style={{ textAlign: "right", width: 70 }}>Unit</th>
+                        <th style={{ textAlign: "right", width: 70 }}>Qty</th>
+                        <th style={{ textAlign: "right", width: 100 }}>Unit Price</th>
+                        <th style={{ textAlign: "right", width: 70 }}>Disc %</th>
+                        <th style={{ textAlign: "right", width: 80 }}>VAT %</th>
+                        <th style={{ textAlign: "right", width: 100 }}>VAT Amt</th>
+                        <th style={{ textAlign: "right", width: 110 }}>Total / الإجمالي</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item, idx) => {
-                    const lineNet = toNum(item.quantity) * toNum(item.unitPrice);
-                    const lineVat = lineNet * (toNum(item.taxPercent) / 100);
-                    const lineTotal = toNum(item.totalAmount) || lineNet;
+                    const qty = toNum(item.quantity);
+                    const rate = invoice.invoiceMode === "labor" || invoice.invoiceMode === "construction"
+                      ? toNum(item.ratePerHour ?? item.unitPrice) : toNum(item.unitPrice);
+                    const hours = toNum(item.totalHours ?? qty);
+                    const lineNet = invoice.invoiceMode === "labor" || invoice.invoiceMode === "construction"
+                      ? hours * rate : qty * rate;
+                    const discPct = toNum(item.discountPercent ?? 0);
+                    const discAmt = lineNet * (discPct / 100);
+                    const taxable = lineNet - discAmt;
+                    const vatPctLine = toNum(item.taxPercent);
+                    const lineVat = taxable * (vatPctLine / 100);
+                    const lineTotal = (item.totalAmount && toNum(item.totalAmount)) || taxable + lineVat;
                     return (
                       <tr key={item.id ?? idx}>
                         <td style={{ textAlign: "center" }}>
                           <span className="inv-row-num">{idx + 1}</span>
                         </td>
                         <td>
-                          <div className="inv-item-desc">{item.description}</div>
+                          <div className="inv-item-desc">
+                            {item.sku && <span style={{ color: "#64748b", fontFamily: "monospace", fontSize: 11 }}>[{item.sku}] </span>}
+                            {item.description}
+                          </div>
+                          {item.descriptionAr && <div className="inv-item-desc-ar">{item.descriptionAr}</div>}
                         </td>
-                        <td style={{ textAlign: "right" }} className="inv-table-number">
-                          {toNum(item.quantity).toLocaleString()}
-                        </td>
-                        <td style={{ textAlign: "right" }} className="inv-table-number">
-                          {fmtMoney(item.unitPrice)}
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          <span style={{
-                            background: "#d1fae5", color: "#065f46",
-                            padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700
-                          }}>
-                            {toNum(item.taxPercent)}%
-                          </span>
-                        </td>
-                        <td style={{ textAlign: "right" }} className="inv-table-number">
-                          {fmtMoney(lineVat)}
-                        </td>
-                        <td className="inv-table-number">
-                          {fmtMoney(lineTotal)}
-                        </td>
+                        {invoice.invoiceMode === "labor" || invoice.invoiceMode === "construction" ? (
+                          <>
+                            <td style={{ textAlign: "right" }}>{item.unit || "d"}</td>
+                            <td style={{ textAlign: "right" }} className="inv-table-number">{hours.toLocaleString()}</td>
+                            <td style={{ textAlign: "right" }} className="inv-table-number">{fmtMoney(rate)}</td>
+                            <td style={{ textAlign: "right" }}>
+                              <span style={{ background: "#d1fae5", color: "#065f46", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                                {vatPctLine}%
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "right" }} className="inv-table-number">{fmtMoney(lineVat)}</td>
+                            <td className="inv-table-number">{fmtMoney(taxable + lineVat)}</td>
+                          </>
+                        ) : invoice.invoiceMode === "service" ? (
+                          <>
+                            <td style={{ textAlign: "right" }}>{item.unit || "service"}</td>
+                            <td style={{ textAlign: "right" }} className="inv-table-number">{qty.toLocaleString()}</td>
+                            <td style={{ textAlign: "right" }} className="inv-table-number">{fmtMoney(rate)}</td>
+                            <td style={{ textAlign: "right" }}>
+                              <span style={{ background: "#d1fae5", color: "#065f46", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                                {vatPctLine}%
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "right" }} className="inv-table-number">{fmtMoney(lineVat)}</td>
+                            <td className="inv-table-number">{fmtMoney(taxable + lineVat)}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td style={{ textAlign: "right" }}>{item.unit || "pcs"}</td>
+                            <td style={{ textAlign: "right" }} className="inv-table-number">{qty.toLocaleString()}</td>
+                            <td style={{ textAlign: "right" }} className="inv-table-number">{fmtMoney(rate)}</td>
+                            <td style={{ textAlign: "right" }} className="inv-table-number">{discPct > 0 ? `${discPct}%` : "—"}</td>
+                            <td style={{ textAlign: "right" }}>
+                              <span style={{ background: "#d1fae5", color: "#065f46", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                                {vatPctLine}%
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "right" }} className="inv-table-number">{fmtMoney(lineVat)}</td>
+                            <td className="inv-table-number">{fmtMoney(lineTotal)}</td>
+                          </>
+                        )}
                       </tr>
                     );
                   })}
@@ -774,12 +981,25 @@ export const SaudiInvoicePrint = forwardRef<HTMLDivElement, SaudiInvoicePrintPro
 
             {/* ── Footer Grid ── */}
             <div className="inv-footer-grid">
-              {/* Left: QR + Notes */}
+              {/* Left: Amount in Words + Notes */}
               <div>
+                <div className="inv-totals" style={{ marginBottom: 12 }}>
+                  <div className="inv-totals-row" style={{ background: "#f8fafc", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                    <span className="inv-totals-label" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                      Amount in Words / المبلغ بالكلمات
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", lineHeight: 1.4 }}>
+                      {numberToWordsEn(total)}
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", direction: "rtl", lineHeight: 1.4 }}>
+                      {numberToWordsAr(total)}
+                    </span>
+                  </div>
+                </div>
                 {(invoice.notes || invoice.terms || company.invoiceTerms) && (
                   <div className="inv-notes">
                     <div style={{ fontWeight: 700, marginBottom: 6, color: "#6d28d9" }}>
-                      📝 Terms & Notes / الشروط والملاحظات
+                      Terms & Notes / الشروط والملاحظات
                     </div>
                     <div style={{ lineHeight: 1.7 }}>
                       {invoice.notes || invoice.terms || company.invoiceTerms}
@@ -796,6 +1016,16 @@ export const SaudiInvoicePrint = forwardRef<HTMLDivElement, SaudiInvoicePrintPro
                     <span className="inv-totals-label">Subtotal / المجموع الفرعي</span>
                     <span className="inv-totals-value">{fmtMoney(subTotal)} {currency}</span>
                   </div>
+                  {toNum(invoice.discountAmount) > 0 && (
+                    <div className="inv-totals-row" style={{ background: "#fefce8" }}>
+                      <span className="inv-totals-label" style={{ color: "#854d0e" }}>Discount / الخصم</span>
+                      <span className="inv-totals-value" style={{ color: "#ca8a04" }}>-{fmtMoney(invoice.discountAmount)} {currency}</span>
+                    </div>
+                  )}
+                  <div className="inv-totals-row" style={{ background: "#f8fafc" }}>
+                    <span className="inv-totals-label">Taxable Amount / المبلغ الخاضع للضريبة</span>
+                    <span className="inv-totals-value">{fmtMoney(toNum(invoice.taxableAmount) || subTotal)} {currency}</span>
+                  </div>
                   <div className="inv-totals-row inv-totals-row-vat">
                     <span className="inv-totals-label">VAT {vatPct}% / ضريبة القيمة المضافة</span>
                     <span className="inv-totals-value" style={{ color: "#059669" }}>{fmtMoney(taxAmount)} {currency}</span>
@@ -810,7 +1040,13 @@ export const SaudiInvoicePrint = forwardRef<HTMLDivElement, SaudiInvoicePrintPro
                       <span className="inv-totals-value" style={{ color: "#854d0e" }}>{fmtMoney(paid)} {currency}</span>
                     </div>
                   )}
-                  {paid > 0 && (
+                  {toNum(invoice.balanceDue) > 0 && (
+                    <div className="inv-totals-row inv-totals-row-due">
+                      <span className="inv-totals-label" style={{ color: "#991b1b" }}>Balance Due / المبلغ المستحق</span>
+                      <span className="inv-totals-value inv-totals-value-due">{fmtMoney(invoice.balanceDue)} {currency}</span>
+                    </div>
+                  )}
+                  {paid <= 0 && toNum(invoice.balanceDue) <= 0 && due > 0 && (
                     <div className="inv-totals-row inv-totals-row-due">
                       <span className="inv-totals-label" style={{ color: "#991b1b" }}>Balance Due / المبلغ المستحق</span>
                       <span className="inv-totals-value inv-totals-value-due">{fmtMoney(due)} {currency}</span>
@@ -868,6 +1104,13 @@ export const SaudiInvoicePrint = forwardRef<HTMLDivElement, SaudiInvoicePrintPro
                 </div>
               )}
             </div>
+
+            {/* ── Website Footer ── */}
+            {company.website && (
+              <div style={{ textAlign: "center", marginTop: 16, fontSize: 11, color: "#64748b" }}>
+                {company.website}
+              </div>
+            )}
 
             {/* ── Watermark ── */}
             <div className="inv-watermark">

@@ -1,6 +1,6 @@
 import { getDb } from "../queries/connection";
 import * as schema from "@db/schema";
-import { and, eq, desc, asc, lt, gte, sql } from "drizzle-orm";
+import { and, eq, desc, asc, lte, gte, sql } from "drizzle-orm";
 import { env } from "./env";
 
 const TENANT_SCOPED = (tenantId: number) => eq(schema.documents.tenantId, tenantId);
@@ -125,9 +125,9 @@ export class DocumentEngine {
     await db.insert(schema.documentExpiryReminders).values({
       tenantId, documentId: config.documentId,
       reminderType: config.reminderType as any,
-      expiryDate: new Date(config.expiryDate),
+      expiryDate: config.expiryDate,
       reminderDaysBefore: config.reminderDaysBefore,
-      notifyUserIds: JSON.stringify(config.notifyUserIds),
+      notifyUserIds: config.notifyUserIds,
       createdBy: config.createdBy, status: "active",
     });
   }

@@ -125,6 +125,81 @@ app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 
 export default app;
 
+async function startPlanExpiryChecker() {
+  try {
+    const { getDb } = await import("./queries/connection");
+    const { eq, and, lte, gte } = await import("drizzle-orm");
+    const { tenants } = await import("@db/schema");
+    const { sendEmail } = await import("./lib/smtp");
+    const { templates } = await import("./lib/emailBranding");
+
+    async function checkPlans() {
+      try {
+        const db = getDb();
+        const now = new Date();
+        const in3Days = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+        const in14Days = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+        const expiringSoon = await db.select().from(tenants).where(
+          and(
+            eq(tenants.status as any, "active"),
+            gte(tenants.trialEndsAt, now),
+            lte(tenants.trialEndsAt, in14Days),
+          )
+        );
+
+        for (const t of expiringSoon) {
+          const daysLeft = Math.ceil((t.trialEndsAt!.getTime() - now.getTime()) / 86400000);
+          const html = templates.planExpiring({
+            planName: t.plan || "Free",
+            companyName: t.name,
+            daysLeft,
+            expiryDate: t.trialEndsAt!.toLocaleDateString("en-SA"),
+          });
+          try {
+            await sendEmail({
+              to: t.email,
+              subject: `Your YASCO ERP plan expires in ${daysLeft} days`,
+              html,
+              text: `Your plan expires on ${t.trialEndsAt!.toLocaleDateString("en-SA")}. ${daysLeft} days remaining.`,
+            });
+          } catch {}
+        }
+
+        const expired = await db.select().from(tenants).where(
+          and(
+            lte(tenants.trialEndsAt, now),
+            eq(tenants.status as any, "active"),
+          )
+        );
+
+        for (const t of expired) {
+          const html = templates.planExpired({
+            planName: t.plan || "Free",
+            companyName: t.name,
+          });
+          try {
+            await sendEmail({
+              to: t.email,
+              subject: "Your YASCO ERP plan has expired",
+              html,
+              text: `Your ${t.plan || "Free"} plan has expired. Please renew to continue.`,
+            });
+          } catch {}
+        }
+      } catch (err: any) {
+        console.warn("[plan-checker] Error:", err.message);
+      }
+    }
+
+    checkPlans();
+    setInterval(checkPlans, 60 * 60 * 1000);
+    console.log("[plan-checker] Started (runs hourly)");
+  } catch (err: any) {
+    console.warn("[plan-checker] Init skipped:", err.message);
+  }
+}
+
 async function bootstrap() {
   if (env.enableRedis) {
     try {
@@ -138,6 +213,8 @@ async function bootstrap() {
       console.warn("[bootstrap] Redis/queue init skipped:", err.message);
     }
   }
+
+  startPlanExpiryChecker();
 
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");

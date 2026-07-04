@@ -6,14 +6,15 @@ const queue = createQueue(QUEUES.email.name, { attempts: 3, backoff: { type: "ex
 export type EmailJobData = {
   to: string;
   subject: string;
-  body: string;
+  body?: string;
+  html?: string;
   tenantId?: number;
   userId?: number;
 };
 
 async function processEmail(job: { data: EmailJobData }): Promise<{ sent: boolean; messageId?: string }> {
-  const { to, subject, body } = job.data;
-  const result = await sendEmail(to, subject, body);
+  const { to, subject, body, html } = job.data;
+  const result = await sendEmail(html ? { to, subject, html, text: body } : { to, subject, text: body || subject });
   return { sent: result.sent, messageId: `email_${Date.now()}` };
 }
 

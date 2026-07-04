@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { ALL_MODULES, INDUSTRY_DEFAULTS } from "@/config/modules";
 
 const formSchema = z.object({
   companyName: z.string().min(2, "Company name is required"),
@@ -28,6 +29,7 @@ const formSchema = z.object({
   timezone: z.string().min(1, "Timezone is required"),
   businessType: z.string().min(1, "Business type is required"),
   industry: z.string().min(1, "Industry is required"),
+  businessCategory: z.string().min(1, "Business category is required"),
   employeesCount: z.string().min(1, "Employee count is required"),
   currency: z.string().min(1, "Currency is required"),
   language: z.string().min(1, "Language is required"),
@@ -67,6 +69,22 @@ const industries = [
   { value: "logistics", label: "Logistics", labelAr: "الخدمات اللوجستية" },
 ];
 
+const businessCategories = [
+  { value: "workshop", label: "Workshop / Garage", labelAr: "ورشة سيارات", industry: "services", modules: ["workshop", "inventory", "sales", "purchase"] },
+  { value: "school", label: "School / Institute", labelAr: "مدرسة / معهد", industry: "education", modules: ["education", "sales", "hrm"] },
+  { value: "hospital", label: "Hospital / Clinic", labelAr: "مستشفى / عيادة", industry: "healthcare", modules: ["healthcare", "pos_pharmacy", "sales", "hrm"] },
+  { value: "tailor", label: "Tailor / Boutique", labelAr: "خياط / بوتيك", industry: "retail", modules: ["pos_retail", "inventory", "sales", "crm"] },
+  { value: "hammam", label: "Hammam / Salon", labelAr: "حمام / صالون", industry: "services", modules: ["sales", "crm", "hrm", "helpdesk"] },
+  { value: "restaurant", label: "Restaurant / Cafe", labelAr: "مطعم / مقهى", industry: "hospitality", modules: ["pos_restaurant", "inventory", "purchase", "sales"] },
+  { value: "hotel", label: "Hotel", labelAr: "فندق", industry: "hospitality", modules: ["hotel", "pos_restaurant", "sales", "hrm"] },
+  { value: "construction", label: "Construction", labelAr: "مقاولات", industry: "construction", modules: ["construction", "projects", "purchase", "assets"] },
+  { value: "transport", label: "Transport / Logistics", labelAr: "نقل / لوجستيات", industry: "logistics", modules: ["transport", "assets", "sales", "purchase"] },
+  { value: "retail", label: "Retail / Trading", labelAr: "تجارة / تجزئة", industry: "retail", modules: ["pos_retail", "inventory", "sales", "purchase"] },
+  { value: "manufacturing", label: "Manufacturing", labelAr: "تصنيع", industry: "manufacturing", modules: ["manufacturing", "inventory", "purchase", "sales"] },
+  { value: "services", label: "General Services", labelAr: "خدمات عامة", industry: "services", modules: ["crm", "projects", "helpdesk", "sales"] },
+  { value: "all", label: "Multi-Business", labelAr: "متعدد الأنشطة", industry: "services", modules: ALL_MODULES.map((m) => m.id) },
+];
+
 const employeeRanges = [
   { value: "1-5", label: "1-5" },
   { value: "6-20", label: "6-20" },
@@ -91,6 +109,7 @@ export default function RegisterBusiness() {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [error, setError] = useState("");
+  const [enabledModules, setEnabledModules] = useState<string[]>(["accounting", "inventory", "sales", "purchase", "hrm"]);
 
   const registerMutation = trpc.registration.register.useMutation({
     onSuccess: (data) => {
@@ -111,6 +130,7 @@ export default function RegisterBusiness() {
       timezone: timezone,
       businessType: "",
       industry: "",
+      businessCategory: "",
       employeesCount: "",
       currency: currency,
       language: language,
@@ -132,7 +152,29 @@ export default function RegisterBusiness() {
   }, [selectedCountry, timezone, currency, form]);
 
   const watchedCountry = form.watch("country");
+  const watchedIndustry = form.watch("industry");
+  const watchedCategory = form.watch("businessCategory");
   const taxRegistered = form.watch("taxRegistered");
+
+  useEffect(() => {
+    const selected = businessCategories.find((cat) => cat.value === watchedCategory);
+    if (!selected) return;
+    form.setValue("industry", selected.industry);
+    setEnabledModules(Array.from(new Set([...selected.modules, "accounting", "inventory", "sales", "purchase", "hrm", "reports", "settings"])));
+  }, [watchedCategory, form]);
+
+  useEffect(() => {
+    if (watchedCategory) return;
+    const defaults = INDUSTRY_DEFAULTS[watchedIndustry as keyof typeof INDUSTRY_DEFAULTS] || [];
+    setEnabledModules(Array.from(new Set([...defaults, "accounting", "inventory", "sales", "purchase", "hrm", "reports", "settings"])));
+  }, [watchedIndustry, watchedCategory]);
+
+  const toggleModule = (moduleId: string, checked: boolean) => {
+    setEnabledModules((prev) => checked
+      ? Array.from(new Set([...prev, moduleId]))
+      : prev.filter((id) => id !== moduleId || ALL_MODULES.find((m) => m.id === id)?.isCore)
+    );
+  };
 
   const getTaxFields = () => {
     if (!taxRegistered) return null;
@@ -214,7 +256,7 @@ export default function RegisterBusiness() {
     const fieldsByStep = [
       ["companyName", "ownerName", "email", "phone"],
       ["country", "city", "timezone"],
-      ["businessType", "industry", "employeesCount", "currency", "language"],
+      ["businessType", "industry", "businessCategory", "employeesCount", "currency", "language"],
       ["taxRegistered"],
       ["password", "confirmPassword"],
     ];
@@ -251,11 +293,15 @@ export default function RegisterBusiness() {
       timezone: values.timezone,
       businessType: values.businessType,
       industry: values.industry,
+      businessCategory: values.businessCategory,
       employeesCount: values.employeesCount,
       currency: values.currency,
       language: values.language,
       taxRegistered: values.taxRegistered,
       password: values.password,
+      confirmPassword: values.confirmPassword,
+      address: [values.city, values.country].filter(Boolean).join(", "),
+      enabledModules,
     };
     if (values.taxRegistered) {
       switch (watchedCountry) {
@@ -274,6 +320,19 @@ export default function RegisterBusiness() {
           payload.taxNumber = values.taxNumber;
       }
     }
+    localStorage.setItem("yasco-enabled-modules", JSON.stringify(enabledModules));
+    const dashboardCategory =
+      values.businessCategory === "school" ? "education" :
+      values.businessCategory === "tailor" ? "retail" :
+      values.businessCategory === "hammam" ? "services" :
+      values.businessCategory;
+    localStorage.setItem("yasco-company-profile", JSON.stringify({
+      businessCategory: dashboardCategory,
+      enabledModules,
+      companyName: values.companyName,
+      city: values.city,
+      country: values.country,
+    }));
     registerMutation.mutate(payload as any);
   };
 
@@ -425,6 +484,49 @@ export default function RegisterBusiness() {
                 <FormMessage />
               </FormItem>
             )} />
+            <FormField control={form.control} name="businessCategory" render={({ field }) => (
+              <FormItem>
+                <FormLabel>{isAr ? "فئة النشاط" : "Business Category"}</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={isAr ? "اختر فئة النشاط" : "Select Business Category"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {businessCategories.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {isAr ? cat.labelAr : cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="space-y-2 rounded-lg border p-3">
+              <Label>{isAr ? "الخدمات / الوحدات المطلوبة" : "Required Services / Modules"}</Label>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {ALL_MODULES.map((mod) => {
+                  const checked = enabledModules.includes(mod.id) || mod.isCore;
+                  return (
+                    <label key={mod.id} className="flex items-start gap-2 rounded-md border bg-white p-2 text-sm text-slate-900">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={mod.isCore}
+                        onChange={(e) => toggleModule(mod.id, e.target.checked)}
+                        className="mt-1"
+                      />
+                      <span>
+                        <span className="block font-medium">{isAr ? mod.nameAr : mod.name}</span>
+                        <span className="block text-xs text-slate-500">{isAr ? mod.descriptionAr : mod.description}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <FormField control={form.control} name="employeesCount" render={({ field }) => (
                 <FormItem>
@@ -559,8 +661,8 @@ export default function RegisterBusiness() {
           </div>
         </section>
 
-        <section className="flex items-center justify-center bg-white px-4 py-8">
-          <Card className="w-full max-w-md border-0 shadow-none">
+        <section className="flex items-center justify-center bg-white px-4 py-8 text-slate-950">
+          <Card className="w-full max-w-md border-0 bg-white text-slate-950 shadow-none">
             <CardHeader className="px-0">
               <CardTitle className="text-2xl">{isAr ? "تسجيل الشركة" : "Register Business"}</CardTitle>
               <CardDescription>

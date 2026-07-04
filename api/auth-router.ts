@@ -7,6 +7,7 @@ import { env } from "./lib/env";
 import { createLocalAdminUser, LOCAL_ADMIN_TENANT_ID } from "./lib/localUser";
 import { requireDesktopLicense } from "./lib/license";
 import { sendEmail } from "./lib/smtp";
+import { templates } from "./lib/emailBranding";
 import { signSessionToken } from "./lib/session";
 import { findUserByUnionId, upsertUser } from "./queries/users";
 import { createRouter, authedQuery, publicQuery } from "./middleware";
@@ -22,6 +23,14 @@ function normalizeUsername(value: string) {
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+function superAdminUsernames() {
+  return new Set([
+    normalizeUsername(env.adminUsername),
+    "yaseensuperadmin",
+    "wafaweb",
+  ]);
 }
 
 function hashOtp(email: string, otp: string) {
@@ -95,23 +104,24 @@ export const authRouter = createRouter({
       password: z.string().min(1),
     }))
     .mutation(async ({ input, ctx }) => {
-      requireDesktopLicense(ctx.req.headers);
       const username = normalizeUsername(input.username);
-      const expectedUsername = normalizeUsername(env.adminUsername);
-      const validUsername = timingSafeEqualString(username, expectedUsername);
+      const allowedSuperAdmins = superAdminUsernames();
+      const isSuperAdmin = allowedSuperAdmins.has(username);
+      if (!isSuperAdmin) {
+        requireDesktopLicense(ctx.req.headers);
+      }
       const validPassword = timingSafeEqualString(input.password, env.adminPassword);
 
-      if (!validUsername || !validPassword) {
+      if (!isSuperAdmin || !validPassword) {
         throw new Error("Invalid username or password.");
       }
 
-      const unionId = `local:${expectedUsername}`;
-      const isSuperAdmin = true;
+      const unionId = `local:${username}`;
       const user = await ensureLocalUser({
         unionId,
-        name: isSuperAdmin ? "YASCO Super Admin" : "YASCO Admin",
-        email: env.adminEmail || undefined,
-        role: isSuperAdmin ? "super_admin" : "admin",
+        name: username === "wafaweb" ? "WAFAWEB Super Admin" : "YASCO Super Admin",
+        email: username === normalizeUsername(env.adminUsername) ? env.adminEmail || undefined : undefined,
+        role: "super_admin",
       });
       await setLocalSession(ctx, unionId);
       return { success: true, user };
@@ -128,12 +138,8 @@ export const authRouter = createRouter({
         attempts: 0,
       });
 
-      const tpl = await templateEngine.getTemplate(null, "account_otp");
-      const subject = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").subject : "Your YASCO login OTP";
-      const bodyEn = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "en").body : `Your YASCO login OTP is ${otp}.\n\nThis code expires in 10 minutes. If you did not request it, ignore this email.`;
-      const bodyAr = tpl ? templateEngine.compile(tpl, { otp_code: otp, expiry_minutes: "10" }, "ar").body : "";
-      const fullBody = bodyAr ? `${bodyEn}\n\n---\n${bodyAr}` : bodyEn;
-      const result = await sendEmail(email, subject, fullBody);
+      const html = templates.otp({ otp, expiryMinutes: 10, name: email });
+      const result = await sendEmail({ to: email, subject: `Your OTP Code - ${otp}`, html, text: `Your YASCO login OTP is ${otp}. Expires in 10 minutes.` });
 
       return {
         success: true,

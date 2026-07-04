@@ -4,6 +4,7 @@ import { eq, lt, and } from "drizzle-orm";
 import { templateEngine } from "./templates";
 import { notificationDispatcher, type ChannelType } from "./channels";
 import { sendEmailJob } from "../../queue/email.queue";
+import { templates as htmlTemplates } from "../emailBranding";
 
 export interface NotificationEvent {
   tenantId: number;
@@ -23,12 +24,15 @@ async function sendNotification(event: NotificationEvent) {
   const compiledEn = templateEngine.compile(template, event.variables, "en");
   const compiledAr = templateEngine.compile(template, event.variables, "ar");
 
+  const htmlBody = buildHtml(event.eventType, event.variables);
+
   if (event.recipientEmail) {
     try {
       await sendEmailJob({
         to: event.recipientEmail,
         subject: compiledEn.subject,
         body: `${compiledEn.body}\n\n---\n${compiledAr.body}`,
+        html: htmlBody,
         tenantId: event.tenantId,
         userId: event.recipientUserId,
       });
@@ -49,6 +53,36 @@ async function sendNotification(event: NotificationEvent) {
         bodyAr: compiledAr.body,
       }
     );
+  }
+}
+
+function buildHtml(eventType: string, vars: Record<string, string | number>): string | undefined {
+  switch (eventType) {
+    case "invoice_created":
+      return htmlTemplates.invoice({
+        invoiceNumber: String(vars.invoice_number),
+        customerName: String(vars.customer_name),
+        amount: Number(vars.amount),
+        currency: "SAR",
+        dueDate: String(vars.due_date),
+      });
+    case "payment_received":
+      return htmlTemplates.paymentReceived({
+        invoiceNumber: String(vars.invoice_number),
+        customerName: String(vars.customer_name),
+        amount: Number(vars.amount),
+        currency: "SAR",
+      });
+    case "invoice_overdue":
+      return htmlTemplates.invoiceOverdue({
+        invoiceNumber: String(vars.invoice_number),
+        customerName: String(vars.customer_name),
+        amount: Number(vars.amount),
+        currency: "SAR",
+        daysOverdue: Number(vars.days_overdue),
+      });
+    default:
+      return undefined;
   }
 }
 

@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { useDashboardLayout, DashboardPreset } from "@/hooks/useDashboardLayout";
+import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import type { DashboardPreset } from "@/hooks/useDashboardLayout";
 import { useLanguage } from "@/providers/language";
 
 const presets: { key: DashboardPreset; en: string; ar: string }[] = [

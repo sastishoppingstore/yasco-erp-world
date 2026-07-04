@@ -34,6 +34,7 @@ export const env = {
   smtpPass: process.env.SMTP_PASS ?? "",
   smtpFrom: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? "",
   smtpSecure: process.env.SMTP_SECURE === "true",
+  smtpTlsRejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== "false",
 
   // ── AI ───────────────────────────────────────────────────────────
   geminiApiKey: process.env.GEMINI_API_KEY ?? "",

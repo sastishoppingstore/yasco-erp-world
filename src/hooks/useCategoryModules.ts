@@ -20,7 +20,11 @@ function getStoredCategory(): BusinessCategory {
     const raw = localStorage.getItem(CATEGORY_STORAGE_KEY);
     if (!raw) return "all";
     const data = JSON.parse(raw);
-    return (data.businessCategory as BusinessCategory) || "all";
+    const category = data.businessCategory;
+    if (category === "school") return "education";
+    if (category === "tailor") return "retail";
+    if (category === "hammam") return "services";
+    return (category as BusinessCategory) || "all";
   } catch {
     return "all";
   }

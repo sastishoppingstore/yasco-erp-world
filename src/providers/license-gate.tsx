@@ -1,11 +1,19 @@
 import { useEffect, useState, ReactNode } from "react";
 import { trpc } from "@/providers/trpc";
+import { useLocation } from "react-router";
 
 interface LicenseGateProps {
   children: ReactNode;
 }
 
 export function LicenseGate({ children }: LicenseGateProps) {
+  const location = useLocation();
+
+  // Super admin routes never need a license check
+  if (location.pathname.startsWith("/admin")) {
+    return <>{children}</>;
+  }
+
   const { data, isLoading, isError } = trpc.license.status.useQuery(undefined, {
     retry: 2,
     staleTime: 5 * 60 * 1000,

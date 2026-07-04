@@ -1,6 +1,7 @@
 import net from "node:net";
 import tls from "node:tls";
 import { env } from "./env";
+import { yascoBrand } from "./emailBranding";
 
 type SmtpResponse = {
   code: number;
@@ -15,24 +16,51 @@ function escapeAddress(value: string) {
   return value.replace(/[<>\r\n]/g, "");
 }
 
-function createMessage(to: string, subject: string, body: string) {
+export type EmailContent = {
+  subject: string;
+  html?: string;
+  text?: string;
+};
+
+function buildMimeMessage(to: string, content: EmailContent) {
   const from = env.smtpFrom || env.smtpUser;
-  return [
-    `From: YASCO <${escapeAddress(from)}>`,
+  const boundary = "----=_NextPart_" + Date.now().toString(36);
+
+  const headers = [
+    `From: YASCO ERP <${escapeAddress(from)}>`,
     `To: ${escapeAddress(to)}`,
-    `Subject: ${subject.replace(/[\r\n]/g, " ")}`,
+    `Subject: ${content.subject.replace(/[\r\n]/g, " ")}`,
     "MIME-Version: 1.0",
-    'Content-Type: text/plain; charset="UTF-8"',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",
-    body,
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    Buffer.from(content.text || content.subject, "utf8").toString("base64"),
+    "",
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    Buffer.from(content.html || "", "utf8").toString("base64"),
+    "",
+    `--${boundary}--`,
     "",
   ].join("\r\n");
+
+  return headers;
 }
 
 function connectSocket() {
   return new Promise<net.Socket>((resolve, reject) => {
     const socket = env.smtpSecure
-      ? tls.connect({ port: env.smtpPort, host: env.smtpHost }, () => resolve(socket))
+      ? tls.connect({
+          port: env.smtpPort,
+          host: env.smtpHost,
+          servername: env.smtpHost,
+          rejectUnauthorized: env.smtpTlsRejectUnauthorized,
+        }, () => resolve(socket))
       : net.connect(env.smtpPort, env.smtpHost, () => resolve(socket));
 
     socket.setTimeout(15000);
@@ -43,7 +71,11 @@ function connectSocket() {
 
 function upgradeToTls(socket: net.Socket) {
   return new Promise<tls.TLSSocket>((resolve, reject) => {
-    const secureSocket = tls.connect({ socket, servername: env.smtpHost }, () => resolve(secureSocket));
+    const secureSocket = tls.connect({
+      socket,
+      servername: env.smtpHost,
+      rejectUnauthorized: env.smtpTlsRejectUnauthorized,
+    }, () => resolve(secureSocket));
     secureSocket.once("error", reject);
     secureSocket.setTimeout(15000);
     secureSocket.once("timeout", () => reject(new Error("SMTP TLS handshake timed out")));
@@ -78,7 +110,14 @@ async function sendCommand(socket: net.Socket, command: string) {
   return readResponse(socket);
 }
 
-export async function sendEmail(to: string, subject: string, body: string) {
+export async function sendEmail(to: string, subject: string, body: string): Promise<{ sent: boolean }>;
+export async function sendEmail(options: EmailContent & { to: string }): Promise<{ sent: boolean }>;
+export async function sendEmail(toOrOptions: string | (EmailContent & { to: string }), subject?: string, body?: string): Promise<{ sent: boolean }> {
+  const to = typeof toOrOptions === "string" ? toOrOptions : toOrOptions.to;
+  const content: EmailContent = typeof toOrOptions === "string"
+    ? { subject: subject!, text: body! }
+    : toOrOptions;
+
   if (!env.smtpHost || !env.smtpFrom) {
     if (env.isProduction) {
       throw new Error("SMTP is not configured.");
@@ -106,7 +145,23 @@ export async function sendEmail(to: string, subject: string, body: string) {
   await sendCommand(socket, `MAIL FROM:<${escapeAddress(env.smtpFrom)}>`);
   await sendCommand(socket, `RCPT TO:<${escapeAddress(to)}>`);
   await sendCommand(socket, "DATA");
-  socket.write(`${createMessage(to, subject, body)}\r\n.\r\n`);
+
+  if (content.html) {
+    socket.write(`${buildMimeMessage(to, content)}\r\n.\r\n`);
+  } else {
+    const msg = [
+      `From: YASCO ERP <${escapeAddress(env.smtpFrom)}>`,
+      `To: ${escapeAddress(to)}`,
+      `Subject: ${content.subject.replace(/[\r\n]/g, " ")}`,
+      "MIME-Version: 1.0",
+      'Content-Type: text/plain; charset="UTF-8"',
+      "",
+      content.text || content.subject,
+      "",
+    ].join("\r\n");
+    socket.write(`${msg}\r\n.\r\n`);
+  }
+
   await readResponse(socket);
   await sendCommand(socket, "QUIT");
   socket.end();

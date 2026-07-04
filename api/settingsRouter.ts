@@ -1,10 +1,16 @@
 import { z } from "zod";
 import { createRouter, authedQuery, adminQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { auditLogs, companySettings, taxRates, currencies, notifications } from "@db/schema";
+import { auditLogs, companySettings, taxRates, currencies, notifications, tenantModules } from "@db/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
 
 export const settingsRouter = createRouter({
+  tenantModulesList: authedQuery
+    .query(async ({ ctx }) => {
+      const db = getDb();
+      return db.select().from(tenantModules).where(eq(tenantModules.tenantId, ctx.user.tenantId!));
+    }),
+
   // Company Settings
   companySettingsGet: authedQuery
     .query(async ({ ctx }) => {

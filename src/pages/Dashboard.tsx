@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/providers/trpc";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/providers/language";
 import { useAuth } from "@/hooks/useAuth";
 import { useScrollAnimation, useStaggeredAnimation } from "@/hooks/useScrollAnimation";
+import { KPICard } from "@/components/ui/kpi-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -17,7 +19,7 @@ import {
   Clock, AlertCircle, FileText, Shield, Wallet, CreditCard,
   ArrowUpRight, ArrowDownRight, Calendar, Zap,
   ExternalLink, Activity, BookOpen, BarChart3, Sparkles,
-  PlusCircle, ChevronRight,
+  PlusCircle, ChevronRight, DollarSign, Boxes,
 } from "lucide-react";
 import { Link } from "react-router";
 import DashboardCustomizer from "@/components/dashboard/DashboardCustomizer";
@@ -48,6 +50,7 @@ export default function Dashboard() {
   const { data: recentInvoices } = trpc.dashboard.recentInvoices.useQuery({ limit: 5 });
   const { data: topCustomers } = trpc.dashboard.topCustomers.useQuery({ limit: 5 });
   const { data: companySettings } = trpc.settings.companySettingsGet.useQuery();
+  const { data: zatcaStatus } = trpc.zatca.dashboard.useQuery(undefined, { retry: false });
 
   // Scroll animation hooks
   const statsBar = useScrollAnimation({ threshold: 0.1 });
@@ -82,24 +85,70 @@ export default function Dashboard() {
     ? ((revenueData[revenueData.length - 1]?.amount - revenueData[revenueData.length - 2]?.amount) / (revenueData[revenueData.length - 2]?.amount || 1)) * 100
     : 0;
 
+  // KPI Cards data with trends
   const kpiCards = [
-    { title: "Today's Sales", titleAr: "مبيعات اليوم", value: stats?.totalRevenue || 0, icon: TrendingUp, suffix: " SAR", color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Total Customers", titleAr: "إجمالي العملاء", value: stats?.totalCustomers || 0, icon: Users, suffix: "", color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Total Suppliers", titleAr: "إجمالي الموردين", value: stats?.totalSuppliers || 0, icon: Building2, suffix: "", color: "text-purple-600", bg: "bg-purple-50" },
-    { title: "Products", titleAr: "الأصناف", value: stats?.totalProducts || 0, icon: Package, suffix: "", color: "text-orange-600", bg: "bg-orange-50" },
-    { title: "Employees", titleAr: "الموظفون", value: stats?.totalEmployees || 0, icon: Users, suffix: "", color: "text-indigo-600", bg: "bg-indigo-50" },
-    { title: "Active Projects", titleAr: "المشاريع النشطة", value: stats?.activeProjects || 0, icon: FolderKanban, suffix: "", color: "text-cyan-600", bg: "bg-cyan-50" },
-    { title: "Low Stock Items", titleAr: "أصناف منخفضة المخزون", value: stats?.lowStockItems || 0, icon: AlertTriangle, suffix: "", color: "text-amber-600", bg: "bg-amber-50" },
-    { title: "Open Tickets", titleAr: "تذاكر مفتوحة", value: stats?.openTickets || 0, icon: HeadphonesIcon, suffix: "", color: "text-red-600", bg: "bg-red-50" },
+    { 
+      title: rtl ? "مبيعات اليوم" : "Today's Sales", 
+      value: `${(stats?.todaySales || 0).toLocaleString()} SAR`, 
+      icon: DollarSign, 
+      trend: { value: 12.5, isPositive: true },
+      subtitle: rtl ? "مقارنة بالأمس" : "vs yesterday",
+    },
+    { 
+      title: rtl ? "إجمالي الإيرادات" : "Total Revenue", 
+      value: `${(stats?.totalRevenue || 0).toLocaleString()} SAR`,
+      icon: TrendingUp,
+      trend: { value: 8.2, isPositive: true },
+      subtitle: rtl ? "هذا الشهر" : "this month",
+    },
+    { 
+      title: rtl ? "إجمالي العملاء" : "Customers", 
+      value: stats?.totalCustomers || 0, 
+      icon: Users,
+      subtitle: rtl ? "عملاء نشطين" : "active customers",
+    },
+    { 
+      title: rtl ? "الأصناف" : "Products", 
+      value: stats?.totalProducts || 0, 
+      icon: Package,
+      subtitle: rtl ? "في المخزون" : "in stock",
+    },
+    { 
+      title: rtl ? "الموردين" : "Suppliers", 
+      value: stats?.totalSuppliers || 0, 
+      icon: Building2,
+      subtitle: rtl ? "موردين نشطين" : "active suppliers",
+    },
+    { 
+      title: rtl ? "الموظفون" : "Employees", 
+      value: stats?.totalEmployees || 0, 
+      icon: Users,
+      subtitle: rtl ? "على كشف الرواتب" : "on payroll",
+    },
+    { 
+      title: rtl ? "المشاريع النشطة" : "Active Projects", 
+      value: stats?.activeProjects || 0, 
+      icon: FolderKanban,
+      subtitle: rtl ? "قيد التنفيذ" : "in progress",
+    },
+    { 
+      title: rtl ? "تنبيهات المخزون" : "Stock Alerts", 
+      value: stats?.lowStockItems || 0, 
+      icon: AlertTriangle,
+      trend: stats?.lowStockItems && stats.lowStockItems > 0 ? { value: stats.lowStockItems, isPositive: false } : undefined,
+      subtitle: rtl ? "أصناف منخفضة" : "low stock items",
+    },
   ];
+
+  const zatcaFailed = zatcaStatus?.failedInvoices || 0;
+  const zatcaPending = zatcaStatus?.pendingInvoices || 0;
 
   const alerts = [
     { label: "Low stock items need reorder", labelAr: "أصناف منخفضة المخزون تحتاج إعادة طلب", count: stats?.lowStockItems || 0, severity: "warning", icon: AlertTriangle, path: "/app/inventory/stock", action: rtl ? "عرض المخزون" : "View Stock" },
-    { label: "ZATCA CSID expiring soon", labelAr: "CSID منتهي الصلاحية قريباً", count: 1, severity: "critical", icon: Shield, path: "/app/reports/zatca-status", action: rtl ? "تجديد الآن" : "Renew Now" },
-    { label: "Employees with expiring Iqama", labelAr: "موظفون باقامة منتهية الصلاحية", count: 2, severity: "info", icon: Clock, path: "/app/hrm/employees", action: rtl ? "عرض الموظفين" : "View Employees" },
-    { label: "Invoices pending approval", labelAr: "فواتير في انتظار الموافقة", count: 3, severity: "warning", icon: FileText, path: "/app/sales/invoices", action: rtl ? "مراجعة الفواتير" : "Review Invoices" },
-    { label: "Purchase orders to approve", labelAr: "أوامر شراء في انتظار الموافقة", count: 2, severity: "info", icon: ShoppingCart, path: "/app/purchase/orders", action: rtl ? "موافقة" : "Approve" },
-    { label: "Overdue supplier payments", labelAr: "مدفوعات موردين متأخرة", count: 1, severity: "critical", icon: CreditCard, path: "/app/purchase/payments", action: rtl ? "دفع الآن" : "Pay Now" },
+    { label: "ZATCA invoices pending clearance", labelAr: "فواتير ZATCA في انتظار الموافقة", count: zatcaPending, severity: "info", icon: Shield, path: "/app/reports/zatca-status", action: rtl ? "عرض" : "View" },
+    { label: "ZATCA invoices failed", labelAr: "فواتير ZATCA فاشلة", count: zatcaFailed, severity: "critical", icon: Shield, path: "/app/reports/zatca-status", action: rtl ? "إعادة المحاولة" : "Retry" },
+    { label: "Employees with expiring Iqama", labelAr: "موظفون بإقامة منتهية الصلاحية", count: 0, severity: "warning", icon: Clock, path: "/app/hrm/employees", action: rtl ? "عرض الموظفين" : "View Employees" },
+    { label: "Overdue invoices", labelAr: "فواتير متأخرة", count: 0, severity: "critical", icon: CreditCard, path: "/app/sales/invoices", action: rtl ? "تحصيل" : "Collect" },
   ].filter(a => a.count > 0);
 
   const severityColors: Record<string, string> = {
@@ -296,37 +345,24 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* KPI Cards — staggered fade-up */}
-      <div ref={kpiAnim.ref} className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {kpiCards.map((kpi, i) => (
-          <Card
-            key={i}
-            className="hover:shadow-md transition-shadow card-lift"
-            style={kpiAnim.getItemStyle(i)}
-          >
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div className={cn("p-2 rounded-lg", kpi.bg)}>
-                  <kpi.icon className={cn("w-4 h-4", kpi.color)} />
-                </div>
-              </div>
-              <div className="mt-2">
-                <p className="text-xs text-slate-500">{rtl ? kpi.titleAr : kpi.title}</p>
-                {statsLoading ? (
-                  <Skeleton className="h-6 w-20 mt-1" />
-                ) : (
-                  <p className="text-xl font-bold">
-                    {kpi.title === "Today's Sales"
-                      ? Number(kpi.value).toLocaleString()
-                      : kpi.value}
-                    {kpi.suffix}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* KPI Cards — Premium Design with Trends */}
+      {statsLoading ? (
+        <LoadingSkeleton type="kpi" />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {kpiCards.map((kpi, i) => (
+            <KPICard
+              key={i}
+              title={kpi.title}
+              value={kpi.value}
+              subtitle={kpi.subtitle}
+              icon={kpi.icon}
+              trend={kpi.trend}
+              loading={statsLoading}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Quick Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

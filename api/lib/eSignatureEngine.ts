@@ -1,6 +1,6 @@
 import { getDb } from "../queries/connection";
 import * as schema from "@db/schema";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, asc } from "drizzle-orm";
 import crypto from "node:crypto";
 
 /**
@@ -54,7 +54,7 @@ export class ESignatureEngine {
     await db.insert(schema.eSignatureLogs).values({
       tenantId, signatureRequestId: req.id,
       eventType: "created",
-      metadata: JSON.stringify({ requestedBy: data.requestedBy, method: data.signatureType ?? "draw" }),
+      metadata: { requestedBy: data.requestedBy, method: data.signatureType ?? "draw" },
     });
 
     return { id: req.id, status: "pending" };
@@ -79,10 +79,10 @@ export class ESignatureEngine {
     await db.insert(schema.eSignatureLogs).values({
       tenantId, signatureRequestId: requestId,
       eventType: "signed",
-      signatureData: JSON.stringify({ type: signature.type, dataPreview: signature.data.substring(0, 100) }),
+      signatureData: { type: signature.type, dataPreview: signature.data.substring(0, 100) },
       signatureHash,
       certificateInfo: certificateInfo ? JSON.stringify(certificateInfo) : null,
-      metadata: JSON.stringify({ signatureType: signature.type }),
+      metadata: { signatureType: signature.type },
     });
 
     return { success: true, hash: signatureHash };
@@ -102,7 +102,7 @@ export class ESignatureEngine {
     await db.insert(schema.eSignatureLogs).values({
       tenantId, signatureRequestId: requestId,
       eventType: "declined",
-      metadata: JSON.stringify({ reason }),
+      metadata: { reason },
     });
 
     return { success: true };
@@ -122,7 +122,7 @@ export class ESignatureEngine {
     await db.insert(schema.eSignatureLogs).values({
       tenantId, signatureRequestId: requestId,
       eventType: "verified",
-      metadata: JSON.stringify({ verifiedAt: new Date().toISOString(), valid: logs.length > 0 }),
+      metadata: { verifiedAt: new Date().toISOString(), valid: logs.length > 0 },
     });
 
     return {

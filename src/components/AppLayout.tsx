@@ -58,10 +58,54 @@ import {
   FileWarning,
 } from "lucide-react";
 
-import { AiAssistantPanel } from "./AiAssistantPanel";
 import { SyncStatusBar } from "./sync/SyncStatusBar";
-import { VoiceCommandButton, VoiceCommandHeaderButton } from "./VoiceCommand";
-import { useCategoryModules, getStoredCategory, BusinessCategory } from "@/hooks/useCategoryModules";
+import { getStoredCategory } from "@/hooks/useCategoryModules";
+
+const CORE_MODULES = new Set(["dashboard", "accounting", "inventory", "sales", "purchase", "hrm", "reports", "settings"]);
+
+const groupModuleKeys: Record<string, string[]> = {
+  MAIN: ["dashboard", "pos_retail", "pos_restaurant", "pos_pharmacy", "cashbox", "installments"],
+  FINANCE: ["accounting"],
+  INVENTORY: ["inventory"],
+  SALES: ["sales"],
+  PURCHASE: ["purchase"],
+  CRM: ["crm"],
+  HRM: ["hrm"],
+  MANUFACTURING: ["manufacturing"],
+  PROJECTS: ["projects"],
+  OPERATIONS: ["helpdesk", "assets", "transport"],
+  WORKSHOP: ["workshop"],
+  PLATFORM: ["dashboard"],
+  SYSTEM: ["reports", "settings"],
+};
+
+function moduleKeyForMenuItem(path: string, label: string) {
+  if (path === "/app") return "dashboard";
+  if (path.includes("/accounting")) return "accounting";
+  if (path.includes("/inventory")) return "inventory";
+  if (path.includes("/sales")) return "sales";
+  if (path.includes("/purchase")) return "purchase";
+  if (path.includes("/crm")) return "crm";
+  if (path.includes("/hrm")) return "hrm";
+  if (path.includes("/manufacturing") || path.includes("/mrp")) return "manufacturing";
+  if (path.includes("/projects")) return "projects";
+  if (path.includes("/helpdesk")) return "helpdesk";
+  if (path.includes("/assets") || path.includes("/fleet")) return "assets";
+  if (path.includes("/verticals/workshop")) return "workshop";
+  if (path.includes("/verticals/healthcare") || path.includes("/pos/pharmacy")) return "healthcare";
+  if (path.includes("/verticals/education")) return "education";
+  if (path.includes("/verticals/hotel")) return "hotel";
+  if (path.includes("/verticals/transport")) return "transport";
+  if (path.includes("/construction")) return "construction";
+  if (path.includes("/pos/restaurant")) return "pos_restaurant";
+  if (path.includes("/pos/wholesale")) return "pos_retail";
+  if (path.includes("/pos")) return "pos_retail";
+  if (path.includes("/cashbox")) return "cashbox";
+  if (path.includes("/installments")) return "installments";
+  if (path.includes("/reports")) return "reports";
+  if (path.includes("/settings") || path.includes("/branches") || label.includes("Profile")) return "settings";
+  return "dashboard";
+}
 
 const categoryGroupVisibility: Record<string, string[]> = {
   hospital: ['MAIN', 'FINANCE', 'INVENTORY', 'SALES', 'PURCHASE', 'CRM', 'HRM', 'OPERATIONS', 'PLATFORM', 'SYSTEM'],
@@ -120,6 +164,7 @@ const menuGroups = [
       { label: "Quotations", labelAr: "عروض الأسعار", icon: Receipt, path: "/app/sales/quotations" },
       { label: "Sales Orders", labelAr: "أوامر البيع", icon: ShoppingCart, path: "/app/sales/orders" },
       { label: "Invoices", labelAr: "الفواتير", icon: Receipt, path: "/app/sales/invoices" },
+      { label: "Quick Invoice", labelAr: "فاتورة سريعة", icon: FileText, path: "/app/sales/quick-invoice" },
       { label: "Credit Notes", labelAr: "إشعارات دائنة", icon: Receipt, path: "/app/sales/credit-notes" },
       { label: "Customer Payments", labelAr: "مدفوعات العملاء", icon: Landmark, path: "/app/sales/payments" },
     ],
@@ -249,12 +294,25 @@ const SidebarContent = memo(function SidebarContent({ collapsed, onNavigate }: {
   const { user } = useAuth();
   const rtl = language === "ar";
   const { data: companySettings } = trpc.settings.companySettingsGet.useQuery();
+  const { data: tenantModules } = trpc.settings.tenantModulesList.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
   const [searchQuery, setSearchQuery] = useState("");
 
   const userAdminItems = adminMenuItems.filter(item => item.roles.includes(user?.role || ""));
 
   const storedCategory = getStoredCategory();
   const visibleGroups = categoryGroupVisibility[storedCategory] || categoryGroupVisibility.all;
+  const dbEnabledModules = tenantModules?.filter((m) => m.isEnabled).map((m) => m.moduleName) || [];
+  const localEnabledModules = (() => {
+    try {
+      const raw = localStorage.getItem("yasco-enabled-modules");
+      return raw ? JSON.parse(raw) as string[] : [];
+    } catch {
+      return [];
+    }
+  })();
+  const enabledModules = new Set([...CORE_MODULES, ...dbEnabledModules, ...localEnabledModules]);
 
   const displayName = companySettings?.companyName || "YASCO ERP";
   const displayAr = companySettings?.companyNameAr;
@@ -262,7 +320,15 @@ const SidebarContent = memo(function SidebarContent({ collapsed, onNavigate }: {
   const initials = displayName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
   // Filter menu items by search query
-  const filteredGroups = menuGroups.filter(g => visibleGroups.includes(g.title));
+  const filteredGroups = menuGroups.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => enabledModules.has(moduleKeyForMenuItem(item.path, item.label))),
+  })).filter(g => {
+    if (!visibleGroups.includes(g.title)) return false;
+    if (g.items.length === 0) return false;
+    const keys = groupModuleKeys[g.title] || [];
+    return keys.length === 0 || keys.some((key) => enabledModules.has(key));
+  });
   const allItems = filteredGroups.flatMap(g => g.items.map(item => ({ ...item, group: rtl ? g.titleAr : g.title })));
   const filteredItems = searchQuery.trim()
     ? allItems.filter(item =>
@@ -517,7 +583,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const { user, logout, isLoading } = useAuth({ redirectOnUnauthenticated: true });
-  const { language, dir } = useLanguage();
+  const { language, setLang, dir } = useLanguage();
   const countryDetection = useCountryDetection();
   const rtl = language === "ar";
   const theme = countryThemes[countryDetection.selectedCountry] ?? countryThemes.US;
@@ -611,17 +677,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <ShieldCheck className="size-3 mr-1" />
               {rtl ? `مرخص: ${theme.product}` : `Licensed: ${theme.product}`}
             </Badge>
-            <AiAssistantPanel
-              trigger={
-                <Button variant="outline" size="sm" className="hidden sm:inline-flex border-white/20 bg-white/10 hover:bg-white/20 text-white hover:text-white">
-                  <Sparkles className="size-4 mr-1" />
-                  {rtl ? "المساعد الذكي" : "AI Assistant"}
-                </Button>
-              }
-            />
-            {/* Voice Command Header Button */}
-            <VoiceCommandHeaderButton />
-
             {/* Language Toggle Button */}
             <Button
               variant="outline"
@@ -651,8 +706,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {/* Floating Voice Command Button */}
-      <VoiceCommandButton />
     </div>
   );
 }

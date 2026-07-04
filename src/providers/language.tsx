@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { setLanguage, t } from "@/lib/i18n";
+import i18n from "@/i18n";
 
 type Language = "en" | "ar";
 
@@ -33,8 +34,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setLanguage(language);
     localStorage.setItem("language", language);
+    localStorage.setItem("erp-language", language);
+    i18n.changeLanguage(language);
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
     document.documentElement.lang = language;
+    document.documentElement.style.setProperty('--direction', language === "ar" ? "rtl" : "ltr");
   }, [language]);
 
   const setLang = (lang: Language) => {

@@ -4,64 +4,100 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Premium Saudi SaaS Theme - Light Mode */
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.625rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Primary: Deep Emerald (Saudi Green) */
+    --primary: 158 64% 35%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary: Navy / Dark Slate */
+    --secondary: 220 35% 18%;
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Muted tones */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    
+    /* Accent: Gold (subtle, for highlights only) */
+    --accent: 43 74% 66%;
+    --accent-foreground: 222 47% 11%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 158 64% 35%;
+    --radius: 1rem;
+    
+    /* Sidebar: Dark Navy with Emerald Glow */
+    --sidebar-background: 220 39% 11%;
+    --sidebar-foreground: 220 14% 96%;
+    --sidebar-primary: 158 64% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 35% 18%;
+    --sidebar-accent-foreground: 220 14% 96%;
+    --sidebar-border: 220 35% 22%;
+    --sidebar-ring: 158 64% 52%;
+    
+    /* Success, Warning, Info */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    /* Premium Saudi SaaS Theme - Dark Mode */
+    --background: 222 47% 11%;
+    --foreground: 220 14% 96%;
+    --card: 220 35% 15%;
+    --card-foreground: 220 14% 96%;
+    --popover: 220 35% 15%;
+    --popover-foreground: 220 14% 96%;
+    
+    --primary: 158 64% 52%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 220 35% 22%;
+    --secondary-foreground: 220 14% 96%;
+    
+    --muted: 220 35% 18%;
+    --muted-foreground: 220 9% 64%;
+    
+    --accent: 43 74% 66%;
+    --accent-foreground: 222 47% 11%;
+    
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 220 35% 22%;
+    --input: 220 35% 22%;
+    --ring: 158 64% 52%;
+    
+    --sidebar-background: 220 47% 8%;
+    --sidebar-foreground: 220 14% 96%;
+    --sidebar-primary: 158 64% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 220 35% 18%;
+    --sidebar-accent-foreground: 220 14% 96%;
+    --sidebar-border: 220 35% 15%;
+    --sidebar-ring: 158 64% 52%;
+    
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --info: 199 89% 58%;
+    --info-foreground: 0 0% 100%;
   }
 }
 
