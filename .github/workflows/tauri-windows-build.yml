@@ -191,6 +191,7 @@ jobs:
           Stop-Process -Id $process.Id -Force
 
       - name: Upload Windows installer artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: erp-windows-installer
