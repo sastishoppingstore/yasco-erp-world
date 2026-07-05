@@ -51,6 +51,8 @@
     "longDescription": "World-class ERP with Saudi ZATCA compliance, multi-country support, and full offline desktop capabilities.",
     "category": "Business",
     "copyright": "© 2025 YASCO. All rights reserved.",
-    "publisher": "YASCO Technologies"
-  }
+    "publisher": "YASCO Technologies",
+    "nsis": {
+      "installMode": "currentUser"
+    }
 }
