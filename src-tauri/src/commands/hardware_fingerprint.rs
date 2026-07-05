@@ -110,7 +110,7 @@ pub fn get_mac_address() -> Result<String, String> {
     {
       let mac = data.mac_address();
       if mac != MacAddr([0u8; 6]) {
-        let hex: Vec<String> = mac.iter().map(|b| format!("{b:02x}")).collect();
+        let hex: Vec<String> = mac.0.iter().map(|b| format!("{b:02x}")).collect();
         return Ok(hex.join(":"));
       }
     }
@@ -119,8 +119,8 @@ pub fn get_mac_address() -> Result<String, String> {
   // Fallback to any interface
   for (_name, data) in &networks {
     let mac = data.mac_address();
-    if mac != [0u8; 6] {
-      let hex: Vec<String> = mac.iter().map(|b| format!("{b:02x}")).collect();
+    if mac != MacAddr([0u8; 6]) {
+      let hex: Vec<String> = mac.0.iter().map(|b| format!("{b:02x}")).collect();
       return Ok(hex.join(":"));
     }
   }
