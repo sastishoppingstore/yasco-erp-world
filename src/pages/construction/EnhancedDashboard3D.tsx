@@ -1,15 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { trpc } from "@/lib/trpc";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 
 /**
  * 3D ANIMATED CUBE COMPONENT
@@ -278,55 +274,22 @@ const AnalyticsCharts = () => {
  * AI-POWERED INSIGHTS
  */
 const AIInsights = () => {
-  const [insights, setInsights] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const generateInsights = async () => {
-    setLoading(true);
-    try {
-      const result = await trpc.ai.generateConstructionInsights.query({
-        metrics: {
-          budget: 48,
-          schedule: 45,
-          quality: 94.5,
-          safety: 98.2,
-        },
-      });
-
-      setInsights(result.insights || []);
-      toast.success("AI analysis complete!");
-    } catch (error) {
-      toast.error("Failed to generate insights");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <span>🤖 AI Assistant</span>
+          <span>Project Insights</span>
         </CardTitle>
-        <CardDescription>Real-time project insights & recommendations</CardDescription>
+        <CardDescription>Project overview & recommendations</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <Button onClick={generateInsights} disabled={loading} className="w-full">
-          {loading ? "Analyzing..." : "Generate AI Insights"}
-        </Button>
-
-        {insights.length > 0 && (
-          <div className="space-y-3">
-            {insights.map((insight, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="p-3 bg-white rounded-lg border-l-4 border-purple-500 shadow-sm"
-              >
-                <p className="text-sm text-gray-700">{insight}</p>
-              </motion.div>
+      <CardContent>
+        <div className="text-sm text-muted-foreground">
+          Connect data source to see project insights.
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
             ))}
           </div>
         )}

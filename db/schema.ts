@@ -7240,3 +7240,24 @@ export const ecommerceOrders = mysqlTable("ecommerce_orders", {
   date: date("date", { mode: "string" }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const chatConversations = mysqlTable("chat_conversations", {
+  id: serial("id").primaryKey(),
+  tenantId: bigint("tenant_id", { mode: "number", unsigned: true }).notNull(),
+  subject: varchar("subject", { length: 255 }),
+  status: mysqlEnum("status", ["active", "resolved", "closed"]).default("active").notNull(),
+  lastMessageAt: timestamp("last_message_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const chatMessages = mysqlTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  conversationId: bigint("conversation_id", { mode: "number", unsigned: true }).notNull(),
+  senderId: bigint("sender_id", { mode: "number", unsigned: true }),
+  senderType: mysqlEnum("sender_type", ["admin", "support", "tenant", "user"]).default("tenant").notNull(),
+  senderName: varchar("sender_name", { length: 255 }),
+  message: text("message").notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

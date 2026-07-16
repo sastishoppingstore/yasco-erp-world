@@ -50,12 +50,6 @@ const Impersonate = lazy(() => import("./pages/Impersonate"));
 const TaskList = lazy(() => import("./pages/tasks/TaskList"));
 const MeetingList = lazy(() => import("./pages/meetings/MeetingList"));
 
-// AI Pages
-const AIReportsPage = lazy(() => import("./pages/ai/AIReports"));
-const AIForecastingPage = lazy(() => import("./pages/ai/AIForecasting"));
-const AIChatbotPage = lazy(() => import("./pages/ai/Chatbot"));
-const AIAutomationPage = lazy(() => import("./pages/ai/Automation"));
-const AIVoicePage = lazy(() => import("./pages/ai/Voice"));
 
 // BI Pages
 const DashboardBuilderPage = lazy(() => import("./pages/bi/DashboardBuilder"));
@@ -233,6 +227,7 @@ const LicenseApprovalPage = lazy(() => import("./pages/admin/license-approval"))
 const LicenseConsolePage = lazy(() => import("./pages/admin/LicenseConsole"));
 const SuperResellersPage = lazy(() => import("./pages/admin/super-resellers"));
 const InvoiceSettingsPage = lazy(() => import("./pages/admin/invoice-settings"));
+const AdminChatPage = lazy(() => import("./pages/admin/chat"));
 
 // Super Admin Layout
 const SuperAdminLayout = lazy(() => import("./components/SuperAdminLayout"));
@@ -540,6 +535,7 @@ export default function App() {
       <Route path="/admin/resellers" element={<SuperAdminLayout><SuperResellersPage /></SuperAdminLayout>} />
       <Route path="/admin/reseller-keys" element={<SuperAdminLayout><ResellerKeysPage /></SuperAdminLayout>} />
       <Route path="/admin/master-control" element={<SuperAdminLayout><MasterControlPage /></SuperAdminLayout>} />
+      <Route path="/admin/chat" element={<SuperAdminLayout><AdminChatPage /></SuperAdminLayout>} />
       <Route path="/admin/super-master-control" element={<SuperAdminLayout><SuperAdminMasterControl /></SuperAdminLayout>} />
       <Route path="/admin/invoice-settings" element={<SuperAdminLayout><InvoiceSettingsPage /></SuperAdminLayout>} />
 
@@ -655,6 +651,7 @@ export default function App() {
       <Route path="/app/admin/impersonate" element={<LayoutWrapper><Impersonate /></LayoutWrapper>} />
       <Route path="/app/admin/super-resellers" element={<LayoutWrapper><SuperResellersPage /></LayoutWrapper>} />
       <Route path="/app/admin/reseller-keys" element={<LayoutWrapper><ResellerKeysPage /></LayoutWrapper>} />
+      <Route path="/app/admin/chat" element={<LayoutWrapper><AdminChatPage /></LayoutWrapper>} />
       <Route path="/app/admin/license-approval" element={<LayoutWrapper><LicenseApprovalPage /></LayoutWrapper>} />
       <Route path="/app/admin/invoice-settings" element={<LayoutWrapper><InvoiceSettingsPage /></LayoutWrapper>} />
       <Route path="/app/admin/license-console" element={<LayoutWrapper><LicenseConsolePage /></LayoutWrapper>} />
@@ -677,12 +674,6 @@ export default function App() {
       <Route path="/app/tasks" element={<LayoutWrapper><TaskList /></LayoutWrapper>} />
       <Route path="/app/meetings" element={<LayoutWrapper><MeetingList /></LayoutWrapper>} />
 
-      {/* AI Routes */}
-      <Route path="/app/ai/reports" element={<LayoutWrapper><AIReportsPage /></LayoutWrapper>} />
-      <Route path="/app/ai/forecasting" element={<LayoutWrapper><AIForecastingPage /></LayoutWrapper>} />
-      <Route path="/app/ai/chatbot" element={<LayoutWrapper><AIChatbotPage /></LayoutWrapper>} />
-      <Route path="/app/ai/automation" element={<LayoutWrapper><AIAutomationPage /></LayoutWrapper>} />
-      <Route path="/app/ai/voice" element={<LayoutWrapper><AIVoicePage /></LayoutWrapper>} />
 
       {/* BI Routes */}
       <Route path="/app/bi/dashboards" element={<LayoutWrapper><DashboardBuilderPage /></LayoutWrapper>} />

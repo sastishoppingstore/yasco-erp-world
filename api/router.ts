@@ -22,7 +22,7 @@ import { reportsRouter } from "./reportsRouter";
 import { websiteRouter } from "./websiteRouter";
 import { localizationRouter } from "./localizationRouter";
 import { taxComplianceRouter } from "./taxComplianceRouter";
-import { aiAssistantRouter } from "./aiAssistantRouter";
+
 import { masterRouter } from "./masterRouter";
 import { zatcaRouter } from "./zatcaRouter";
 import { saasRouter } from "./saasRouter";
@@ -44,11 +44,6 @@ import { iotRouter } from "./iotRouter";
 import { workflowRouter } from "./workflowRouter";
 import { pluginRouter } from "./pluginRouter";
 import { mobileRouter } from "./mobileRouter";
-import { aiReportsRouter } from "./aiReportsRouter";
-import { aiForecastingRouter } from "./aiForecastingRouter";
-import { aiChatbotRouter } from "./aiChatbotRouter";
-import { aiVoiceRouter } from "./aiVoiceRouter";
-import { aiAutomationRouter } from "./aiAutomationRouter";
 import { dashboardBuilderRouter } from "./dashboardBuilderRouter";
 import { reportBuilderRouter } from "./reportBuilderRouter";
 import { workflowBuilderRouter } from "./workflowBuilderRouter";
@@ -84,6 +79,7 @@ import { workshopRouter } from "./workshopRouter";
 import { healthcareCompleteRouter } from "./healthcareCompleteRouter";
 import { workshopCompleteRouter } from "./workshopCompleteRouter";
 import { nphiesRouter } from "./nphiesRouter";
+import { chatRouter } from "./chatRouter";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -112,7 +108,6 @@ export const appRouter = createRouter({
   website: websiteRouter,
   localization: localizationRouter,
   taxCompliance: taxComplianceRouter,
-  aiAssistant: aiAssistantRouter,
   master: masterRouter,
   zatca: zatcaRouter,
   saas: saasRouter,
@@ -128,11 +123,6 @@ export const appRouter = createRouter({
   licenseKey: licenseKeyRouter,
   licenseAdmin: licenseAdminRouter,
   invoiceTheme: invoiceThemeRouter,
-  aiReports: aiReportsRouter,
-  aiForecasting: aiForecastingRouter,
-  aiChatbot: aiChatbotRouter,
-  aiVoice: aiVoiceRouter,
-  aiAutomation: aiAutomationRouter,
   dashboardBuilder: dashboardBuilderRouter,
   reportBuilder: reportBuilderRouter,
   documents: documentRouter,
@@ -171,6 +161,7 @@ export const appRouter = createRouter({
   ws: wsRouter,
   workshop: workshopRouter,
   nphies: nphiesRouter,
+  chat: chatRouter,
 });
 
 export type AppRouter = typeof appRouter;

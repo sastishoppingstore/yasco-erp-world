@@ -81,9 +81,8 @@ import {
   Mountain,
 } from "lucide-react";
 
-import { AiAssistantPanel } from "./AiAssistantPanel";
 import { SyncStatusBar } from "./sync/SyncStatusBar";
-import { VoiceCommandButton, VoiceCommandHeaderButton } from "./VoiceCommand";
+import { ChatBubble } from "./ChatBubble";
 import {
   getEnabledSidebarPathPrefixes,
   getStoredCategory,
@@ -854,17 +853,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <ShieldCheck className="size-3 mr-1" />
               {rtl ? `مرخص: ${theme.product}` : `Licensed: ${theme.product}`}
             </Badge>
-            <AiAssistantPanel
-              trigger={
-                <Button variant="outline" size="sm" className="hidden sm:inline-flex border-white/20 bg-white/10 hover:bg-white/20 text-white hover:text-white">
-                  <Sparkles className="size-4 mr-1" />
-                  {rtl ? "المساعد الذكي" : "AI Assistant"}
-                </Button>
-              }
-            />
-            {/* Voice Command Header Button */}
-            <VoiceCommandHeaderButton />
-
             {/* Language Toggle Button */}
             <Button
               variant="outline"
@@ -894,8 +882,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {/* Floating Voice Command Button */}
-      <VoiceCommandButton />
+      <ChatBubble />
     </div>
   );
 }
