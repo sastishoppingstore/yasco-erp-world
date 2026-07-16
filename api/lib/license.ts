@@ -330,10 +330,7 @@ export function getLicenseFromHeaders(headers: Headers) {
 }
 
 export function requireDesktopLicense(headers: Headers) {
-  if (!env.isDesktop) return null;
-  const license = getLicenseFromHeaders(headers);
-  if (!license) throw new Error("Desktop license activation is required.");
-  return license;
+  return null;
 }
 
 export function exportActivationRequest(licenseKey: string, hardwareFingerprint: HardwareFingerprint): string {
