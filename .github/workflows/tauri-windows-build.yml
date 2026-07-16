@@ -1,0 +1,214 @@
+name: Tauri Windows Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Build Windows desktop app
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Prepare bundled Node.js sidecar
+        shell: pwsh
+        run: |
+          $nodeVersion = "v22.22.3"
+          $zipPath = Join-Path $env:RUNNER_TEMP "node-win-x64.zip"
+          $extractDir = Join-Path $env:RUNNER_TEMP "node-win-x64"
+          Invoke-WebRequest "https://nodejs.org/dist/$nodeVersion/node-$nodeVersion-win-x64.zip" -OutFile $zipPath
+          Expand-Archive $zipPath -DestinationPath $extractDir
+          New-Item -ItemType Directory -Force "src-tauri/binaries"
+          Copy-Item `
+            (Join-Path $extractDir "node-$nodeVersion-win-x64\node.exe") `
+            "src-tauri/binaries/node-x86_64-pc-windows-msvc.exe"
+
+      - name: Build Tauri Windows app
+        run: npx tauri build
+
+      - name: Smoke test Windows setup executable
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem -Path "src-tauri/target/release/bundle" -Recurse -Filter "*setup.exe" | Select-Object -First 1
+          if (-not $setup) {
+            throw "No NSIS setup executable was generated."
+          }
+
+          $installDirs = @(
+            (Join-Path $env:LOCALAPPDATA "programs\YASCO ERP"),
+            (Join-Path $env:LOCALAPPDATA "Programs\YASCO ERP"),
+            (Join-Path $env:LOCALAPPDATA "YASCO ERP"),
+            (Join-Path $env:ProgramFiles "YASCO ERP"),
+            (Join-Path ${env:ProgramFiles(x86)} "YASCO ERP")
+          )
+          $installDirs | ForEach-Object {
+            if ($_ -and (Test-Path $_)) {
+              Remove-Item $_ -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          $install = Start-Process -FilePath $setup.FullName -ArgumentList "/S" -PassThru
+          if (-not $install.WaitForExit(120000)) {
+            Stop-Process -Id $install.Id -Force -ErrorAction SilentlyContinue
+            throw "NSIS setup timed out during silent install."
+          }
+          if ($install.ExitCode -ne 0) {
+            throw "NSIS setup failed with exit code $($install.ExitCode)."
+          }
+
+          $candidatePaths = @(
+            (Join-Path $env:LOCALAPPDATA "programs\YASCO ERP\YASCO ERP.exe"),
+            (Join-Path $env:LOCALAPPDATA "programs\YASCO ERP\app.exe"),
+            (Join-Path $env:LOCALAPPDATA "Programs\YASCO ERP\YASCO ERP.exe"),
+            (Join-Path $env:LOCALAPPDATA "Programs\YASCO ERP\app.exe"),
+            (Join-Path $env:LOCALAPPDATA "YASCO ERP\YASCO ERP.exe"),
+            (Join-Path $env:LOCALAPPDATA "YASCO ERP\app.exe"),
+            (Join-Path $env:ProgramFiles "YASCO ERP\YASCO ERP.exe"),
+            (Join-Path $env:ProgramFiles "YASCO ERP\app.exe"),
+            (Join-Path ${env:ProgramFiles(x86)} "YASCO ERP\YASCO ERP.exe"),
+            (Join-Path ${env:ProgramFiles(x86)} "YASCO ERP\app.exe")
+          )
+
+          $exe = $candidatePaths |
+            Where-Object { $_ -and (Test-Path $_) } |
+            Select-Object -First 1
+
+          if (-not $exe) {
+            $candidatePaths | ForEach-Object { Write-Host "Checked: $_" }
+            $exe = Get-ChildItem -Path $env:LOCALAPPDATA -Recurse -Filter "YASCO ERP.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+            if (-not $exe) {
+              $exe = Get-ChildItem -Path $env:LOCALAPPDATA -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+            }
+            if (-not $exe) {
+              throw "Installed YASCO ERP executable was not found."
+            }
+            Write-Host "Found via fallback search: $exe"
+          }
+          Write-Host "Using installed executable: $exe"
+
+          $process = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 10
+
+          $running = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
+          if (-not $running) {
+            throw "YASCO ERP.exe exited immediately after launch."
+          }
+
+          $backendLog = Join-Path $env:TEMP "erp-system-backend.log"
+          $webSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+          function Show-BackendLog {
+            if (Test-Path $backendLog) {
+              Write-Host "===== ERP backend log ====="
+              Get-Content $backendLog
+              Write-Host "===== End ERP backend log ====="
+            }
+          }
+
+          function Invoke-WithRetry($Url, $Method = "GET", $Body = $null, $ContentType = $null, $Attempts = 30) {
+            $lastError = $null
+            for ($i = 1; $i -le $Attempts; $i++) {
+              try {
+                $args = @{
+                  Uri = $Url
+                  Method = $Method
+                  UseBasicParsing = $true
+                  TimeoutSec = 5
+                  WebSession = $webSession
+                }
+                if ($Body) { $args.Body = $Body }
+                if ($ContentType) { $args.ContentType = $ContentType }
+                return Invoke-WebRequest @args
+              } catch {
+                $lastError = $_
+                Start-Sleep -Seconds 2
+              }
+            }
+            Show-BackendLog
+            throw $lastError
+          }
+
+          $response = Invoke-WithRetry "http://127.0.0.1:32145/app"
+          if ($response.StatusCode -ne 200) {
+            throw "ERP local app route returned HTTP $($response.StatusCode)."
+          }
+          if (-not ($response.Content -match "<!doctype html|<html")) {
+            throw "ERP local app route did not return the bundled frontend."
+          }
+
+          $ping = Invoke-WithRetry "http://127.0.0.1:32145/api/ping"
+          if ($ping.StatusCode -ne 200) {
+            throw "ERP local API ping returned HTTP $($ping.StatusCode)."
+          }
+          if (-not ($ping.Content -match '"ok"\s*:\s*true')) {
+            throw "ERP local API ping did not return ok=true."
+          }
+
+          $licenseKey = "YASCO-eyJ0ZW5hbnRJZCI6MSwiY29tcGFueU5hbWUiOiJZQVNDTyBTbW9rZSBUZXN0IiwicGxhbiI6ImRlc2t0b3AiLCJtYXhEZXZpY2VzIjoxLCJpc3N1ZWRBdCI6IjIwMjYtMDYtMDVUMTc6MjM6MjcuMjA0WiIsImV4cGlyZXNBdCI6IjIwMjctMDYtMDVUMTc6MjM6MjcuMjE3WiIsIm5vbmNlIjoiZ2l0aHViLWFjdGlvbnMtc21va2UifQ.WWLu3tCk-FqX6XknBIFoT1AikCPyBHy7gPBRBq4qYmw"
+          $licenseBody = '{"0":{"json":{"key":"' + $licenseKey + '"}}}'
+          $activation = Invoke-WithRetry `
+            "http://127.0.0.1:32145/api/trpc/license.activate?batch=1" `
+            "POST" `
+            $licenseBody `
+            "application/json"
+          if ($activation.StatusCode -ne 200) {
+            throw "ERP desktop license activation returned HTTP $($activation.StatusCode)."
+          }
+          if (-not ($activation.Content -match '"activated"\s*:\s*true')) {
+            throw "ERP desktop license activation did not return activated=true."
+          }
+
+          $loginBody = '{"0":{"json":{"username":"wafaweb","password":"Wafa@1122"}}}'
+          $login = Invoke-WithRetry `
+            "http://127.0.0.1:32145/api/trpc/auth.passwordLogin?batch=1" `
+            "POST" `
+            $loginBody `
+            "application/json"
+          if ($login.StatusCode -ne 200) {
+            throw "ERP local login API returned HTTP $($login.StatusCode)."
+          }
+          if (-not ($login.Content -match '"success"\s*:\s*true')) {
+            throw "ERP local login API did not return success=true."
+          }
+
+          Stop-Process -Id $process.Id -Force
+
+      - name: Upload Windows installer artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: erp-windows-installer
+          path: |
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.zip
+          if-no-files-found: error
+          compression-level: 0

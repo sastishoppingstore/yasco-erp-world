@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1780427057761,
+      "tag": "0000_strange_gauntlet",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1780432520461,
+      "tag": "0001_slim_molecule_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1780436464745,
+      "tag": "0002_fresh_inhumans",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1780440000000,
+      "tag": "0003_zatca_phase2_module",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1780774522891,
+      "tag": "0004_perfect_harrier",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1783095331737,
+      "tag": "0005_boring_agent_zero",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1783586667954,
+      "tag": "0006_steady_micromacro",
+      "breakpoints": true
+    }
+  ]
+}

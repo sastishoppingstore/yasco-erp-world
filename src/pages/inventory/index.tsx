@@ -1,0 +1,35 @@
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router";
+import { Package, Warehouse, ArrowLeftRight, ClipboardList, ArrowUpDown, Settings } from "lucide-react";
+
+export default function InventoryPage() {
+  const modules = [
+    { title: "Products", desc: "Manage product catalog, SKUs, and pricing", icon: Package, path: "/app/inventory/products", color: "bg-blue-600" },
+    { title: "Warehouses", desc: "Multiple warehouse locations", icon: Warehouse, path: "/app/inventory/warehouses", color: "bg-emerald-600" },
+    { title: "Stock Levels", desc: "Real-time inventory tracking", icon: ClipboardList, path: "/app/inventory/stock", color: "bg-purple-600" },
+    { title: "Stock Transfers", desc: "Transfer stock between warehouses", icon: ArrowLeftRight, path: "/app/inventory/transfers", color: "bg-orange-600" },
+    { title: "Stock Movements", desc: "Full audit trail of all movements", icon: ArrowUpDown, path: "/app/inventory/movements", color: "bg-cyan-600" },
+    { title: "Adjustments", desc: "Record stock adjustments & counts", icon: Settings, path: "/app/inventory/adjustments", color: "bg-rose-600" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div><h2 className="text-2xl font-bold">Inventory Management</h2><p className="text-slate-500">Multi-warehouse inventory with FIFO, LIFO, and Weighted Average</p></div>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {modules.map((mod) => (
+          <Link key={mod.path} to={mod.path} className="block">
+            <Card className="hover:shadow-lg transition-all cursor-pointer group h-full">
+              <CardContent className="p-6">
+                <div className={`w-12 h-12 rounded-xl ${mod.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                  <mod.icon className="w-6 h-6 text-white" />
+                </div>
+                <CardTitle className="text-lg mb-1">{mod.title}</CardTitle>
+                <p className="text-sm text-slate-500">{mod.desc}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}

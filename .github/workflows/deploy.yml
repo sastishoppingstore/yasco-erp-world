@@ -1,0 +1,101 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [new3]
+
+env:
+  NODE_VERSION: "22"
+  RUST_VERSION: "1.85"
+
+jobs:
+  deploy-vps:
+    name: Build + Deploy to VPS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build project
+        run: NODE_OPTIONS='--max-old-space-size=4096' npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Deploy to VPS via rsync
+        uses: burnett01/rsync-deployments@7.0.2
+        with:
+          switches: -avz --exclude=node_modules --exclude=.git
+          path: ./
+          remote_path: /root/erp
+          remote_host: 203.161.63.59
+          remote_user: root
+          remote_key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Restart PM2 on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 203.161.63.59
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /root/erp
+            NODE_OPTIONS='--max-old-space-size=4096' npm run build
+            pm2 restart erp-backend
+
+  build-windows:
+    name: Build Windows Desktop App
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Setup Tauri sidecar (Node.js binary)
+        shell: powershell
+        run: |
+          $nodePath = (Get-Command node).Source
+          mkdir -Force src-tauri/binaries | Out-Null
+          Copy-Item "$nodePath" src-tauri/binaries/node-x86_64-pc-windows-msvc.exe
+
+      - name: Build frontend + backend
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Build Tauri app
+        run: npx tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+
+      - name: Upload Windows installer as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yasco-erp-windows
+          path: src-tauri/target/release/bundle/
+
+      - name: Upload installer to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 203.161.63.59
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: src-tauri/target/release/bundle/nsis/YASCO*setup.exe
+          target: /root/erp/windows-build/
+          strip_components: 5
