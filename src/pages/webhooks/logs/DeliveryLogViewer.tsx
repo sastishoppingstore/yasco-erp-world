@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { trpc } from '@/utils/trpc';
+import { trpc } from '@/providers/trpc';
 import { Search } from 'lucide-react';
 
 export default function DeliveryLogViewer() {
