@@ -107,7 +107,7 @@ fn start_local_backend(app: &mut tauri::App) -> Result<(), Box<dyn std::error::E
     .env(
       "DATABASE_URL",
       std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "mysql://erp:erp123@localhost:3306/erp".into()),
+        .unwrap_or_else(|_| "mysql://erp_user:ErpPass123@203.161.63.59:3306/erp_yasco_prod".into()),
     )
     .spawn()?;
 

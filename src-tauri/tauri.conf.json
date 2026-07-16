@@ -32,6 +32,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "windows": {
+      "nsis": {
+        "installerHooks": "./installer.nsh"
+      }
+    },
     "externalBin": [
       "binaries/node"
     ],
