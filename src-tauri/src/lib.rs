@@ -56,7 +56,9 @@ pub fn run() {
       get_mac_address,
     ])
     .setup(|app| {
-      start_local_backend(app)?;
+      if let Err(e) = start_local_backend(app) {
+        eprintln!("[erp-backend] Failed to start local backend: {e}");
+      }
 
       if cfg!(debug_assertions) {
         app.handle().plugin(

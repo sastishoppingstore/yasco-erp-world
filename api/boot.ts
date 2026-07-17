@@ -214,7 +214,9 @@ async function bootstrap() {
     }
   }
 
-  startPlanExpiryChecker();
+  if (!env.isDesktop) {
+    startPlanExpiryChecker();
+  }
 
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");
@@ -230,4 +232,9 @@ async function bootstrap() {
 bootstrap().catch((err) => {
   console.error("Fatal startup error:", err);
   process.exit(1);
+});
+
+// Prevent unhandled rejections from crashing the server
+process.on("unhandledRejection", (err) => {
+  console.warn("[unhandledRejection]", err);
 });
